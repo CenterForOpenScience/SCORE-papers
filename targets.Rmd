@@ -1,0 +1,382 @@
+---
+title: "SCORE Targets"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(targets)
+library(readr)
+library(googledrive)
+library(googlesheets4)
+tar_unscript()
+
+```
+
+The R package targets is a pipeline tool which watches the dependency graph of the whole project workflow to update only steps, or "targets", whose code, data, and upstream dependencies have changed since the last run of the pipeline, and skip targets that have not changed since the last run. This pipeline can be used to reproduce the processed datasets, analysis, and figures of the SCORE project.
+
+# Globals
+
+We first define some global options and source functions.
+
+```{targets globals, tar_globals = TRUE}
+options(tidyverse.quiet = TRUE)
+
+# Gmail authorization for accessing sheets
+# Set google_oauth_email="youremail@cos.io" in your .Renviron file to use
+# this document without changing the code.
+options(gargle_oauth_email = Sys.getenv("google_oauth_email"))
+googledrive::drive_auth()
+googlesheets4::gs4_auth()
+
+tar_option_set(
+  # Add any packages your target needs to run to this list
+  packages = c("tibble",
+               "readr",
+               "tidyr",
+               "dplyr",
+               "stringr",
+               "purrr",
+               "lubridate",
+               "here",
+               "googlesheets4",
+               "googledrive",
+               "osfr") 
+)
+
+tar_source(files = "pipeline")
+
+```
+
+# Targets
+
+## Raw Data
+
+First, we load in the raw data files. Most raw data files will have three targets associated with them - one for their ID on Google Drive, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated on Google Drive.
+
+Unless otherwise specified, data files can be found on the [COS SCORE Data Google Drive](https://drive.google.com/drive/folders/0AA9FavlM9wvFUk9PVA).
+
+### Paper-level Metadata
+
+These are raw data files for paper-level metadata. They can be found under `raw/paper_level` in the COS SCORE Data Google Drive.
+
+```{targets raw-paper}
+list(
+  # status.csv
+  tar_target(status_file,
+             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
+  tar_target(status_moddate,
+             get_google_mod_date(status_file),
+             cue = tar_cue("always")),
+  tar_target(status,
+             read_google_csv(status_file,
+                             status_moddate))
+)
+```
+
+### Claim Extracton
+
+These are raw data files for claim extraction. They can be found under `raw/claim_extraction` in the COS SCORE Data Google Drive.
+
+```{targets raw-claims}
+list(
+  # finalized_claim4_table.tsv
+  tar_target(finalized_claim4_file,
+             "17hohLFjMb0moxYpcFRb9-26Ei1QLFUgq"),
+  tar_target(finalized_claim4_moddate,
+             get_google_mod_date(finalized_claim4_file),
+             cue = tar_cue("always")),
+  tar_target(finalized_claim4_table,
+             read_google_tsv(finalized_claim4_file,
+                             finalized_claim4_moddate)),
+  
+  # tagtable_covid_p1.tsv
+  tar_target(tagtable_covid_p1_file,
+             "1lc2P9N2RPXR2YZB6_Zh1E8eXNiRdm50t"),
+  tar_target(tagtable_covid_p1_moddate,
+             get_google_mod_date(tagtable_covid_p1_file),
+             cue = tar_cue("always")),
+  tar_target(tagtable_covid_p1,
+             read_google_tsv(tagtable_covid_p1_file,
+                             tagtable_covid_p1_moddate))
+)
+```
+
+### Quality Control Helpers
+
+The `valid_ids` object is used to check that files being loaded in the following sections only use valid IDs. We will also load in `rr_projects.csv` here for convenience since it is used to generate the list of valid IDs. The `rr_projects.csv` file can be found in the `raw/rr_variables` folder.
+
+```{targets helpers}
+list(
+  # rr_projects.csv
+  tar_target(rr_projects_file,
+             "11paXdFzhCmz8ywFomUhZ6qrfp1wlKLIx"),
+  tar_target(rr_projects_moddate,
+             get_google_mod_date(rr_projects_file),
+             cue = tar_cue("always")),
+  tar_target(rr_projects,
+             read_google_csv(rr_projects_file,
+                             rr_projects_moddate)),
+
+  tar_target(valid_ids,
+             create_id_list(status,
+                            tagtable_covid_p1,
+                            finalized_claim4_table,
+                            rr_projects))
+)
+```
+
+### Original Variables
+
+These are raw data files for original variables. They can be found under `raw/original_variables` in the COS SCORE Data Google Drive. Note: the target `orig_statistics_dataset_p1` will always throw a warning when calling `tar_make()`. There is a corrupted value that gets NA'ed on load, but is fixed through the change log later. 
+
+```{targets raw-original-variables}
+list(
+  # orig_statistics_dataset_p1.tsv
+  tar_target(orig_statistics_p1_file,
+             "1TLm9loSU8n3pSRoz0ugekJ6VfSiS792p"),
+  tar_target(orig_statistics_p1_moddate,
+             get_google_mod_date(orig_statistics_p1_file),
+             cue = tar_cue("always")),
+  tar_target(orig_statistics_dataset_p1,
+             load_orig_statistics_p1(orig_statistics_p1_file,
+                                     valid_ids,
+                                     orig_statistics_p1_moddate)),
+  
+  # orig_statistics_manual_dataset.tsv
+  tar_target(orig_statistics_manual_file,
+             "1B8-fTy_wpCcwHJAGt8FZKIuIoeHeE0T6"),
+  tar_target(orig_statistics_manual_moddate,
+             get_google_mod_date(orig_statistics_manual_file),
+             cue = tar_cue("always")),
+  tar_target(orig_statistics_manual_data_entry,
+             load_orig_statistics_manual(orig_statistics_manual_file,
+                                         valid_ids,
+                                         orig_statistics_manual_moddate)),
+  
+  # original_inftest_dataset.tsv
+  tar_target(original_inftest_file,
+             "1goGxpXYcpCWNxBa1HE1oEEifVFlUOix7"),
+  tar_target(original_inftest_moddate,
+             get_google_mod_date(original_inftest_file),
+             cue = tar_cue("always")),
+  tar_target(original_inftest_dataset,
+             load_original_inftest_dataset(original_inftest_file,
+                                           valid_ids,
+                                           original_inftest_moddate)),
+  
+  # changes/ ----
+  # orig_input_changelog (Google Sheet)
+  tar_target(orig_input_changelog_file,
+             "1M8H_76ajxwdhVuuSyIo18BxRrJbMF3hXpAkzYY39g2k"),
+  tar_target(orig_input_changelog_moddate,
+             get_google_mod_date(orig_input_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(orig_input_changelog,
+             load_changelog(orig_input_changelog_file,
+                            orig_input_changelog_moddate))
+)
+```
+
+#### Other Data Sources
+
+Original variables data from the OSF repository, [SCORE - Phase 1 RR and original article analyses](https://osf.io/3fsbm/). Note: orig_statistics_output_p2 will always throw a parsing warning, but no changes actually need to be made.
+
+```{targets raw-ov-osf}
+list(
+  # orig_statistics_output_p2.txt
+  tar_target(orig_statistics_output_p2_osf,
+             "hk63r"),
+  tar_target(orig_statistics_output_p2_mod_date, 
+             get_osf_mod_date(orig_statistics_output_p2_osf),
+             cue = tar_cue("always")), 
+  tar_target(
+    orig_statistics_output_p2,
+    load_orig_statistics_output_p2(orig_statistics_output_p2_osf,
+                                   orig_statistics_output_p2_mod_date)
+  )
+)
+```
+
+Original variables data from the [SCORE Google Drive](https://drive.google.com/drive/folders/0AHots-bNz56yUk9PVA).
+
+```{targets raw-ov-google}
+list(
+  # SCORE-P2-103: Original variables coding form (Responses)
+  tar_target(orig_vars_qa_gsheet,
+             "1_rgG3r318tpsakc8wSA0dMAYJ--pkiybVq5s9dfek6M"),
+  tar_target(orig_vars_qa_mod_date,
+             get_google_mod_date(orig_vars_qa_gsheet),
+             cue = tar_cue("always")), 
+  tar_target(orig_vars_qa,
+             load_orig_vars_qa(orig_vars_qa_gsheet,
+                               orig_vars_qa_mod_date,
+                               valid_ids),
+             cue = tar_cue("always"))
+)
+```
+
+### Replication/Reproduction Variables
+
+These are raw data files for replication/reproduction (RR) variables. They can be found under `raw/rr_variables` in the COS SCORE Data Google Drive.
+
+```{targets raw-rr}
+list(
+  # changes/ ----
+  # repli_input_changelog (Google Sheet)
+  tar_target(repli_input_changelog_file,
+             "1jbkVYHLinIN9zXBuPTok26bHjDt69-7D_Z7yVOin3mM"),
+  tar_target(repli_input_changelog_moddate,
+             get_google_mod_date(repli_input_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(repli_input_changelog,
+             load_changelog(repli_input_changelog_file,
+                            repli_input_changelog_moddate)),
+  
+  # checkins/ ----
+  # rr_reporting_checkin.tsv
+  tar_target(rr_reporting_checkin_file,
+             "1jB97FM-desZatqabwBVMPrSYk0qXWFjM"),
+  tar_target(rr_reporting_checkin_moddate,
+             get_google_mod_date(rr_reporting_checkin_file),
+             cue = tar_cue("always")),
+  tar_target(rr_reporting_checkin,
+             read_google_tsv(rr_reporting_checkin_file,
+                             rr_reporting_checkin_moddate)),
+  
+  # codebooks/ ----
+  # p2_repli_vf.csv
+  tar_target(p2_repli_vf_file,
+             "1fwWX7ebwhBF9IYt2dQyhEByBnRNavOmj"),
+  tar_target(p2_repli_vf_moddate,
+             get_google_mod_date(p2_repli_vf_file),
+             cue = tar_cue("always")),
+  tar_target(p2_repli_vf,
+             read_google_csv(p2_repli_vf_file,
+                             p2_repli_vf_moddate)),
+  
+  # p2_repro_vf.csv
+  tar_target(p2_repro_vf_file,
+             "1_UJ_JbcoOHO-xRmDeTRJD2Apdzvqz2MX"),
+  tar_target(p2_repro_vf_moddate,
+             get_google_mod_date(p2_repro_vf_file),
+             cue = tar_cue("always")),
+  tar_target(p2_repro_vf,
+             read_google_csv(p2_repro_vf_file,
+                             p2_repro_vf_moddate)),
+  
+  # outcomes/ ----
+  # rr_outcomes_dataset_p1.tsv
+  tar_target(rr_outcomes_dataset_p1_file,
+             "113CSsObKagvQToj-inv4bO3KaS5zif6D"),
+  tar_target(rr_outcomes_dataset_p1_moddate,
+             get_google_mod_date(rr_outcomes_dataset_p1_file),
+             cue = tar_cue("always")),
+  tar_target(rr_outcomes_dataset_p1,
+             read_google_tsv(rr_outcomes_dataset_p1_file,
+                             rr_outcomes_dataset_p1_moddate)),
+  
+  # project_minting/ ----
+  # rr_attempts_minted.csv
+  tar_target(rr_attempts_minted_file,
+             "1aHuTwRVeqADWVC4Lxq5n3B4ebbSa9Mqc"),
+  tar_target(rr_attempts_minted_moddate,
+             get_google_mod_date(rr_attempts_minted_file),
+             cue = tar_cue("always")),
+  tar_target(rr_attempts_minted,
+             load_rr_attempts_minted(rr_attempts_minted_file,
+                                     rr_attempts_minted_moddate))
+)
+
+```
+
+#### Other Data Sources
+
+RR variables data from the [SCORE Google Drive](https://drive.google.com/drive/folders/0AHots-bNz56yUk9PVA). Note that these targets do not rely on modification dates like most of the other files downloaded from Google Drive. Adding new entries to sheets through forms doesn't always trigger the modification date to update, so we will always run these targets regardless of when they were last updated.
+
+```{targets raw-rr-google}
+list(
+  # File: SCORE-P2-081: Variable form - replications (Responses)
+  tar_target(replication_qa_gsheet,
+             "1Cs7iFLA29JwVDfp8DY0ZIaTlRTTnK0KsFSudLDHxjFQ"),
+  tar_target(replication_qa,
+             load_replication_qa(replication_qa_gsheet,
+                                 p2_repli_vf,
+                                 valid_ids,
+                                 rr_attempts_minted),
+             cue = tar_cue("always")),
+  
+  # File: SCORE-P2-113: Variable form - reproductions (Responses)
+  tar_target(reproduction_qa_gsheet,
+             "1vCVHLymiT-IcVGvWH_a3cJ4dfhjrf8lvmi4qe24LuZs"),
+  tar_target(reproduction_qa,
+             load_reproduction_qa(reproduction_qa_gsheet,
+                                  p2_repro_vf),
+             cue = tar_cue("always"))
+)
+```
+
+## Processed Data
+
+Original variables data. QC'ed and merged. 
+
+```{targets processed-ov}
+tar_target(orig_dataset,
+           export_orig(orig_input_changelog,
+                         orig_statistics_dataset_p1,
+                         original_inftest_dataset,
+                         orig_statistics_manual_data_entry,
+                         orig_vars_qa,
+                         tagtable_covid_p1,
+                         orig_statistics_output_p2))
+```
+
+Replications/Reproductions variables data. QC'ed and merged.
+
+```{targets processed-rr}
+list(
+  tar_target(repli_export,
+             export_repli(rr_outcomes_dataset_p1,
+                          replication_qa,
+                          rr_reporting_checkin,
+                          repli_input_changelog)),
+  
+  tar_target(repli_primary,
+             split_repli_primary(repli_export)),
+  
+  tar_target(repli_secondary,
+             split_repli_secondary(repli_export,
+                                   repli_primary)),
+  
+  tar_target(hybrid,
+             split_hybrid(repli_export))
+)
+```
+
+# Pipeline
+
+Run the `{targets}` pipeline. Expected warnings:
+
+1) orig_statistics_dataset_p1: One or more parsing issues
+2) orig_statistics_output_p2: One or more parsing issues
+3) replication_qa: There was 1 warning in mutate
+
+```{r make}
+tar_make()
+
+targets::tar_meta(fields = warnings, complete_only = TRUE)
+```
+
+# Output
+
+You can retrieve results from the `_targets/` data store using `tar_read()` or `tar_load()`.
+
+The `targets` dependency graph helps your readers understand the steps of your pipeline at a high level.
+
+```{r visnetwork}
+tar_visnetwork()
+```
