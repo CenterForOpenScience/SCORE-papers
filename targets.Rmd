@@ -13,6 +13,7 @@ library(targets)
 library(readr)
 library(googledrive)
 library(googlesheets4)
+library(usethis) # silly workaround to get renv to store this package
 tar_unscript()
 
 ```
