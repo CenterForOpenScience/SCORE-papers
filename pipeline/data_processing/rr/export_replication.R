@@ -207,3 +207,18 @@ split_hybrid <- function(repli_export) {
     select(-c(sample_preference, ml_preference))
   
 }
+
+add_data_extensions <- function(repli_export,
+                                rr_statistics_output_p2) {
+
+  repli_export %>%
+    filter(rr_type_internal %in% c("Direct Replication",
+                                   "Data Analytic Replication")) %>%
+    select(-c(sample_preference, ml_preference)) %>%
+    left_join(rr_statistics_output_p2, by = "unique_report_id") %>%
+    mutate(unique_claim_id = str_c(paper_id,
+                                   "_",
+                                   claim_id)) %>%
+    relocate(unique_claim_id, .after = claim_id)
+  
+}

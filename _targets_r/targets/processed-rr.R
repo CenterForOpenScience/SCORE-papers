@@ -13,5 +13,10 @@ list(
                                    repli_primary)),
   
   tar_target(hybrid,
-             split_hybrid(repli_export))
+             split_hybrid(repli_export)),
+  
+  # With variables from external collaborators
+  tar_target(repli_outcomes,
+             add_data_extensions(repli_export,
+                                 rr_statistics_output_p2))
 )
