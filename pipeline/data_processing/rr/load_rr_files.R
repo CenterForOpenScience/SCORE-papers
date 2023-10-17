@@ -395,7 +395,6 @@ load_rr_statistics_output_p2 <- function(
   
   rr_statistics_output_p2 %>%
     select(unique_report_id,
-           rr_stat_version,
            rr_effect_size_type_reference = rr_effect_size_type_statsteam,
            rr_effect_size_value_reference = rr_effect_size_value_statsteam,
            rr_es_ub_ci_nativeunits,

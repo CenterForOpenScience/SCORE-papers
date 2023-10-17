@@ -376,10 +376,11 @@ list(
   tar_target(hybrid,
              split_hybrid(repli_export)),
   
-  # With variables from external collaborators
+  # Create replication analytic dataset
   tar_target(repli_outcomes,
-             add_data_extensions(repli_export,
-                                 rr_statistics_output_p2))
+             create_repli_analytic(repli_export,
+                                  rr_attempts_minted,
+                                  rr_statistics_output_p2))
 )
 ```
 
