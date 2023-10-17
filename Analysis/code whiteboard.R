@@ -137,6 +137,12 @@ tar_load("orig_statistics_dataset_p1")
         df.chart <- rbind(df.chart.pearsons,df.chart.others)
         df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
         df.chart <- na.omit(df.chart)
+        df.chart$stat_type <- factor(df.chart$stat_type,
+                                     labels=c("Pearson's R","SER"),
+                                     levels=c("Pearson's R","ser_method"))
+        df.chart$comparison <- factor(df.chart$comparison,
+                                     labels=c("Replication","Original"),
+                                     levels=c("Replication","Original"))
   
   ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=comparison)) +
     geom_split_violin()+
@@ -146,11 +152,12 @@ tar_load("orig_statistics_dataset_p1")
     #scale_y_continuous(expand=c(0,0))+
     theme_minimal()+
     theme(
-      legend.position = "none",
+      legend.position = "bottom",
       panel.grid = element_blank(),
-
       axis.line = element_line(color="#393939")
-    )
+    )+
+    xlab("Statistic type")+
+    ylab("Effect size value")
     #scale_fill_viridis()+
     #coord_flip()
   
@@ -175,7 +182,7 @@ if(FALSE){
   
   
   
-  # Generate hierarchy 2
+  # Generate alluvial
   {
     df.repli.no.hier <- repli_export[c("paper_id","claim_id","rr_is_manylabs","rr_analytic_sample_stage","rr_id")]
     df.repli.no.hier$claim_id <- paste0(df.repli.no.hier$paper_id,"_", df.repli.no.hier$claim_id)
