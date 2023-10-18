@@ -13,33 +13,31 @@
   
   # Data loading
   {
-    load(file="repli_outcomes.RData")
-    # Temporary for data cleaning
-    repli_outcomes$generalizability <- ifelse(repli_outcomes$paper_id %in% c("Br0x", "EQxa", "J4W9", "plLK", "rjb", "zlm2"),
-                                              TRUE,FALSE)
-    repli_outcomes$claim_id_unique <- paste0(repli_outcomes$paper_id,"_",repli_outcomes$claim_id)
-    repli_outcomes$rr_type_internal <- NULL
+    file_path <- "data.csv"
+    if (file.exists("repli_outcomes.RData")) { load(file="repli_outcomes.RData") }
+    else {load("Analysis/Data exploration app/repli_outcomes.RData") }
+  
   }
   
   # Data manipulation and other setup
   {
     # RR UI and selection options data
     {
-      select_rr_type_set <- c("Direct Replication","Data Analytic Replication","Hybrid")
-      select_rr_type_labels <- c("Direct Replication","Data Analytic Replication","Hybrid")
-      select_rr_type_selected_default <- c("Direct Replication")
+      select_repli_type_set <- c("new data","secondary data")
+      select_repli_type_labels <- c("New data","Secondary data")
+      select_repli_type_selected_default <- c("new data")
       
-      select_generalizability_set  <- c(FALSE,TRUE)
-      select_generalizability_labels  <- c("Standard","Generalizability study")
-      select_generalizability_selected_default <- c(FALSE)
+      select_is_generalizability_set  <- c(FALSE,TRUE)
+      select_is_generalizability_labels  <- c("Standard","Generalizability study")
+      select_is_generalizability_selected_default <- c(FALSE)
       
-      select_rr_is_manylabs_set <- c("non_ml","ml_count","ml_instance_primary","ml_aggregation")
-      select_rr_is_manylabs_labels <- c("Not ManyLabs","Count","Primary","Aggregation")
-      select_rr_is_manylabs_selected_default <- c("non_ml")
+      select_is_manylabs_set <- c(FALSE,TRUE)
+      select_is_manylabs_labels <- c("Not ManyLabs","ManyLabs")
+      select_is_manylabs_selected_default <- c(FALSE)
       
-      select_rr_analytic_sample_stage_set <- c("stage 1","stage 2","threshold","no target","lab target")
-      select_rr_analytic_sample_stage_labels <- c("Stage 1","Stage 2","Threshold","No target","Lab target")
-      select_rr_analytic_sample_stage_selected_default <- c("stage 1")
+      select_power_for_effect_size_set <- c("50% for 100%","90% for 50%","90% for 75% lab power analysis","not performed")
+      select_power_for_effect_size_labels <- c("50% for 100%","90% for 50%","90% for 75% lab power analysis","Not performed")
+      select_power_for_effect_size_selected_default <- select_power_for_effect_size_set
     }
   }
   
@@ -88,31 +86,34 @@ ui <- fluidPage(
         sidebar = sidebar(
           h3("Dataset selection"),
           checkboxGroupInput(
-            "select_rr_type_selected", "Replication type (rr_type)",
-            choiceNames = unique(select_rr_type_labels), 
-            choiceValues = unique(select_rr_type_set),
-            selected = c(select_rr_type_selected_default)
+            "select_repli_type_selected", "Replication type (repli_type)",
+            choiceNames = unique(select_repli_type_labels), 
+            choiceValues = unique(select_repli_type_set),
+            selected = c(select_repli_type_selected_default)
           ),
           checkboxGroupInput(
-            "select_generalizability_selected", "Generalizability (generalizability)",
-            choiceNames = unique(select_generalizability_labels), 
-            choiceValues = unique(select_generalizability_set),
-            selected = c(select_generalizability_selected_default)
+            "select_is_generalizability_selected", "Generalizability (is_generalizability)",
+            choiceNames = unique(select_is_generalizability_labels), 
+            choiceValues = unique(select_is_generalizability_set),
+            selected = c(select_is_generalizability_selected_default)
           ),
           checkboxGroupInput(
-            "select_rr_is_manylabs_selected", "Many Labs (rr_is_manylabs)",
-            choiceNames = unique(select_rr_is_manylabs_labels), 
-            choiceValues = unique(select_rr_is_manylabs_set),
-            selected = c(select_rr_is_manylabs_selected_default)
+            "select_is_manylabs_selected", "Many Labs (is_manylabs)",
+            choiceNames = unique(select_is_manylabs_labels), 
+            choiceValues = unique(select_is_manylabs_set),
+            selected = c(select_is_manylabs_selected_default)
           ),
           checkboxGroupInput(
-            "select_rr_analytic_sample_stage_selected", "Replication type (rr_analytic_sample_stage)",
-            choiceNames = unique(select_rr_analytic_sample_stage_labels), 
-            choiceValues = unique(select_rr_analytic_sample_stage_set),
-            selected = c(select_rr_analytic_sample_stage_selected_default)
+            "select_power_for_effect_size_selected", "Replication type (power_for_effect_size)",
+            choiceNames = unique(select_power_for_effect_size_labels), 
+            choiceValues = unique(select_power_for_effect_size_set),
+            selected = c(select_power_for_effect_size_selected_default)
           ),
         ),
         navbarPage("",
+          tabPanel("Dataset",
+                  DTOutput("repli.data.table")
+          ),
           tabPanel("Replication stats vs original",
                    # checkboxGroupInput(
                    #   "rr_stat_outcomes_selected", "Outcome stats types",
@@ -122,8 +123,8 @@ ui <- fluidPage(
                    # ),
                    plotOutput("repli_outcomes_vs_orig"),
                    ),
-          tabPanel("Tab 2"),
-          tabPanel("Tab 3")
+          tabPanel("Tab 3"),
+          tabPanel("Tab 4")
           
         )
       )
@@ -136,10 +137,10 @@ server <- function(input, output, session) {
   df.repli.subsetted <- reactive({
     df <- repli_outcomes
 
-    df <- df[df$rr_type %in% input$select_rr_type_selected,]
-    df <- df[df$generalizability %in% input$select_generalizability_selected,]
-    df <- df[df$rr_is_manylabs %in% input$select_rr_is_manylabs_selected,]
-    df <- df[df$rr_analytic_sample_stage %in% input$select_rr_analytic_sample_stage_selected,]
+    df <- df[df$repli_type %in% input$select_repli_type_selected,]
+    df <- df[df$is_generalizability %in% input$select_is_generalizability_selected,]
+    df <- df[df$is_manylabs %in% input$select_is_manylabs_selected,]
+    df <- df[df$power_for_effect_size %in% input$select_power_for_effect_size_selected,]
 
     df
     
@@ -191,7 +192,7 @@ server <- function(input, output, session) {
 
   })
   
-  output$data.table.temp = renderDT(
+  output$repli.data.table = renderDT(
     df.repli.subsetted(), options = list(lengthChange = FALSE)
   )
   

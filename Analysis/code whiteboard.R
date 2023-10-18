@@ -15,12 +15,17 @@
 
 # tar_make() # run this to pull new targets
 
-tar_load("repli_export")
-tar_load("repli_primary")
+#tar_load("repli_export")
+#tar_load("repli_primary")
 tar_load("repli_outcomes")
-tar_load("orig_statistics_dataset_p1")
+#tar_load("orig_statistics_dataset_p1")
 
-save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
+# Update app data
+if (FALSE){
+  tar_load("repli_outcomes")
+  save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
+}
+
 
 # UI and selection options data
 {
