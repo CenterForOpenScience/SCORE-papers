@@ -111,6 +111,9 @@ ui <- fluidPage(
           ),
         ),
         navbarPage("",
+           tabPanel("Data properties",
+                    h5("temp")
+           ),
           tabPanel("Dataset",
                   DTOutput("repli.data.table")
           ),
