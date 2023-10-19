@@ -5,7 +5,7 @@ account: noahhaber-cos
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10223971
-bundleId: 7819871
+bundleId: 7825727
 url: https://noahhaber-cos.shinyapps.io/data_exploration_app/
 version: 1
 asMultiple: FALSE

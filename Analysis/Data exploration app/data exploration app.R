@@ -77,7 +77,8 @@
   }
 }
 
-ui <- fluidPage(
+ui <- {
+fluidPage(
   tabsetPanel(
     tabPanel("Replications",
       page_sidebar(
@@ -112,10 +113,13 @@ ui <- fluidPage(
         ),
         navbarPage("",
            tabPanel("Data properties",
-                    h5("temp")
+                    htmlOutput("repli_data_text")
            ),
           tabPanel("Dataset",
-                  DTOutput("repli.data.table")
+                  DTOutput("repli_data_table")
+          ),
+          tabPanel("Alluvial chart",
+                   plotOutput("repli_alluvial"),
           ),
           tabPanel("Replication stats vs original",
                    # checkboxGroupInput(
@@ -125,9 +129,7 @@ ui <- fluidPage(
                    #   selected = c("Pearson's R")
                    # ),
                    plotOutput("repli_outcomes_vs_orig"),
-                   ),
-          tabPanel("Tab 3"),
-          tabPanel("Tab 4")
+                   )
           
         )
       )
@@ -135,69 +137,101 @@ ui <- fluidPage(
     tabPanel("Reproductions")
   )
 )
+}
 
 server <- function(input, output, session) {
-  df.repli.subsetted <- reactive({
-    df <- repli_outcomes
-
-    df <- df[df$repli_type %in% input$select_repli_type_selected,]
-    df <- df[df$is_generalizability %in% input$select_is_generalizability_selected,]
-    df <- df[df$is_manylabs %in% input$select_is_manylabs_selected,]
-    df <- df[df$power_for_effect_size %in% input$select_power_for_effect_size_selected,]
-
-    df
+  # Replication
+    # Data generation
+      df_repli_subsetted <- reactive({
+        df <- repli_outcomes
     
-  })
+        df <- df[df$repli_type %in% input$select_repli_type_selected,]
+        df <- df[df$is_generalizability %in% input$select_is_generalizability_selected,]
+        df <- df[df$is_manylabs %in% input$select_is_manylabs_selected,]
+        df <- df[df$power_for_effect_size %in% input$select_power_for_effect_size_selected,]
+    
+        df
+      })
+    # Objects / charts / figures
+      output$repli_outcomes_vs_orig <- renderPlot({
+        df.chart <- df_repli_subsetted()
+        
+        # TEMPORARY FOR MADE UP DATA
+        df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
+        
+        # Gather up new vs originals
+        # Pearsons
+        df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
+        df.chart.pearsons$stat_type <- "Pearson's R"
+        colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
+        
+        # All others
+        df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
+        colnames(df.chart.others) <- c("Replication","Original","stat_type")
+        types_to_keep <- c("ser_method")
+        df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
+        
+        # Combine
+        df.chart <- rbind(df.chart.pearsons,df.chart.others)
+        df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
+        df.chart <- na.omit(df.chart)
+        df.chart$stat_type <- factor(df.chart$stat_type,
+                                     labels=c("Pearson's R","SER"),
+                                     levels=c("Pearson's R","ser_method"))
+        df.chart$comparison <- factor(df.chart$comparison,
+                                      labels=c("Replication","Original"),
+                                      levels=c("Replication","Original"))
+        
+        ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=comparison)) +
+          geom_split_violin()+
+          #geom_histogram(fill="#2B2484",alpha=.4)+
+          #geom_density(fill="#2B2484",alpha=.8)+
+          #scale_x_continuous(expand=c(0,0))+
+          #scale_y_continuous(expand=c(0,0))+
+          theme_minimal()+
+          theme(
+            legend.position = "bottom",
+            panel.grid = element_blank(),
+            axis.line = element_line(color="#393939")
+          )+
+          xlab("Statistic type")+
+          ylab("Effect size value")
+    
+      })
   
-  output$repli_outcomes_vs_orig <- renderPlot({
-    df.chart <- df.repli.subsetted()
-    
-    # TEMPORARY FOR MADE UP DATA
-    df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
-    
-    # Gather up new vs originals
-    # Pearsons
-    df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
-    df.chart.pearsons$stat_type <- "Pearson's R"
-    colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
-    
-    # All others
-    df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
-    colnames(df.chart.others) <- c("Replication","Original","stat_type")
-    types_to_keep <- c("ser_method")
-    df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
-    
-    # Combine
-    df.chart <- rbind(df.chart.pearsons,df.chart.others)
-    df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
-    df.chart <- na.omit(df.chart)
-    df.chart$stat_type <- factor(df.chart$stat_type,
-                                 labels=c("Pearson's R","SER"),
-                                 levels=c("Pearson's R","ser_method"))
-    df.chart$comparison <- factor(df.chart$comparison,
-                                  labels=c("Replication","Original"),
-                                  levels=c("Replication","Original"))
-    
-    ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=comparison)) +
-      geom_split_violin()+
-      #geom_histogram(fill="#2B2484",alpha=.4)+
-      #geom_density(fill="#2B2484",alpha=.8)+
-      #scale_x_continuous(expand=c(0,0))+
-      #scale_y_continuous(expand=c(0,0))+
-      theme_minimal()+
-      theme(
-        legend.position = "bottom",
-        panel.grid = element_blank(),
-        axis.line = element_line(color="#393939")
-      )+
-      xlab("Statistic type")+
-      ylab("Effect size value")
-
-  })
-  
-  output$repli.data.table = renderDT(
-    df.repli.subsetted(), options = list(lengthChange = FALSE)
-  )
+      output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
+      
+      output$repli_alluvial <- renderPlot({
+        df.repli.no.hier <- repli_outcomes[c("paper_id","claim_id","is_manylabs","power_for_effect_size","rr_id")]
+        df.repli.no.hier$claim_id <- paste0(df.repli.no.hier$paper_id,"_", df.repli.no.hier$claim_id)
+        
+        df.repli.no.hier <- df.repli.no.hier[df.repli.no.hier$paper_id %in% unique(df.repli.no.hier$paper_id)[60:120],]
+        
+        df <- df.repli.no.hier %>%
+          ggsankey::make_long(paper_id, claim_id,is_manylabs,power_for_effect_size)
+        
+        pl <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) + 
+          ggsankey::geom_alluvial(flow.alpha = 0.75, show.legend = FALSE,space=1) +
+          #geom_sankey_label(size = 3, color = "black", fill= "white", hjust = -0.5)+
+          theme_bw() + 
+          theme(legend.position = "none") +
+          theme(axis.title = element_blank()
+                , axis.text.y = element_blank()
+                , axis.ticks = element_blank()  
+                , panel.grid = element_blank()) +
+          labs(fill = 'Nodes')
+        #pl <- pl + scale_fill_viridis_d(option = "inferno")
+        pl
+      })
+      
+      output$repli_data_text <- renderText({
+        df <- df_repli_subsetted()
+        
+        text <- paste0("Replications (n): ",nrow(df))
+        text <- paste0(text,"<br/>","Papers (n): ",length(unique(df$paper_id)))
+        text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
+        HTML(text)
+      })
   
 }
 
