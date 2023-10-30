@@ -3,7 +3,7 @@
 # # Create an attempts-level summary table, applies changelog updates
 # update_p2_repro_input <- function(reproduction_qa) {
 # 
-#   attempts_df <- reproduction_qa %>% 
+#   attempts_df <- reproduction_qa %>%
 #     filter(!is.na(rr_num_claims_report)) %>%
 #     # Keep the latest entry for each ticket only
 #     arrange(desc(as.numeric(original_index))) %>%
