@@ -1,5 +1,9 @@
 library(googlesheets4)
-source(here("admin_processes",
+library(googledrive)
+library(targets)
+library(tidyverse)
+library(here)
+source(here("upkeep",
             "external_output",
             "tilburg_exports.R"))
 source(here("pipeline",
@@ -7,7 +11,7 @@ source(here("pipeline",
             "helpers.R"))
 
 # Upload rr_statistics_input to Google Sheets ----
-# Overwrite 45 rows (A:AS) of COS data, leave Tilburg's internal notes rows 
+# Overwrite 45 columns (A:AS) of COS data, leave Tilburg's internal notes rows 
 # alone
 tar_load(orig_dataset)
 
@@ -104,6 +108,23 @@ old_rows <- orig_statistics_input %>%
   mutate(original_poweranalysis_link = orig_statistics_input_tilburg$original_poweranalysis_link)
 
 orig_upload <- rbind(old_rows, new_rows)
+
+# For a few select cases, we want to use the "reported" value as opposed
+# to the "reference" value. Void out the "reference" value in these cases
+# for process consistency 
+report_decision <- "1eKJ6kbM6tZthzbeoghy2XBTIEZueDXB2zqCnZHA8-XE" %>%
+  read_sheet()
+
+for (i in 1:nrow(report_decision)) {
+  
+  ref_col <- report_decision$reported[i] %>%
+    str_extract(".*(?=_reported)") %>%
+    str_c("_reference")
+  
+  orig_upload[orig_upload$unique_claim_id == report_decision$unique_claim_id[i],
+       ref_col] <- NA
+
+}
 
 range_write(orig_upload,
             ss = "1P4RrEUET-jdgbrMyFofEgKlJR1DX7oKxA9azcmcXwFI",

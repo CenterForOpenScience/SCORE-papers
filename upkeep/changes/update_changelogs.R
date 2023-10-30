@@ -6,21 +6,26 @@
 
 update_changelog <- function(changelog,
                              source_data,
-                             type,
                              outcome_id,
                              changes_dict,
                              reported_by,
-                             rationale = NA) {
+                             rationale) {
   
-  if (any(!(names(changes_dict) %in% names(source_data)))) {
-    
-    stop(simpleError("Invalid column names present in changes_dict."))
-    
-  }
+  changelog <- change_sheet %>%
+    read_sheet()
   
   unique_id <- names(select(changelog, starts_with("unique")))
   
   version_col <- names(select(changelog, ends_with("_stat_version")))
+  
+  new_changes <- tibble(reported_by = as.character(),
+                        date_implemented = as.character(),
+                        {{ unique_id }} := as.character(),
+                        col_name = as.character(),
+                        change_to = as.character(),
+                        change_from = as.character(),
+                        {{ version_col }} := as.numeric(),
+                        rationale = as.character())
   
   if (outcome_id %in% changelog[[unique_id]]) {
     
@@ -34,14 +39,15 @@ update_changelog <- function(changelog,
       col <- names(changes_dict[i])
       
       change_to <- changes_dict[[i]]
-
+      
       if (col %in% this_outcome$col_name) {
         
         change_from <- this_outcome %>%
           group_by(col_name, {{ version_col }}) %>%
           filter(col_name == col,
                  {{ version_col }} == max({{ version_col }})) %>%
-          pull(change_to)
+          pull(change_to) %>%
+          as.character()
         
       } else {
         
@@ -52,9 +58,9 @@ update_changelog <- function(changelog,
         
       }
       
-      changelog <- changelog %>%
+      new_changes <- new_changes %>%
         add_row(reported_by = reported_by,
-                date_implemented = Sys.Date(),
+                date_implemented = as.character(Sys.Date()),
                 {{ unique_id }} := outcome_id,
                 col_name = col,
                 change_to = change_to,
@@ -62,7 +68,7 @@ update_changelog <- function(changelog,
                 {{ version_col }} := this_version,
                 rationale = rationale)
     }
-
+    
   } else {
     
     for (i in 1:length(changes_dict)) {
@@ -77,9 +83,9 @@ update_changelog <- function(changelog,
         pull(col) %>%
         as.character()
       
-      changelog <- changelog %>%
+      new_changes <- new_changes %>%
         add_row(reported_by = reported_by,
-                date_implemented = Sys.Date(),
+                date_implemented = as.character(Sys.Date()),
                 {{ unique_id }} := outcome_id,
                 col_name = col,
                 change_to = change_to,
@@ -88,25 +94,11 @@ update_changelog <- function(changelog,
                 rationale = rationale)
     }
   }
-
-  file_name <- switch(
-    type,
-    orig = here("data",
-                "original_variables",
-                "changes",
-                "orig_input_changelog.tsv"),
-    repli = here("data",
-                 "rr",
-                 "changes",
-                 "repli_input_changelog.tsv"),
-    stop(simpleError("Theresa, add the repro changelog please"))
-  )
-
-  write_tsv(x = changelog,
-            file = file_name,
-            quote = "needed")
   
-  return(file_name)
+  new_changes <- new_changes %>%
+    mutate(date_implemented = as_date(date_implemented))
+  
+  sheet_append(change_sheet,
+               new_changes)
   
 }
-
