@@ -89,7 +89,6 @@ create_repli_analytic <- function(repli_export,
     relocate(claim_id, .after = paper_id) %>%
     # Suggested name changes -----
     rename(
-      repli_id = rr_id,
       repli_sample_size_units = rr_analytic_sample_size_units_reported,
       repli_sample_size_value = rr_analytic_sample_size_value_reported,
       repli_sample_structure = rr_analytic_sample_cells_reported,
