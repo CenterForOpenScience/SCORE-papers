@@ -20,6 +20,8 @@ tar_load("repli_primary")
 tar_load("repli_outcomes")
 tar_load("orig_statistics_dataset_p1")
 
+save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
+
 # UI and selection options data
 {
   select_rr_type_set <- c("Direct Replication","Data Analytic Replication","Hybrid")
