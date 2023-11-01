@@ -261,105 +261,172 @@ load_replication_qa <- function(replication_qa_gsheet,
 # Load in reproduction qa from Google Drive, then perform basic QC to ensure
 # all numbers are numbers, factors match allowed values, and number of reported
 # outcomes match number of expected outcomes
-# load_reproduction_qa <- function(reproduction_qa_gsheet,
-#                                  p2_repro_vf) {
-# 
-#   reproduction_qa_mod_date <- get_google_mod_date(reproduction_qa_gsheet)
-# 
-#   to_numeric <- p2_repro_vf %>%
-#     filter(allowed_values == "numeric") %>%
-#     pull(variable)
-#   
-#   to_factors <- p2_repro_vf %>%
-#     filter(str_detect(allowed_values, ";")) %>%
-#     pull(variable)
-# 
-#   reproduction_qa <- read_google_sheet(reproduction_qa_gsheet,
-#                                        reproduction_qa_mod_date) %>%
-#     mutate(
-#       # Original row index is used to create unique record id later
-#       original_index = as.character(row_number()-1),
-#       paper_id = str_extract(asana_ticket_name,
-#                              "(?<=_)[:alnum:]*(?=[:blank:])"),
-#       rr_id = str_extract(asana_ticket_name, "([^(?= - )]*)$"),
-#       unique_report_id = str_c(rr_id,
-#                                "_",
-#                                original_index,
-#                                "_1"),
-#       is_covid = str_detect(asana_ticket_name, "covid"),
-#       rr_input_source = "p2_repo_form",
-#       rr_stat_version = 1,
-#       # QC
-#       c4_claim_id = as.character(c4_claim_id),
-#       across(all_of(to_numeric), ~ as.double(.x))
-#     ) %>%
-#     rename(claim_id = c4_claim_id)
-#   
-#   # Check expected vs. outcome ----
-#   expected_criterion <- reproduction_qa %>%
-#     select(unique_report_id, rr_primary_criteria_available) %>%
-#     separate_longer_delim(rr_primary_criteria_available, ", ") %>%
-#     group_by(unique_report_id) %>%
-#     nest()
-# 
-#   required_cols = list(
-#     "Sample size"    = c("rr_analytic_sample_size_value_reported",
-#                          "orig_analytic_sample_size_value_criterion_reported"),
-#     "Coefficient"    = c("rr_coefficient_value_reported"),
-#     "p value"        = c("rr_p_value_value_reported"),
-#     "Test statistic" = c("rr_statistic_type_reported",
-#                          "rr_statistic_value_reported"),
-#     "Effect size"    = c("rr_effect_size_type_reported",
-#                          "rr_effect_size_value_reported")
-#   )
-# 
-#   # Check factors match ----
-#   factors <- p2_repro_vf %>%
-#     filter(variable %in% to_factor) %>%
-#     select(variable, allowed_values) %>%
-#     separate_longer_delim(allowed_values, "; ")
-#   
-#   for (var in to_factor) { 
-#     
-#     var_values <- factors %>%
-#       filter(variable == var) %>%
-#       pull(allowed_values)
-#     
-#     test_against <- reproduction_qa %>%
-#       pull({{ var }}) %>%
-#       unique()
-#     
-#     test_against <- test_against[!is.na(test_against)]
-#     
-#     if(any(!(test_against %in% var_values))){
-#       stop(simpleError("Value not in list"))
-#     }
-#     
-#   }
-#   
-#   reproduction_qa %>%
-#     select("paper_id",
-#            "rr_id",
-#            "claim_id",
-#            "rr_primary_criteria_available",
-#            "rr_type_internal",
-#            "orig_analytic_sample_size_value_criterion_reported",
-#            "rr_analytic_sample_size_value_reported",
-#            "rr_p_value_value_reported",
-#            "rr_coefficient_value_reported",
-#            "rr_statistic_type_reported",
-#            "rr_statistic_value_reported",
-#            "rr_effect_size_type_reported",
-#            "rr_effect_size_value_reported",
-#            "rr_repro_pattern_criteria_reported",
-#            "rr_repro_success_reported",
-#            "rr_repro_pattern_description_reported",
-#            "rr_repro_analyst_success_reported",
-#            "rr_input_source",
-#            "unique_report_id",
-#            "rr_stat_version")
-# 
-# }
+load_reproduction_qa <- function(reproduction_qa_gsheet,
+                                 p2_repro_vf) {
+
+  reproduction_qa_mod_date <- get_google_mod_date(reproduction_qa_gsheet)
+
+  to_numeric <- p2_repro_vf %>%
+    filter(allowed_values == "numeric") %>%
+    pull(variable)
+
+  to_factors <- p2_repro_vf %>%
+    filter(str_detect(allowed_values, ";")) %>%
+    pull(variable)
+
+  reproduction_qa <- read_google_sheet(reproduction_qa_gsheet,
+                                       reproduction_qa_mod_date) %>%
+    mutate(
+      # Original row index is used to create unique record id later
+      original_index = as.character(row_number()-1),
+      paper_id = str_extract(asana_ticket_name,
+                             "(?<=_)[:alnum:]*(?=[:blank:])"),
+      rr_id = str_extract(asana_ticket_name, "([^(?= - )]*)$"),
+      unique_report_id = str_c(rr_id,
+                               "_",
+                               original_index,
+                               "_1"),
+      is_covid = str_detect(asana_ticket_name, "covid"),
+      rr_input_source = "p2_repro_form",
+      rr_stat_version = 1,
+      # QC
+      c4_claim_id = as.character(c4_claim_id),
+      across(all_of(to_numeric), ~ as.double(.x))
+    ) %>%
+    rename(claim_id = c4_claim_id)
+
+  # Check expected vs. outcome ----
+  expected_criterion <- reproduction_qa %>%
+    select(unique_report_id, rr_primary_criteria_available) %>%
+    separate_longer_delim(rr_primary_criteria_available, ", ") %>%
+    group_by(unique_report_id) %>%
+    nest()
+
+  required_cols = list(
+    "Sample size"    = c("rr_analytic_sample_size_value_reported",
+                         "orig_analytic_sample_size_value_criterion_reported"),
+    "Coefficient"    = c("rr_coefficient_value_reported"),
+    "p value"        = c("rr_p_value_value_reported"),
+    "Test statistic" = c("rr_statistic_type_reported",
+                         "rr_statistic_value_reported"),
+    "Effect size"    = c("rr_effect_size_type_reported",
+                         "rr_effect_size_value_reported")
+  )
+  
+  reproduction_qa <- reproduction_qa %>%
+    mutate(
+      sample_size_present = if_else(
+        !is.na(rr_analytic_sample_size_value_reported) &
+          !is.na(orig_analytic_sample_size_value_criterion_reported),
+        TRUE,
+        FALSE
+      ),
+      coefficient_present = if_else(!is.na(rr_coefficient_value_reported),
+                                    TRUE,
+                                    FALSE),
+      p_value_present = if_else(!is.na(rr_p_value_value_reported),
+                                TRUE,
+                                FALSE),
+      test_statistic_present = if_else(
+        !is.na(rr_statistic_type_reported) &
+          !is.na(rr_statistic_value_reported),
+        TRUE,
+        FALSE
+      ),
+      effect_size_present = if_else(
+        !is.na(rr_effect_size_type_reported) &
+          !is.na(rr_effect_size_value_reported),
+        TRUE,
+        FALSE
+      ),
+    )
+  
+  for (i in 1:length(required_cols)) {
+    
+    criterion_standard <- required_cols[i] %>%
+      names() %>% 
+      str_to_lower() %>%
+      str_replace(" ", "_")
+    
+    criterion_present <- criterion_standard %>%
+      str_c("_present")
+    
+    criterion_expected <- criterion_standard %>%
+      str_c("_expected")
+    
+    criterion_qa <- criterion_standard %>%
+      str_c("_qa")
+    
+    reproduction_qa <- reproduction_qa %>%
+      mutate({{ criterion_expected }} := rr_primary_criteria_available %>%
+               str_detect(names(required_cols[i])),
+             {{ criterion_qa }} := case_when(
+               get({{ criterion_present }}) == TRUE &
+                 get({{ criterion_expected }}) == TRUE ~ TRUE,
+               get({{ criterion_expected }}) == FALSE ~ TRUE,
+               .default = FALSE
+              )
+             ) %>%
+      select(-c({{criterion_expected}},
+                {{criterion_present}}))
+  }
+
+  # Check factors match ----
+  factors <- p2_repro_vf %>%
+    filter(variable %in% to_factors) %>%
+    select(variable, allowed_values) %>%
+    separate_longer_delim(allowed_values, "; ")
+
+  for (var in to_factors) {
+
+    var_values <- factors %>%
+      filter(variable == var) %>%
+      pull(allowed_values)
+
+    test_against <- reproduction_qa %>%
+      pull({{ var }}) %>%
+      unique()
+
+    test_against <- test_against[!is.na(test_against)]
+
+    if(any(!(test_against %in% var_values))){
+      stop(simpleError("Value not in list"))
+    }
+
+  }
+
+  reproduction_qa %>%
+    mutate(
+      across(all_of(to_factors), str_to_lower),
+      rr_type_internal = str_to_title(rr_type_internal)
+    ) %>%
+    select("paper_id",
+           "rr_id",
+           "claim_id",
+           "rr_primary_criteria_available",
+           "rr_type_internal",
+           "orig_analytic_sample_size_value_criterion_reported",
+           "rr_analytic_sample_size_value_reported",
+           "rr_p_value_value_reported",
+           "rr_coefficient_value_reported",
+           "rr_statistic_type_reported",
+           "rr_statistic_value_reported",
+           "rr_effect_size_type_reported",
+           "rr_effect_size_value_reported",
+           "rr_repro_pattern_criteria_reported",
+           "rr_repro_success_reported",
+           "rr_repro_pattern_description_reported",
+           "rr_repro_analyst_success_reported",
+           "rr_input_source",
+           "unique_report_id",
+           "sample_size_qa",
+           "coefficient_qa",
+           "p_value_qa",
+           "test_statistic_qa",
+           "effect_size_qa",
+           "rr_stat_version")
+
+}
 
 # OSF Files ----
 
