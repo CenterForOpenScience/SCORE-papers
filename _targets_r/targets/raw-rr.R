@@ -10,6 +10,16 @@ list(
              load_changelog(repli_input_changelog_file,
                             repli_input_changelog_moddate)),
   
+  # p2_repro_input_changelog ()
+  tar_target(p2_repro_input_changelog_file,
+             "1c2i_k-RMzTWAC7RD6cqhheToihtS8_C5r5powvRuMDE"),
+  tar_target(p2_repro_input_changelog_moddate,
+             get_google_mod_date(repli_input_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(p2_repro_input_changelog,
+             load_changelog(p2_repro_input_changelog_file,
+                            p2_repro_input_changelog_moddate)),
+  
   # checkins/ ----
   # rr_reporting_checkin.tsv
   tar_target(rr_reporting_checkin_file,
