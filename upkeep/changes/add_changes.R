@@ -35,7 +35,7 @@ if (type == "Replication") {
   
   source_data <- tar_read(repli_export)
   
-  if(!(outcome_id %in% pull(source_data, unique_report_id))) {
+  if (!(outcome_id %in% pull(source_data, unique_report_id))) {
     
     stop(simpleError("Outcome ID does not exist for replications."))
   
@@ -47,7 +47,7 @@ if (type == "Replication") {
   
   source_data <- tar_read(orig_dataset)
   
-  if(!(outcome_id %in% pull(source_data, unique_claim_id))) {
+  if (!(outcome_id %in% pull(source_data, unique_claim_id))) {
     
     stop(simpleError("Outcome ID does not exist for original data."))
     
@@ -55,9 +55,21 @@ if (type == "Replication") {
   
   change_sheet <- "1M8H_76ajxwdhVuuSyIo18BxRrJbMF3hXpAkzYY39g2k"
   
+} else if (type == "Reproduction") {
+  
+  source_data <- tar_read(reproduction_qa)
+  
+  if (!(outcome_id %in% pull(source_data, unique_report_id))) {
+    
+    stop(simpleError("Outcome ID does not exist for reproductions."))
+    
+  }
+  
+  change_sheet <- "1c2i_k-RMzTWAC7RD6cqhheToihtS8_C5r5powvRuMDE"
+  
 } else {
   
-  stop(simpleError("Invalid type provided. Perhaps this is a repro entry?"))
+  stop(simpleError("Invalid type provided. Perhaps this is a hybrid entry?"))
   
 }
 
