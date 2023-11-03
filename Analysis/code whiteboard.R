@@ -15,25 +15,21 @@
 
 # tar_make() # run this to pull new targets
 
-<<<<<<< Updated upstream
 #tar_load("repli_export")
 #tar_load("repli_primary")
 tar_load("repli_outcomes")
 #tar_load("orig_statistics_dataset_p1")
-=======
+
 # #tar_load("repli_export")
 # #tar_load("repli_primary")
 # tar_load("repli_outcomes")
 # #tar_load("orig_statistics_dataset_p1")
 # tar_load("orig_dataset")
->>>>>>> Stashed changes
 
 # Update app data
 if (FALSE){
   tar_load("repli_outcomes")
   save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
-<<<<<<< Updated upstream
-=======
   tar_load("orig_dataset")
   save(repli_outcomes,file="Analysis/Data exploration app/orig_dataset.RData")
   
@@ -41,7 +37,6 @@ if (FALSE){
   write_sheet(df_orig_nuthing,
     ss="https://docs.google.com/spreadsheets/d/1mdRqLoxHtcYtJg2ozGlnwwVwla9Kb0xcOuViTCLcxgM/edit#gid=2126773854",
               sheet="keep kill modify orig")
->>>>>>> Stashed changes
 }
 
 

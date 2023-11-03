@@ -13,14 +13,9 @@
   
   # Data loading
   {
-<<<<<<< Updated upstream
-    file_path <- "data.csv"
     if (file.exists("repli_outcomes.RData")) { load(file="repli_outcomes.RData") }
-    else {load("Analysis/Data exploration app/repli_outcomes.RData") }
-  
-=======
-    load(file="repli_outcomes.RData")
->>>>>>> Stashed changes
+    else {load(file="Analysis/Data exploration app/repli_outcomes.RData") }
+
   }
   
   # Data manipulation and other setup
