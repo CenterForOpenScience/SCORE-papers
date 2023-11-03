@@ -15,15 +15,33 @@
 
 # tar_make() # run this to pull new targets
 
+<<<<<<< Updated upstream
 #tar_load("repli_export")
 #tar_load("repli_primary")
 tar_load("repli_outcomes")
 #tar_load("orig_statistics_dataset_p1")
+=======
+# #tar_load("repli_export")
+# #tar_load("repli_primary")
+# tar_load("repli_outcomes")
+# #tar_load("orig_statistics_dataset_p1")
+# tar_load("orig_dataset")
+>>>>>>> Stashed changes
 
 # Update app data
 if (FALSE){
   tar_load("repli_outcomes")
   save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
+<<<<<<< Updated upstream
+=======
+  tar_load("orig_dataset")
+  save(repli_outcomes,file="Analysis/Data exploration app/orig_dataset.RData")
+  
+  df_orig_nuthing <- orig_dataset[0,]
+  write_sheet(df_orig_nuthing,
+    ss="https://docs.google.com/spreadsheets/d/1mdRqLoxHtcYtJg2ozGlnwwVwla9Kb0xcOuViTCLcxgM/edit#gid=2126773854",
+              sheet="keep kill modify orig")
+>>>>>>> Stashed changes
 }
 
 
@@ -44,7 +62,7 @@ if (FALSE){
 
 # Generate selection data functions
 {
-  generate_selected_repli_data <- function(select_rr_type_selection_ui = c(TRUE,FALSE,FALSE),
+  df_repli_subsetted <- function(select_rr_type_selection_ui = c(TRUE,FALSE,FALSE),
                                            select_generalizability_selection_ui = c(TRUE,FALSE),
                                            select_rr_is_manylabs_selection_ui = c(TRUE,FALSE,FALSE,FALSE),
                                            select_rr_analytic_sample_stage_selection_ui = c(TRUE,TRUE,FALSE,FALSE,FALSE)){
@@ -114,59 +132,60 @@ if (FALSE){
   }
 }
 
-# # Compare power Tillburg vs success rate
-# {
-#   df.chart <- generate_selected_repli_data()
-#   
-# }
-
 # Main 3 parter
 {
-  # Generate dataset
-    df.chart <- generate_selected_repli_data()
-    
-    # TEMPORARY FOR MADE UP DATA
-    df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
-    
-    # Gather up new vs originals
-      # Pearsons
-        df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
-        df.chart.pearsons$stat_type <- "Pearson's R"
-        colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
-        
-      # All others
-        df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
-        colnames(df.chart.others) <- c("Replication","Original","stat_type")
-        types_to_keep <- c("ser_method")
-        df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
-        
-      # Combine
-        df.chart <- rbind(df.chart.pearsons,df.chart.others)
-        df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
-        df.chart <- na.omit(df.chart)
-        df.chart$stat_type <- factor(df.chart$stat_type,
-                                     labels=c("Pearson's R","SER"),
-                                     levels=c("Pearson's R","ser_method"))
-        df.chart$comparison <- factor(df.chart$comparison,
-                                     labels=c("Replication","Original"),
-                                     levels=c("Replication","Original"))
+  tar_load("repli_outcomes")
+  df.chart <- repli_outcomes
+  #df.chart <- df_repli_subsetted()
   
-  ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=comparison)) +
+  # Merge in orig data
+  tar_load("orig_dataset")
+  df.chart.orig <- orig_dataset[c("unique_claim_id",
+                                  "original_effect_size_value_reported",
+                                  "original_effect_size_type_reference",
+                                  "original_pearsons_r_numeric")]
+  df.chart <- merge(df.chart,df.chart.orig,by.x="claim_id",by.y="unique_claim_id",all.x=TRUE,all.y=FALSE)
+
+  df.chart$orig_pearsons_r <- as.numeric(df.chart$original_pearsons_r_numeric)
+  df.chart$orig_effect_size_value <- as.numeric(df.chart$original_effect_size_value_reported)
+  
+  # Gather up new vs originals
+  # Pearsons
+  df.chart.pearsons <- df.chart[c("repli_pearsons_r_value","orig_pearsons_r")]
+  df.chart.pearsons$stat_type <- "Pearson's R"
+  colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
+  
+  # All others
+  df.chart.others <- df.chart[c("repli_effect_size_value","orig_effect_size_value","repli_effect_size_type")]
+  colnames(df.chart.others) <- c("Replication","Original","stat_type")
+  types_to_keep <- c("ser_method")
+  df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
+  
+  # Combine
+  df.chart <- rbind(df.chart.pearsons,df.chart.others)
+  df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
+  df.chart <- na.omit(df.chart)
+  df.chart$stat_type <- factor(df.chart$stat_type,
+                               labels=c("Pearson's R","SER"),
+                               levels=c("Pearson's R","ser_method"))
+  df.chart$comparison <- factor(df.chart$comparison,
+                                labels=c("Replication","Original"),
+                                levels=c("Replication","Original"))
+  df.chart$jitter_bias <- ifelse(df.chart$comparison=="original",-.2,.2)
+  
+  ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=reorder(comparison, desc(comparison)))) +
     geom_split_violin()+
-    #geom_histogram(fill="#2B2484",alpha=.4)+
-    #geom_density(fill="#2B2484",alpha=.8)+
-    #scale_x_continuous(expand=c(0,0))+
-    #scale_y_continuous(expand=c(0,0))+
-    theme_minimal()+
+    geom_point(position=position_jitterdodge(),size=.2)+
+
     theme(
       legend.position = "bottom",
       panel.grid = element_blank(),
-      axis.line = element_line(color="#393939")
+      axis.line = element_line(color="#393939"),
+      legend.title=element_blank()
     )+
+    scale_y_continuous(expand=c(0,0),limits=c(-0,1))+
     xlab("Statistic type")+
     ylab("Effect size value")
-    #scale_fill_viridis()+
-    #coord_flip()
   
 }
 
