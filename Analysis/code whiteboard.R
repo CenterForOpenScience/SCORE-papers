@@ -15,33 +15,35 @@
 
 # tar_make() # run this to pull new targets
 
+<<<<<<< Updated upstream
+#tar_load("repli_export")
+#tar_load("repli_primary")
+tar_load("repli_outcomes")
+#tar_load("orig_statistics_dataset_p1")
+=======
 # #tar_load("repli_export")
 # #tar_load("repli_primary")
 # tar_load("repli_outcomes")
 # #tar_load("orig_statistics_dataset_p1")
 # tar_load("orig_dataset")
-
-# #tar_load("repli_export")
-# #tar_load("repli_primary")
-# tar_load("repli_outcomes")
-# #tar_load("orig_statistics_dataset_p1")
-# tar_load("orig_dataset")
+>>>>>>> Stashed changes
 
 # Update app data
 if (FALSE){
   tar_load("repli_outcomes")
   save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
+<<<<<<< Updated upstream
+=======
   tar_load("orig_dataset")
   save(repli_outcomes,file="Analysis/Data exploration app/orig_dataset.RData")
-<<<<<<< Updated upstream
   
   df_orig_nuthing <- orig_dataset[0,]
   write_sheet(df_orig_nuthing,
     ss="https://docs.google.com/spreadsheets/d/1mdRqLoxHtcYtJg2ozGlnwwVwla9Kb0xcOuViTCLcxgM/edit#gid=2126773854",
               sheet="keep kill modify orig")
-=======
 >>>>>>> Stashed changes
 }
+
 
 # UI and selection options data
 {
@@ -135,35 +137,6 @@ if (FALSE){
   tar_load("repli_outcomes")
   df.chart <- repli_outcomes
   #df.chart <- df_repli_subsetted()
-<<<<<<< Updated upstream
-=======
-  
-  # TEMPORARY FOR MADE UP DATA
-  df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
-  
-  # Gather up new vs originals
-  # Pearsons
-  df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
-  df.chart.pearsons$stat_type <- "Pearson's R"
-  colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
-  
-  # All others
-  df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
-  colnames(df.chart.others) <- c("Replication","Original","stat_type")
-  types_to_keep <- c("ser_method")
-  df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
-  
-  # Combine
-  df.chart <- rbind(df.chart.pearsons,df.chart.others)
-  df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
-  df.chart <- na.omit(df.chart)
-  df.chart$stat_type <- factor(df.chart$stat_type,
-                               labels=c("Pearson's R","SER"),
-                               levels=c("Pearson's R","ser_method"))
-  df.chart$comparison <- factor(df.chart$comparison,
-                                labels=c("Replication","Original"),
-                                levels=c("Replication","Original"))
->>>>>>> Stashed changes
   
   # Merge in orig data
   tar_load("orig_dataset")
@@ -203,7 +176,7 @@ if (FALSE){
   ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=reorder(comparison, desc(comparison)))) +
     geom_split_violin()+
     geom_point(position=position_jitterdodge(),size=.2)+
-
+    theme_bw()+
     theme(
       legend.position = "bottom",
       panel.grid = element_blank(),
