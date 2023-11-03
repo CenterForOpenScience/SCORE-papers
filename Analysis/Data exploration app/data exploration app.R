@@ -159,16 +159,16 @@ server <- function(input, output, session) {
         df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
         
         # Gather up new vs originals
-        # Pearsons
-        df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
-        df.chart.pearsons$stat_type <- "Pearson's R"
-        colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
+          # Pearsons
+          df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
+          df.chart.pearsons$stat_type <- "Pearson's R"
+          colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
         
         # All others
-        df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
-        colnames(df.chart.others) <- c("Replication","Original","stat_type")
-        types_to_keep <- c("ser_method")
-        df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
+          df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
+          colnames(df.chart.others) <- c("Replication","Original","stat_type")
+          types_to_keep <- c("ser_method")
+          df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
         
         # Combine
         df.chart <- rbind(df.chart.pearsons,df.chart.others)
@@ -195,7 +195,6 @@ server <- function(input, output, session) {
           )+
           xlab("Statistic type")+
           ylab("Effect size value")
-    
       })
   
       output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
