@@ -13,8 +13,16 @@
   
   # Data loading
   {
-    if (file.exists("repli_outcomes.RData")) { load(file="repli_outcomes.RData") }
-    else {load(file="Analysis/Data exploration app/repli_outcomes.RData") }
+    if (file.exists("repli_outcomes.RData")) {
+      load(file="repli_outcomes.RData")
+    } else {
+      load(file="Analysis/Data exploration app/repli_outcomes.RData")
+    }
+    if (file.exists("orig_dataset.RData")) {
+      load(file="orig_dataset.RData")
+    } else {
+      load(file="Analysis/Data exploration app/orig_dataset.RData")
+    }
 
   }
   
@@ -42,7 +50,7 @@
   
 }
 
-# Aesthetic functions
+# Aesthetic functions and presets
 {
   GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
                              draw_group = function(self, data, ..., draw_quantiles = NULL) {
@@ -74,10 +82,37 @@
           position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
           params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
   }
+  # Color palette
+  {
+    palette_weezer_blue <- c("#00a2e7","#dee5cd","#010c09","#083259","#b2915f","#d7b1b7","#00374b","#124e80", "#001212")
+    palette_weezer_pinkerton <- c("#d5bf98","#14140b","#70624b","#8a8d82","#304251","#465656","#945a2d","#708090")
+    palette_weezer_green <- c("#bece30","#020100","#4f6238","#cac986","#981f2c","#c13f33","#461005")
+    palette_weezer_maladroit <- c("#e0dcce","#575b61","#b69e44","#953d31","#e5b066","#343729","#3e3131")
+    palette_weezer_make_believe <- c("#000000","#EAECEB","#C2C2C2","#A0A0A0","#313131")
+    palette_weezer_red <- c("#ED1B34","#8A817C","#141311","#8B8D9C","#332E28")
+    palette_weezer_raditude <- c("#EC2221","#FBFFFB","#FDF600","#CEB181","#4E1110")
+    palette_weezer_everything <- c("#E8A662","#F4F5F1","#463D47","#7F3009","#35180E","F6F3CF")
+    palette_weezer_white <- c("#FDFDFD","#242424","#E3E3E3","#B6B6B6","#EEEDED")
+    palette_weezer_pacific_daydream <- c("#1E3555","#5C6455","#FBE4BC","#1D1F1E","#69797B","#F8E6CF","#F8E6CF")
+    palette_weezer_teal <- c("#1DBBBE","#D6A8CD","#F8F8F8","#182633","#90C5DF")
+    palette_weezer_black <- c("#2D2B2C","#060606","#E9E7E8","#0E0E0E")
+    palette_weezer_ok_human <- c("#B2A17A","#B3B470","#B1A78F","#D1BE8F","#726D5C","#B8B6A6","#5B4F3F")
+    palette_weezer_van_weezer <- c("#B2023E","#E933D3","#770265","#170032","#FDF8FF","#170032","#5329F9","#F3FED5")
+    
+    plaette_score_charts <- c(palette_weezer_blue[1],
+                              palette_weezer_red[1],
+                              palette_weezer_green[1],
+                              palette_weezer_teal[1],
+                              
+                              palette_weezer_pinkerton[1],
+                              palette_weezer_van_weezer[3]
+    )
+  }
 }
 
 ui <- {
-fluidPage(
+
+fluidPage(title = "SCORE data visualization playground",
   tabsetPanel(
     tabPanel("Replications",
       page_sidebar(
@@ -121,14 +156,31 @@ fluidPage(
                    plotOutput("repli_alluvial"),
           ),
           tabPanel("Replication stats vs original",
-                   # checkboxGroupInput(
-                   #   "rr_stat_outcomes_selected", "Outcome stats types",
-                   #   choiceNames = c("Pearson's R",unique(repli_outcomes$rr_effect_size_type_reported)), 
-                   #   choiceValues = c("Pearson's R",unique(repli_outcomes$rr_effect_size_type_reported)),
-                   #   selected = c("Pearson's R")
-                   # ),
+                   
                    plotOutput("repli_outcomes_vs_orig"),
+                   h4("Options:"),
+                   fluidRow(
+                     column(4,
+                       checkboxGroupInput(
+                         "rr_stat_outcomes_selected", "Effect size stats types",
+                         choiceNames = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
+                         choiceValues = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
+                         selected = c("Pearson's R","ser_method"),
+                         inline=FALSE
+                       )
+                     ),
+                     column(1),
+                     column(7,
+                            p("Chart extent limits"),
+                            fluidRow(
+                              column(6,numericInput("repli_outcomes_vs_orig_lb",
+                                                    "Lower bound",0)),
+                              column(6,numericInput("repli_outcomes_vs_orig_ub",
+                                                    "Upper bound",1))
+                            )
+                     )
                    )
+                 )
           
         )
       )
@@ -145,7 +197,10 @@ server <- function(input, output, session) {
         df <- repli_outcomes
     
         df <- df[df$repli_type %in% input$select_repli_type_selected,]
-        df <- df[df$is_generalizability %in% input$select_is_generalizability_selected,]
+        df <- df[df$repli_is_generalizability %in% input$select_is_generalizability_selected,]
+        # note: change bottom ones to:
+        # df <- df[df$repli_is_manylabs %in% input$select_is_manylabs_selected,]
+        # df <- df[df$repli_power_for_effect_size %in% input$select_power_for_effect_size_selected,]
         df <- df[df$is_manylabs %in% input$select_is_manylabs_selected,]
         df <- df[df$power_for_effect_size %in% input$select_power_for_effect_size_selected,]
     
@@ -154,45 +209,54 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
+        # if (file.exists("orig_dataset.RData")) {
+        #   load(file="orig_dataset.RData")
+        # } else {
+        #   load(file="Analysis/Data exploration app/orig_dataset.RData")
+        # }
+        df.chart.orig <- orig_dataset
         
-        # TEMPORARY FOR MADE UP DATA
-        df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
+      # Merge in orig data
+        df.chart <- merge(df.chart,df.chart.orig,by.x="claim_id",by.y="unique_claim_id",all.x=TRUE,all.y=FALSE)
         
-        # Gather up new vs originals
-          # Pearsons
-          df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
+        df.chart$orig_pearsons_r <- as.numeric(df.chart$original_pearsons_r_numeric)
+        df.chart$orig_effect_size_value <- as.numeric(df.chart$original_effect_size_value_reported)
+        
+      # Gather up new vs originals
+        # Pearsons
+          df.chart.pearsons <- df.chart[c("repli_pearsons_r_value","orig_pearsons_r")]
           df.chart.pearsons$stat_type <- "Pearson's R"
           colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
-        
+      
         # All others
-          df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
+          df.chart.others <- df.chart[c("repli_effect_size_value","orig_effect_size_value","repli_effect_size_type")]
           colnames(df.chart.others) <- c("Replication","Original","stat_type")
-          types_to_keep <- c("ser_method")
-          df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
+          # types_to_keep <- c("ser_method")
+          # df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
         
-        # Combine
-        df.chart <- rbind(df.chart.pearsons,df.chart.others)
-        df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
-        df.chart <- na.omit(df.chart)
-        df.chart$stat_type <- factor(df.chart$stat_type,
-                                     labels=c("Pearson's R","SER"),
-                                     levels=c("Pearson's R","ser_method"))
-        df.chart$comparison <- factor(df.chart$comparison,
-                                      labels=c("Replication","Original"),
-                                      levels=c("Replication","Original"))
-        
-        ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=comparison)) +
+        # Combine and select
+          df.chart <- rbind(df.chart.pearsons,df.chart.others)
+          df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
+          df.chart <- na.omit(df.chart)
+          df.chart$comparison <- factor(df.chart$comparison,
+                                        labels=c("Replication","Original"),
+                                        levels=c("Replication","Original"))
+          df.chart <- df.chart[df.chart$stat_type %in% input$rr_stat_outcomes_selected,]
+          
+      # Chart generation
+        ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=reorder(comparison, desc(comparison)))) +
           geom_split_violin()+
-          #geom_histogram(fill="#2B2484",alpha=.4)+
-          #geom_density(fill="#2B2484",alpha=.8)+
-          #scale_x_continuous(expand=c(0,0))+
-          #scale_y_continuous(expand=c(0,0))+
-          theme_minimal()+
+          geom_point(position=position_jitterdodge(),size=.5)+
+          theme_bw()+
+          scale_fill_manual(values=plaette_score_charts)+
           theme(
             legend.position = "bottom",
             panel.grid = element_blank(),
-            axis.line = element_line(color="#393939")
+            axis.line = element_line(color="#393939"),
+            legend.title=element_blank()
           )+
+          scale_y_continuous(expand=c(0,0),
+                             limits=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
           xlab("Statistic type")+
           ylab("Effect size value")
       })
@@ -200,7 +264,7 @@ server <- function(input, output, session) {
       output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
       
       output$repli_alluvial <- renderPlot({
-        df.repli.no.hier <- repli_outcomes[c("paper_id","claim_id","is_manylabs","power_for_effect_size","rr_id")]
+        df.repli.no.hier <- repli_outcomes[c("paper_id","claim_id","is_manylabs","power_for_effect_size")]
         df.repli.no.hier$claim_id <- paste0(df.repli.no.hier$paper_id,"_", df.repli.no.hier$claim_id)
         
         df.repli.no.hier <- df.repli.no.hier[df.repli.no.hier$paper_id %in% unique(df.repli.no.hier$paper_id)[60:120],]

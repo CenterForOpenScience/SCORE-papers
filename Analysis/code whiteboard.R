@@ -34,12 +34,8 @@ if (FALSE){
   save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
 
   tar_load("orig_dataset")
-  save(repli_outcomes,file="Analysis/Data exploration app/orig_dataset.RData")
-  
-  df_orig_nuthing <- orig_dataset[0,]
-  write_sheet(df_orig_nuthing,
-    ss="https://docs.google.com/spreadsheets/d/1mdRqLoxHtcYtJg2ozGlnwwVwla9Kb0xcOuViTCLcxgM/edit#gid=2126773854",
-              sheet="keep kill modify orig")
+  save(orig_dataset,file="Analysis/Data exploration app/orig_dataset.RData")
+
 
 }
 
@@ -129,6 +125,31 @@ if (FALSE){
           position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
           params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
   }
+  # Color palette
+  {
+    palette_weezer_blue <- c("#00a2e7","#dee5cd","#010c09","#083259","#b2915f","#d7b1b7","#00374b","#124e80", "#001212")
+    palette_weezer_pinkerton <- c("#d5bf98","#14140b","#70624b","#8a8d82","#304251","#465656","#945a2d","#708090")
+    palette_weezer_green <- c("#bece30","#020100","#4f6238","#cac986","#981f2c","#c13f33","#461005")
+    palette_weezer_maladroit <- c("#e0dcce","#575b61","#b69e44","#953d31","#e5b066","#343729","#3e3131")
+    palette_weezer_make_believe <- c("#000000","#EAECEB","#C2C2C2","#A0A0A0","#313131")
+    palette_weezer_red <- c("#ED1B34","#8A817C","#141311","#8B8D9C","#332E28")
+    palette_weezer_raditude <- c("#EC2221","#FBFFFB","#FDF600","#CEB181","#4E1110")
+    palette_weezer_everything <- c("#E8A662","#F4F5F1","#463D47","#7F3009","#35180E","F6F3CF")
+    palette_weezer_white <- c("#FDFDFD","#242424","#E3E3E3","#B6B6B6","#EEEDED")
+    palette_weezer_pacific_daydream <- c("#1E3555","#5C6455","#FBE4BC","#1D1F1E","#69797B","#F8E6CF","#F8E6CF")
+    palette_weezer_teal <- c("#1DBBBE","#D6A8CD","#F8F8F8","#182633","#90C5DF")
+    palette_weezer_black <- c("#2D2B2C","#060606","#E9E7E8","#0E0E0E")
+    palette_weezer_ok_human <- c("#B2A17A","#B3B470","#B1A78F","#D1BE8F","#726D5C","#B8B6A6","#5B4F3F")
+    palette_weezer_van_weezer <- c("#B2023E","#E933D3","#770265","#170032","#FDF8FF","#170032","#5329F9","#F3FED5")
+    
+    plaette_score_charts <- c(palette_weezer_blue[1],
+                              palette_weezer_green[1],
+                              palette_weezer_red[1],
+                              palette_weezer_teal[1],
+                              palette_weezer_pinkerton[1],
+                              palette_weezer_van_weezer[3]
+    )
+  }
 }
 
 # Main 3 parter
@@ -176,6 +197,7 @@ if (FALSE){
     geom_split_violin()+
     geom_point(position=position_jitterdodge(),size=.2)+
     theme_bw()+
+    scale_fill_manual(values=plaette_score_charts)+
     theme(
       legend.position = "bottom",
       panel.grid = element_blank(),
