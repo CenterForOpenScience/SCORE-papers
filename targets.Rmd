@@ -81,6 +81,24 @@ list(
 )
 ```
 
+#### Other Data Sources
+
+Metadata for COVID papers for TA2 from the OSF repository, [Public for TA2](https://osf.io/um7kc/). 
+
+```{targets raw-paper-osf}
+list(
+  # covid_ta2.csv
+  tar_target(covid_ta2_osf,
+             "yr3w8"),
+  tar_target(covid_ta2_mod_date, 
+             get_osf_mod_date(covid_ta2_osf),
+             cue = tar_cue("always")), 
+  tar_target(covid_ta2,
+             load_osf_csv(covid_ta2_osf,
+                          covid_ta2_mod_date))
+)
+```
+
 ### Claim Extracton
 
 These are raw data files for claim extraction. They can be found under `raw/claim_extraction` in the COS SCORE Data Google Drive.
@@ -351,6 +369,22 @@ list(
 )
 ```
 
+### Process Reproducibility
+
+Process Reproducibility (PR) data from the [SCORE Google Drive](https://drive.google.com/drive/folders/0AHots-bNz56yUk9PVA). Note that these targets do not rely on modification dates like most of the other files downloaded from Google Drive. Adding new entries to sheets through forms doesn't always trigger the modification date to update, so we will always run these targets regardless of when they were last updated.
+
+```{targets raw-pr}
+list(
+  
+  tar_target(pr_gsheet,
+             "1E8LvpcuoUyVZV-EDqVPW_H1Cd-4OJCuR3Kl8HMJMVtI",
+             cue = tar_cue("always")),
+  tar_target(pr_data_raw,
+             load_pr_data(pr_gsheet))
+  
+)
+```
+
 ## Processed Data
 
 Original variables data. QC'ed and merged. 
@@ -389,6 +423,18 @@ list(
                          p2_repro_input_changelog))
 )
 ```
+
+Process reproducibility data. 
+
+```{targets processed-pr}
+
+tar_target(pr_data_form,
+           process_pr_data(pr_data_raw,
+                            covid_ta2,
+                            tagtable_covid_p1))
+
+```
+
 
 # Pipeline
 
