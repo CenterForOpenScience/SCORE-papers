@@ -32,7 +32,11 @@
     {
       select_repli_type_set <- c("new data","secondary data")
       select_repli_type_labels <- c("New data","Secondary data")
-      select_repli_type_selected_default <- c("new data")
+      select_repli_type_selected_default <- c("new data","secondary data")
+      
+      select_repli_version_of_record_set  <- c(TRUE,FALSE)
+      select_repli_version_of_record_labels  <- c("VoR","Not VoR")
+      select_repli_version_of_record_selected_default <- c(TRUE)
       
       select_is_generalizability_set  <- c(FALSE,TRUE)
       select_is_generalizability_labels  <- c("Standard","Generalizability study")
@@ -127,6 +131,12 @@ fluidPage(title = "SCORE data visualization playground",
             selected = c(select_repli_type_selected_default)
           ),
           checkboxGroupInput(
+            "select_repli_version_of_record_selected", "Version of Record (repli_version_of_record)",
+            choiceNames = unique(select_repli_version_of_record_labels), 
+            choiceValues = unique(select_repli_version_of_record_set),
+            selected = c(select_repli_version_of_record_selected_default)
+          ),
+          checkboxGroupInput(
             "select_is_generalizability_selected", "Generalizability (is_generalizability)",
             choiceNames = unique(select_is_generalizability_labels), 
             choiceValues = unique(select_is_generalizability_set),
@@ -177,7 +187,11 @@ fluidPage(title = "SCORE data visualization playground",
                                                     "Lower bound",0)),
                               column(6,numericInput("repli_outcomes_vs_orig_ub",
                                                     "Upper bound",1))
-                            )
+                            ),
+                            numericInput("repli_outcomes_vs_orig_null",
+                                         "Null value",0),
+                            checkboxInput("repli_outcomes_vs_orig_abs",
+                                         "Take absolute value of effect size",FALSE)
                      )
                    )
                  )
@@ -197,6 +211,7 @@ server <- function(input, output, session) {
         df <- repli_outcomes
     
         df <- df[df$repli_type %in% input$select_repli_type_selected,]
+        df <- df[df$repli_version_of_record %in% input$select_repli_version_of_record_selected,]
         df <- df[df$repli_is_generalizability %in% input$select_is_generalizability_selected,]
         # note: change bottom ones to:
         # df <- df[df$repli_is_manylabs %in% input$select_is_manylabs_selected,]
@@ -242,6 +257,11 @@ server <- function(input, output, session) {
                                         labels=c("Replication","Original"),
                                         levels=c("Replication","Original"))
           df.chart <- df.chart[df.chart$stat_type %in% input$rr_stat_outcomes_selected,]
+        
+        # Add options
+          if (input$repli_outcomes_vs_orig_abs==TRUE){
+            df.chart$ES_value <- abs(df.chart$ES_value)
+          }
           
       # Chart generation
         ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=reorder(comparison, desc(comparison)))) +
@@ -249,13 +269,14 @@ server <- function(input, output, session) {
           geom_point(position=position_jitterdodge(),size=.5)+
           theme_bw()+
           scale_fill_manual(values=plaette_score_charts)+
+          geom_hline(aes(yintercept =input$repli_outcomes_vs_orig_null),linetype=3,color="#454545")+
           theme(
             legend.position = "bottom",
             panel.grid = element_blank(),
             axis.line = element_line(color="#393939"),
             legend.title=element_blank()
           )+
-          scale_y_continuous(expand=c(0,0),
+          scale_y_continuous(
                              limits=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
           xlab("Statistic type")+
           ylab("Effect size value")

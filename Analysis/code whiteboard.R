@@ -35,6 +35,8 @@ if (FALSE){
 
   tar_load("orig_dataset")
   save(orig_dataset,file="Analysis/Data exploration app/orig_dataset.RData")
+  
+  tar_load("repro_export")
 
 
 }
@@ -143,9 +145,10 @@ if (FALSE){
     palette_weezer_van_weezer <- c("#B2023E","#E933D3","#770265","#170032","#FDF8FF","#170032","#5329F9","#F3FED5")
     
     plaette_score_charts <- c(palette_weezer_blue[1],
-                              palette_weezer_green[1],
                               palette_weezer_red[1],
+                              palette_weezer_green[1],
                               palette_weezer_teal[1],
+                              
                               palette_weezer_pinkerton[1],
                               palette_weezer_van_weezer[3]
     )
@@ -198,6 +201,7 @@ if (FALSE){
     geom_point(position=position_jitterdodge(),size=.2)+
     theme_bw()+
     scale_fill_manual(values=plaette_score_charts)+
+    geom_hline(aes(yintercept =0),linetype=3,color="#454545")+
     theme(
       legend.position = "bottom",
       panel.grid = element_blank(),
@@ -210,52 +214,55 @@ if (FALSE){
   
 }
 
-
-
-
-
-
-# Play area 
-if(FALSE){
-  # Main 3
-  {
-    df.hierarchy <- repli_export %>% group_by(paper_id,claim_id,rr_analytic_sample_stage,rr_is_manylabs, .drop = FALSE) %>% count()
-    dup_paper_ids <- df.hierarchy$paper_id[df.hierarchy$n==2]
-    repli_export_dups <- repli_export[repli_export$paper_id %in% dup_paper_ids,]
-    
-    test <- repli_export %>% group_by(paper_id,claim_id,rr_is_manylabs, .drop = FALSE) %>% count()
-    
-  }
+  
+   
+# Generate alluvial
+{
+  # Data generation
+  
+  tar_load("repli_outcomes")
+  tar_load("orig_dataset")
+  tar_load("repro_export")
+  
+  df.alluvial <- orig_dataset[c("paper_id","claim_id")]
+  df.alluvial$claim_id <- paste0(df.alluvial$paper_id,"_",df.alluvial$claim_id)
+  
+  repro.alluvial <- repro_export[c("paper_id","claim_id")]
+  repro.alluvial$claim_id <- paste0(repro.alluvial$paper_id,"_",repro.alluvial$claim_id)
+  repro.alluvial$paper_id <- NULL
+  repro.alluvial$reproduction <- TRUE
+  repro.alluvial$reproduction_outcome <- ifelse(repro_export$rr_repro_success_reported=="yes","Reproduced","Not reproduced")
+  
+  repli.alluvial <- repli_outcomes[c("claim_id")]
+  repli.alluvial$replication <- TRUE
+  repli.alluvial$replication_outcome <- ifelse(repli_outcomes$repli_pattern_criteria_met==TRUE,"Replicated","Not replicated")
+  
+  df.alluvial <- merge(df.alluvial,repro.alluvial,by = "claim_id",all.x=TRUE,all.y = FALSE)
+  df.alluvial <- merge(df.alluvial,repli.alluvial,by = "claim_id",all.x=TRUE,all.y = FALSE)
   
   
+  df.alluvial <- rbind(repro.alluvial,repli.alluvial)
   
-  # Generate alluvial
-  {
-    df.repli.no.hier <- repli_export[c("paper_id","claim_id","rr_is_manylabs","rr_analytic_sample_stage","rr_id")]
-    df.repli.no.hier$claim_id <- paste0(df.repli.no.hier$paper_id,"_", df.repli.no.hier$claim_id)
-    
-    df.repli.no.hier <- df.repli.no.hier[df.repli.no.hier$paper_id %in% unique(df.repli.no.hier$paper_id)[60:120],]
-    
-    df <- df.repli.no.hier %>%
-      #make_long(paper_id, claim_id,rr_is_manylabs,rr_analytic_sample_stage)
-      make_long(paper_id, claim_id,rr_is_manylabs,rr_analytic_sample_stage)
-    
-    
-    pl <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) + 
-      geom_alluvial(flow.alpha = 0.75, show.legend = FALSE,space=1) +
-      #geom_sankey_label(size = 3, color = "black", fill= "white", hjust = -0.5)+
-      theme_bw() + 
-      theme(legend.position = "none") +
-      theme(axis.title = element_blank()
-            , axis.text.y = element_blank()
-            , axis.ticks = element_blank()  
-            , panel.grid = element_blank()) +
-      labs(fill = 'Nodes')
-     pl <- pl + scale_fill_viridis_d(option = "inferno")
-    # pl <- pl + labs(title = "Sankey diagram using ggplot")
-    # pl <- pl + labs(subtitle = "using  David Sjoberg's ggsankey package")
-    pl
-  }
+  # df.repli.no.hier <- repli_outcomes[c("paper_id","claim_id","is_manylabs","power_for_effect_size")]
+  # df.repli.no.hier$claim_id <- paste0(df.repli.no.hier$paper_id,"_", df.repli.no.hier$claim_id)
+  
+  #df.repli.no.hier <- df.repli.no.hier[df.repli.no.hier$paper_id %in% unique(df.repli.no.hier$paper_id)[60:120],]
+  
+  df.alluvial <- df.alluvial %>%
+    ggsankey::make_long(paper_id,claim_id,type,outcome)
+  
+  ggplot(df.alluvial, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) + 
+    ggsankey::geom_alluvial(flow.alpha = 0.75, show.legend = FALSE,space=1) +
+    #ggsankey::geom_sankey()+
+    #geom_sankey_label(size = 3, color = "black", fill= "white", hjust = -0.5)+
+    theme_bw() + 
+    theme(legend.position = "none") +
+    theme(axis.title = element_blank()
+          , axis.text.x = element_blank()
+          , axis.ticks = element_blank()  
+          , panel.grid = element_blank()) +
+    labs(fill = 'Nodes')+
+    coord_flip()
 }
 
 
