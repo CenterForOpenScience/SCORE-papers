@@ -15,15 +15,12 @@ source(here("pipeline",
 # alone
 tar_load(orig_dataset)
 
-tar_load(repli_primary)
-
-tar_load(repli_secondary)
+tar_load(repli_export)
 
 input_gsheet <- "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M"
 
 rr_statistics_input <- make_tilburg_rr_input(orig_dataset,
-                                             repli_primary, 
-                                             repli_secondary,
+                                             repli_export,
                                              input_gsheet)
 
 # WARNING: This will overwrite the existing data! Make sure this is what you
