@@ -187,11 +187,11 @@ list(
 
 #### Other Data Sources
 
-Original variables data from the OSF repository, [SCORE - Phase 1 RR and original article analyses](https://osf.io/3fsbm/). Note: orig_statistics_output_p2 will always throw a parsing warning, but no changes actually need to be made.
+Original variables data from the OSF repository, [SCORE - Phase 1 RR and original article analyses](https://osf.io/3fsbm/). 
 
 ```{targets raw-ov-osf}
 list(
-  # orig_statistics_output_p2.txt
+  # orig_statistics_output_p2.tsv
   tar_target(orig_statistics_output_p2_osf,
              "hk63r"),
   tar_target(orig_statistics_output_p2_mod_date, 
@@ -395,7 +395,6 @@ list(
 Run the `{targets}` pipeline. Expected warnings:
 
 1) orig_statistics_dataset_p1: One or more parsing issues
-2) orig_statistics_output_p2: One or more parsing issues
 3) replication_qa: There was 1 warning in mutate
 
 ```{r make}

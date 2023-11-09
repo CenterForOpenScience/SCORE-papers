@@ -394,10 +394,16 @@ load_orig_statistics_output_p2 <- function(
                  conflicts = "overwrite") %>%
     pull(local_path)
   
-  # This may throw warnings because of some white space issues (I think)
-  # This isn't an issue as far as I can tell.
+  # All character values and variable names are encased in quotes, so we need 
+  # to deal with that to get all of the lines to read in correctly when there 
+  # is quoted text within a value. Values that contain actual quotations will
+  # have double quotes replaced with single quotes.
   orig_statistics_output_p2 <- read_tsv(orig_statistics_output_p2_file,
-                                        show_col_types = FALSE)
+                                        show_col_types = FALSE,
+                                        quote = "\\\"") %>%
+    mutate(across(where(is.character), ~ str_remove_all(.x, "\""))) %>%
+    mutate(across(where(is.character), ~ str_replace_all(.x, "\\\\", "\'"))) %>%
+    rename_with(~ str_remove_all(.x, "\""))
   
   file.remove(orig_statistics_output_p2_file)
   

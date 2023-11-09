@@ -1,5 +1,5 @@
 list(
-  # orig_statistics_output_p2.txt
+  # orig_statistics_output_p2.tsv
   tar_target(orig_statistics_output_p2_osf,
              "hk63r"),
   tar_target(orig_statistics_output_p2_mod_date, 
