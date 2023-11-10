@@ -38,9 +38,9 @@
       select_repli_version_of_record_labels  <- c("VoR","Not VoR")
       select_repli_version_of_record_selected_default <- c(TRUE)
       
-      select_is_generalizability_set  <- c(FALSE,TRUE)
-      select_is_generalizability_labels  <- c("Standard","Generalizability study")
-      select_is_generalizability_selected_default <- c(FALSE)
+      select_repli_is_generalizability_set  <- c(FALSE,TRUE)
+      select_repli_is_generalizability_labels  <- c("Standard","Generalizability study")
+      select_repli_is_generalizability_selected_default <- c(FALSE)
       
       select_is_manylabs_set <- c(FALSE,TRUE)
       select_is_manylabs_labels <- c("Not ManyLabs","ManyLabs")
@@ -103,7 +103,7 @@
     palette_weezer_ok_human <- c("#B2A17A","#B3B470","#B1A78F","#D1BE8F","#726D5C","#B8B6A6","#5B4F3F")
     palette_weezer_van_weezer <- c("#B2023E","#E933D3","#770265","#170032","#FDF8FF","#170032","#5329F9","#F3FED5")
     
-    plaette_score_charts <- c(palette_weezer_blue[1],
+    palette_score_charts <- c(palette_weezer_blue[1],
                               palette_weezer_red[1],
                               palette_weezer_green[1],
                               palette_weezer_teal[1],
@@ -137,10 +137,10 @@ fluidPage(title = "SCORE data visualization playground",
             selected = c(select_repli_version_of_record_selected_default)
           ),
           checkboxGroupInput(
-            "select_is_generalizability_selected", "Generalizability (is_generalizability)",
-            choiceNames = unique(select_is_generalizability_labels), 
-            choiceValues = unique(select_is_generalizability_set),
-            selected = c(select_is_generalizability_selected_default)
+            "select_repli_is_generalizability_selected", "Generalizability (repli_is_generalizability)",
+            choiceNames = unique(select_repli_is_generalizability_labels), 
+            choiceValues = unique(select_repli_is_generalizability_set),
+            selected = c(select_repli_is_generalizability_selected_default)
           ),
           checkboxGroupInput(
             "select_is_manylabs_selected", "Many Labs (is_manylabs)",
@@ -162,25 +162,35 @@ fluidPage(title = "SCORE data visualization playground",
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Alluvial chart",
-                   plotOutput("repli_alluvial"),
-          ),
           tabPanel("Replication stats vs original",
                    
                    plotOutput("repli_outcomes_vs_orig"),
                    h4("Options:"),
                    fluidRow(
                      column(4,
-                       checkboxGroupInput(
+                       #checkboxGroupInput(
+                       radioButtons(
                          "rr_stat_outcomes_selected", "Effect size stats types",
                          choiceNames = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
                          choiceValues = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
-                         selected = c("Pearson's R","ser_method"),
+                         selected = c("Pearson's R"),
                          inline=FALSE
                        )
                      ),
                      column(1),
                      column(7,
+                            p("Chart elements; add:"),
+                            checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
+                                          "Smoothed distributions",TRUE),
+                            checkboxInput("repli_outcomes_vs_orig_points",
+                                          "Raw data points",TRUE),
+                            checkboxInput("repli_outcomes_vs_orig_lines",
+                                          "Lines",TRUE),
+                            checkboxInput("repli_outcomes_vs_orig_points_jitter",
+                                           "Jittered raw data points",FALSE),
+                            checkboxInput("repli_outcomes_vs_orig_dotplot",
+                                          "Dot plot",FALSE),
+                            
                             p("Chart extent limits"),
                             fluidRow(
                               column(6,numericInput("repli_outcomes_vs_orig_lb",
@@ -192,6 +202,7 @@ fluidPage(title = "SCORE data visualization playground",
                                          "Null value",0),
                             checkboxInput("repli_outcomes_vs_orig_abs",
                                          "Take absolute value of effect size",FALSE)
+                            
                      )
                    )
                  )
@@ -212,7 +223,7 @@ server <- function(input, output, session) {
     
         df <- df[df$repli_type %in% input$select_repli_type_selected,]
         df <- df[df$repli_version_of_record %in% input$select_repli_version_of_record_selected,]
-        df <- df[df$repli_is_generalizability %in% input$select_is_generalizability_selected,]
+        df <- df[df$repli_is_generalizability %in% input$select_repli_is_generalizability_selected,]
         # note: change bottom ones to:
         # df <- df[df$repli_is_manylabs %in% input$select_is_manylabs_selected,]
         # df <- df[df$repli_power_for_effect_size %in% input$select_power_for_effect_size_selected,]
@@ -246,13 +257,13 @@ server <- function(input, output, session) {
         # All others
           df.chart.others <- df.chart[c("repli_effect_size_value","orig_effect_size_value","repli_effect_size_type")]
           colnames(df.chart.others) <- c("Replication","Original","stat_type")
-          # types_to_keep <- c("ser_method")
-          # df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
         
         # Combine and select
           df.chart <- rbind(df.chart.pearsons,df.chart.others)
-          df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
+          df.chart$pair <- as.character(1:nrow(df.chart))
           df.chart <- na.omit(df.chart)
+          df.chart <- df.chart %>% pivot_longer(!"stat_type" & !"pair", names_to = "comparison", values_to = "ES_value")
+          
           df.chart$comparison <- factor(df.chart$comparison,
                                         labels=c("Replication","Original"),
                                         levels=c("Replication","Original"))
@@ -264,48 +275,49 @@ server <- function(input, output, session) {
           }
           
       # Chart generation
-        ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=reorder(comparison, desc(comparison)))) +
-          geom_split_violin()+
-          geom_point(position=position_jitterdodge(),size=.5)+
+        #p <- ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=reorder(comparison, desc(comparison)))) +
+        p <- ggplot(data=df.chart,aes(y=ES_value,x=reorder(comparison, desc(comparison)),fill=reorder(comparison, desc(comparison)))) +
           theme_bw()+
-          scale_fill_manual(values=plaette_score_charts)+
+          scale_fill_manual(values=palette_score_charts)+
           geom_hline(aes(yintercept =input$repli_outcomes_vs_orig_null),linetype=3,color="#454545")+
           theme(
             legend.position = "bottom",
             panel.grid = element_blank(),
             axis.line = element_line(color="#393939"),
-            legend.title=element_blank()
+            legend.title=element_blank(),
+            axis.title.x = element_blank(),
+            panel.border = element_blank()
           )+
-          scale_y_continuous(
-                             limits=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
-          xlab("Statistic type")+
+          scale_y_continuous(limits=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
+          #scale_x_discrete(expand = c(4, 0))+
+          theme(aspect.ratio = 1)+
+          #xlab("Statistic type")+
           ylab("Effect size value")
+        
+        pd = position_dodge(width=0.4)
+        if (input$repli_outcomes_vs_orig_lines == TRUE){
+          p <- p + geom_line(aes(group=pair),color="grey",show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_smoothed_dist == TRUE){
+          p <- p + geom_split_violin(show.legend=FALSE)
+        }
+        
+        if (input$repli_outcomes_vs_orig_points_jitter == TRUE){
+          p <- p + geom_point(position=position_jitterdodge(),size=1,show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_points == TRUE){
+          p <- p + geom_point(position=pd,size=1,show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_dotplot == TRUE){
+          p <- p+geom_dotplot(binaxis = "y",
+                            stackdir = "center",
+                            dotsize = 0.5)
+        }
+        
+        p
       })
   
       output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
-      
-      output$repli_alluvial <- renderPlot({
-        df.repli.no.hier <- repli_outcomes[c("paper_id","claim_id","is_manylabs","power_for_effect_size")]
-        df.repli.no.hier$claim_id <- paste0(df.repli.no.hier$paper_id,"_", df.repli.no.hier$claim_id)
-        
-        df.repli.no.hier <- df.repli.no.hier[df.repli.no.hier$paper_id %in% unique(df.repli.no.hier$paper_id)[60:120],]
-        
-        df <- df.repli.no.hier %>%
-          ggsankey::make_long(paper_id, claim_id,is_manylabs,power_for_effect_size)
-        
-        pl <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) + 
-          ggsankey::geom_alluvial(flow.alpha = 0.75, show.legend = FALSE,space=1) +
-          #geom_sankey_label(size = 3, color = "black", fill= "white", hjust = -0.5)+
-          theme_bw() + 
-          theme(legend.position = "none") +
-          theme(axis.title = element_blank()
-                , axis.text.y = element_blank()
-                , axis.ticks = element_blank()  
-                , panel.grid = element_blank()) +
-          labs(fill = 'Nodes')
-        #pl <- pl + scale_fill_viridis_d(option = "inferno")
-        pl
-      })
       
       output$repli_data_text <- renderText({
         df <- df_repli_subsetted()
@@ -315,7 +327,6 @@ server <- function(input, output, session) {
         text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
         HTML(text)
       })
-  
 }
 
 shinyApp(ui, server)

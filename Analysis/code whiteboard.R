@@ -265,4 +265,28 @@ if (FALSE){
     coord_flip()
 }
 
+library(ggplot2)
 
+ID <- c(1,1,2,2,3,3,4,4,5,5)
+group <- c(20,20, 50, 50,20, 20, 80, 80, 80, 80)
+condition <- c("med", "placebo","med", "placebo","med", "placebo","med", "placebo","med", "placebo")
+PropYes <- c(0.13, 0.15, 0.25, 0.13, 0.54, 0.34, 0.23, 0.45, 0.142, 0.344)
+exampleData <- data.frame(ID, group, condition, PropYes)
+exampleData <- within(exampleData, {
+  group <- as.factor(group)
+  condition <- as.factor(condition)
+})
+
+pd = position_dodge(width=0)
+ggplot(exampleData, aes(x=factor(condition), y=PropYes, 
+                        color=factor(group), group=factor(ID))) + 
+  geom_point(position=pd) + geom_line(position=pd)
+
+
+ggplot(df.chart, aes(x=comparison, y=ES_value, 
+                        group=factor(group))) + 
+  geom_point(position=pd) + geom_line(position=pd)
+
+ggplot(df.chart, aes(x=comparison, y=ES_value, 
+                     group=factor(group))) + 
+  geom_point() + geom_line()
