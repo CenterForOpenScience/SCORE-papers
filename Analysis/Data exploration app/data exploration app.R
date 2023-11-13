@@ -9,6 +9,7 @@
     library(ggExtra)
     library(DT)
     library(tidyr)
+    library(pbapply)
   }
   
   # Data loading
@@ -114,6 +115,47 @@
   }
 }
 
+# Statistical functions
+{
+  bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
+                              alpha=.05,tails="two-tailed",iters=10){
+    # Set up cluster designations
+    if(anyNA(clustervar)){ data$clust.id <- 1:nrow(data) 
+    } else { data$cluster.id <- data[[clustervar]] }
+    cluster.set <- unique(data$cluster.id)
+    # Generate original target variable
+      point.estimate <- FUN(data)
+    # Create distribution of bootstrapped samples
+    estimates.bootstrapped <- replicate(iters,{
+      # Generate sample of clusters to include
+      clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+      # Build dataset from cluster list
+      data.clust <- do.call(rbind,lapply(1:length(clust.list), function(x) {
+        data[data$cluster.id == clust.list[x],]
+      }))
+      # Run function on new data
+      tryCatch(FUN(data.clust),finally=NA)
+      
+    },
+    simplify=TRUE)
+    # Outcomes measures
+    SE <- sd(estimates.bootstrapped,na.rm = TRUE)
+    if (tails == "two-tailed"){
+      CI.lb <- quantile(estimates.bootstrapped, alpha/2,na.rm = TRUE)
+      CI.ub <- quantile(estimates.bootstrapped, 1-alpha/2,na.rm = TRUE)
+    } else if (tails == "one-tailed, upper"){
+      CI.lb <- NA
+      CI.ub <- quantile(estimates.bootstrapped, 1-alpha,na.rm = TRUE)
+    } else if (tails == "one-tailed, lower"){
+      CI.lb <- quantile(estimates.bootstrapped, alpha,na.rm = TRUE)
+      CI.ub <- NA
+    }
+    # Outputs
+    return(list("point.estimate"=point.estimate,"SE"=SE,
+                "CI.lb"=CI.lb,"CI.ub"=CI.ub,"estimates.bootstrapped"=estimates.bootstrapped))
+  }
+}
+
 ui <- {
 
 fluidPage(title = "SCORE data visualization playground",
@@ -162,7 +204,10 @@ fluidPage(title = "SCORE data visualization playground",
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Replication stats vs original",
+          tabPanel("Key stats",
+                   p("temp for stats")
+          ),
+          tabPanel("Chart: repli vs original ES",
                    
                    plotOutput("repli_outcomes_vs_orig"),
                    h4("Options:"),
@@ -205,8 +250,7 @@ fluidPage(title = "SCORE data visualization playground",
                             
                      )
                    )
-                 )
-          
+          )
         )
       )
     ),

@@ -290,3 +290,66 @@ ggplot(df.chart, aes(x=comparison, y=ES_value,
 ggplot(df.chart, aes(x=comparison, y=ES_value, 
                      group=factor(group))) + 
   geom_point() + geom_line()
+
+
+
+
+# Startup and initialization
+{
+  rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+  
+  library(targets)
+  library(ggplot2)
+  library(ggalluvial)
+  library(tidyr)
+  library(dplyr)
+  library(devtools)
+  library(ggsankey)
+  library(plotly)
+  library(viridis)
+}
+
+tar_load("repli_outcomes")
+
+bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
+                            alpha=.05,tails="two-tailed",iters=10){
+  # Set up cluster designations
+    if(anyNA(clustervar)){ data$clust.id <- 1:nrow(data) 
+    } else { data$cluster.id <- data[[clustervar]] }
+    cluster.set <- unique(data$cluster.id)
+  # Generate original target variable
+    point.estimate <- FUN(data)
+  # Create distribution of bootstrapped samples
+    estimates.bootstrapped <- replicate(iters,{
+      # Generate sample of clusters to include
+        clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+      # Build dataset from cluster list
+        data.clust <- do.call(rbind,lapply(1:length(clust.list), function(x) {
+          data[data$cluster.id == clust.list[x],]
+        }))
+      # Run function on new data
+        tryCatch(FUN(data.clust),finally=NA)
+      
+    },
+    simplify=TRUE)
+  # Outcomes measures
+    SE <- sd(estimates.bootstrapped,na.rm = TRUE)
+    if (tails == "two-tailed"){
+      CI.lb <- quantile(estimates.bootstrapped, alpha/2,na.rm = TRUE)
+      CI.ub <- quantile(estimates.bootstrapped, 1-alpha/2,na.rm = TRUE)
+    } else if (tails == "one-tailed, upper"){
+      CI.lb <- NA
+      CI.ub <- quantile(estimates.bootstrapped, 1-alpha,na.rm = TRUE)
+    } else if (tails == "one-tailed, lower"){
+      CI.lb <- quantile(estimates.bootstrapped, alpha,na.rm = TRUE)
+      CI.ub <- NA
+    }
+  # Outputs
+    return(list("point.estimate"=point.estimate,"SE"=SE,
+                "CI.lb"=CI.lb,"CI.ub"=CI.ub,"estimates.bootstrapped"=estimates.bootstrapped))
+}
+
+test <- bootstrap.clust(data=repli_outcomes,FUN=function(data) {
+  mean(data$rr_analytic_sample_size_value_reported,na.rm=TRUE)
+},clustervar = "paper_id")
+
