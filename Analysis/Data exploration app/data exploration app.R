@@ -120,7 +120,7 @@
   bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
                               alpha=.05,tails="two-tailed",iters=10){
     # Set up cluster designations
-    if(anyNA(clustervar)){ data$clust.id <- 1:nrow(data) 
+    if(anyNA(clustervar)){ data$cluster.id <- 1:nrow(data) 
     } else { data$cluster.id <- data[[clustervar]] }
     cluster.set <- unique(data$cluster.id)
     # Generate original target variable
@@ -205,7 +205,8 @@ fluidPage(title = "SCORE data visualization playground",
                   DTOutput("repli_data_table")
           ),
           tabPanel("Key stats",
-                   p("temp for stats")
+                   p("takes a bit to load..."),
+                   htmlOutput("repli_success_text")
           ),
           tabPanel("Chart: repli vs original ES",
                    
@@ -366,9 +367,73 @@ server <- function(input, output, session) {
       output$repli_data_text <- renderText({
         df <- df_repli_subsetted()
         
+        
         text <- paste0("Replications (n): ",nrow(df))
         text <- paste0(text,"<br/>","Papers (n): ",length(unique(df$paper_id)))
         text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
+        HTML(text)
+      })
+      
+      output$repli_success_text <- renderText({
+        df <- df_repli_subsetted()
+        
+        text <- ""
+        
+        # 
+        
+        # Replication criteria
+        
+          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
+            function(data) {
+              mean(data$repli_pattern_criteria_met,na.rm=TRUE)
+            }, 
+          alpha=.05,tails="two-tailed",iters=100)
+          
+          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
+              function(data) {
+                data <- data %>% add_count(paper_id)
+                data$weight <- 1/data$n
+                weighted.mean(data$repli_pattern_criteria_met,data$weight,na.rm=TRUE)
+              }, 
+            clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=100)
+          
+          text <- paste0(text,"<b>Percent meeting replication criteria:</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df$repli_pattern_criteria_met)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
+          
+          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
+                function(data) {
+                  mean(data$repli_interpret_supported=="yes",na.rm=TRUE)
+                }, 
+                alpha=.05,tails="two-tailed",iters=100)
+          
+          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
+               function(data) {
+                 data <- data %>% add_count(paper_id)
+                 data$weight <- 1/data$n
+                 weighted.mean(data$repli_interpret_supported=="yes",data$weight,na.rm=TRUE)
+               }, 
+              clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=100)
+          
+          text <- paste0(text,"<b>Percent interpretation supported (subjective assessment by lab):</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df$repli_interpret_supported)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+
         HTML(text)
       })
 }

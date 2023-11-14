@@ -312,9 +312,9 @@ ggplot(df.chart, aes(x=comparison, y=ES_value,
 tar_load("repli_outcomes")
 
 bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
-                            alpha=.05,tails="two-tailed",iters=10){
+                            alpha=.05,tails="two-tailed",iters=100){
   # Set up cluster designations
-    if(anyNA(clustervar)){ data$clust.id <- 1:nrow(data) 
+    if(anyNA(clustervar)){ data$cluster.id <- 1:nrow(data) 
     } else { data$cluster.id <- data[[clustervar]] }
     cluster.set <- unique(data$cluster.id)
   # Generate original target variable
@@ -329,7 +329,6 @@ bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
         }))
       # Run function on new data
         tryCatch(FUN(data.clust),finally=NA)
-      
     },
     simplify=TRUE)
   # Outcomes measures
@@ -349,7 +348,19 @@ bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
                 "CI.lb"=CI.lb,"CI.ub"=CI.ub,"estimates.bootstrapped"=estimates.bootstrapped))
 }
 
-test <- bootstrap.clust(data=repli_outcomes,FUN=function(data) {
-  mean(data$rr_analytic_sample_size_value_reported,na.rm=TRUE)
+test <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=function(data) {
+  mean(data$repli_pattern_criteria_met,na.rm=TRUE)
 },clustervar = "paper_id")
+test$point.estimate
 
+test <- bootstrap.clust(data=repli_outcomes,FUN=function(data) {
+  data <- data[c("paper_id","claim_id","repli_pattern_criteria_met")]
+  mean(data$repli_pattern_criteria_met,na.rm=TRUE)
+},clustervar = "paper_id")
+test$point.estimate
+
+data <- repli_outcomes[c("paper_id","claim_id","repli_pattern_criteria_met")] 
+data <- data %>% add_count(paper_id)
+data$weight <- 1/data$n
+weighted.mean(data$repli_pattern_criteria_met,data$weight,na.rm=TRUE)
+da
