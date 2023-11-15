@@ -83,6 +83,7 @@ process_pr_data <- function(pr_data_raw,
         pr_code_available,
         "Yes - code is publicly available" ~ "Yes",
         "Yes - code is available" ~ "Yes",
+        "No - code was not found/is not available" ~ "No",
         .default = pr_code_available
       )
     ) %>%
