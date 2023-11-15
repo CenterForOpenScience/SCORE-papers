@@ -23,12 +23,25 @@ rr_statistics_input <- make_tilburg_rr_input(orig_dataset,
                                              repli_export,
                                              input_gsheet)
 
+# Add extra variables requested by Andrew
+rr_stat_reported <- rr_statistics_input %>%
+  left_join("1bWi-dOC-VGN253-cbFzb3toj7cDckNS3O9LItdV8wXQ" %>%
+              read_sheet(sheet = 1),
+            by = "unique_report_id") %>%
+  select(rr_statistic_nrow_reported,
+         rr_statistic_ncol_reported)
+
 # WARNING: This will overwrite the existing data! Make sure this is what you
 # really want because it is inconvenient to roll it back.
 range_write(rr_statistics_input,
             ss = "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M",
             sheet = 2,
             range = cell_cols("A:AS"))
+
+range_write(rr_stat_reported,
+            ss = "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M",
+            sheet = 2,
+            range = cell_cols("AZ:BA"))
 
 
 # Upload orig_statistics_input ----
@@ -122,6 +135,12 @@ for (i in 1:nrow(report_decision)) {
        ref_col] <- NA
 
 }
+
+# orig_stat_reported <- "" %>%
+#   read_sheet() %>%
+#   right_join() %>%
+#   select(orig_statistic_nrow_reported,
+#          orig_statistic_ncol_reported)
 
 range_write(orig_upload,
             ss = "1P4RrEUET-jdgbrMyFofEgKlJR1DX7oKxA9azcmcXwFI",
