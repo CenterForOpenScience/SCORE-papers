@@ -4,7 +4,7 @@
 # and writes updated changelog. Works for original variables and replication 
 # outcomes
 
-update_changelog <- function(changelog,
+update_changelog <- function(change_sheet,
                              source_data,
                              outcome_id,
                              changes_dict,
@@ -14,7 +14,11 @@ update_changelog <- function(changelog,
   changelog <- change_sheet %>%
     read_sheet()
   
-  unique_id <- names(select(changelog, starts_with("unique")))
+  unique_id <- if_else(
+    change_sheet == "1zek9Lu-s303ZXs3B84h2vy-sJ1avOZSgpZEsna40pdA",
+    "paper_id",
+    names(select(changelog, starts_with("unique")))
+  )
   
   version_col <- names(select(changelog, ends_with("_stat_version")))
   

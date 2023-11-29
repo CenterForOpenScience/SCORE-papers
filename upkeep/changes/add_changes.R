@@ -67,6 +67,18 @@ if (type == "Replication") {
   
   change_sheet <- "1c2i_k-RMzTWAC7RD6cqhheToihtS8_C5r5powvRuMDE"
   
+} else if (type == "Process Reproducibility") {
+  
+  source_data <- tar_read(pr_data_form)
+  
+  if (!(outcome_id %in% pull(source_data, paper_id))) {
+    
+    stop(simpleError("Outcome ID does not exist for process repoducibility."))
+    
+  }
+  
+  change_sheet <- "1zek9Lu-s303ZXs3B84h2vy-sJ1avOZSgpZEsna40pdA"
+  
 } else {
   
   stop(simpleError("Invalid type provided. Perhaps this is a hybrid entry?"))
@@ -81,7 +93,7 @@ if (any(!(names(changes_dict) %in% names(source_data)))) {
   
 }
 
-update_changelog(changelog,
+update_changelog(change_sheet,
                  source_data,
                  outcome_id,
                  changes_dict,
