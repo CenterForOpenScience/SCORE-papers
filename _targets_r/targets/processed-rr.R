@@ -15,5 +15,9 @@ list(
   # Full reproduction dataset
   tar_target(repro_export,
              export_repro(reproduction_qa,
-                         p2_repro_input_changelog))
+                         p2_repro_input_changelog)),
+  
+  # rr confrontations reproduction claims
+  tar_target(rr_confrontations_repro_claim,
+             process_repro_claims(prereg_checkin_repro))
 )

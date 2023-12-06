@@ -479,3 +479,12 @@ load_rr_statistics_output_p2 <- function(
            rr_power_50_original_effect,
            rr_power_75_original_effect)
 }
+
+load_repro_checkin <- function(prereg_checkin_repro_gsheet) {
+  
+  prereg_checkin_repro_gsheet %>%
+    read_sheet() %>%
+    # confrontations_claim4_id loads in as list, should be character
+    mutate(confrontation_claim4_id = as.character(confrontation_claim4_id))
+  
+}
