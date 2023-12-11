@@ -11,6 +11,7 @@
   library(ggsankey)
   library(plotly)
   library(viridis)
+  
 }
 
 # tar_make() # run this to pull new targets
@@ -332,17 +333,33 @@ bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
     },
     simplify=TRUE)
   # Outcomes measures
-    SE <- sd(estimates.bootstrapped,na.rm = TRUE)
-    if (tails == "two-tailed"){
-      CI.lb <- quantile(estimates.bootstrapped, alpha/2,na.rm = TRUE)
-      CI.ub <- quantile(estimates.bootstrapped, 1-alpha/2,na.rm = TRUE)
-    } else if (tails == "one-tailed, upper"){
-      CI.lb <- NA
-      CI.ub <- quantile(estimates.bootstrapped, 1-alpha,na.rm = TRUE)
-    } else if (tails == "one-tailed, lower"){
-      CI.lb <- quantile(estimates.bootstrapped, alpha,na.rm = TRUE)
-      CI.ub <- NA
+    if(is.matrix(estimates.bootstrapped)){
+      n_estimates <- nrow(estimates.bootstrapped)
+      SE <- unlist(lapply(1:n_estimates,function(x) {sd(estimates.bootstrapped[x,],na.rm = TRUE)}))
+      if (tails == "two-tailed"){
+        CI.lb <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], alpha/2,na.rm = TRUE)}))
+        CI.ub <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], 1-alpha/2,na.rm = TRUE)}))
+      } else if (tails == "one-tailed, upper"){
+        CI.lb <- unlist(lapply(1:n_estimates,function(x) {NA}))
+        CI.ub <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], 1-alpha,na.rm = TRUE)}))
+      } else if (tails == "one-tailed, lower"){
+        CI.lb <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], alpha,na.rm = TRUE)}))
+        CI.ub <- unlist(lapply(1:n_estimates,function(x) {NA}))
+      }
+    } else {
+      SE <- sd(estimates.bootstrapped,na.rm = TRUE)
+      if (tails == "two-tailed"){
+        CI.lb <- quantile(estimates.bootstrapped, alpha/2,na.rm = TRUE)
+        CI.ub <- quantile(estimates.bootstrapped, 1-alpha/2,na.rm = TRUE)
+      } else if (tails == "one-tailed, upper"){
+        CI.lb <- NA
+        CI.ub <- quantile(estimates.bootstrapped, 1-alpha,na.rm = TRUE)
+      } else if (tails == "one-tailed, lower"){
+        CI.lb <- quantile(estimates.bootstrapped, alpha,na.rm = TRUE)
+        CI.ub <- NA
+      }
     }
+    
   # Outputs
     return(list("point.estimate"=point.estimate,"SE"=SE,
                 "CI.lb"=CI.lb,"CI.ub"=CI.ub,"estimates.bootstrapped"=estimates.bootstrapped))
@@ -353,14 +370,25 @@ test <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_patte
 },clustervar = "paper_id")
 test$point.estimate
 
-test <- bootstrap.clust(data=repli_outcomes,FUN=function(data) {
-  data <- data[c("paper_id","claim_id","repli_pattern_criteria_met")]
+test <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=function(data) {
   mean(data$repli_pattern_criteria_met,na.rm=TRUE)
 },clustervar = "paper_id")
 test$point.estimate
 
-data <- repli_outcomes[c("paper_id","claim_id","repli_pattern_criteria_met")] 
-data <- data %>% add_count(paper_id)
-data$weight <- 1/data$n
-weighted.mean(data$repli_pattern_criteria_met,data$weight,na.rm=TRUE)
-da
+test <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_pattern_criteria_met","repli_type")],FUN=function(data) {
+  reg <- lm("repli_pattern_criteria_met ~ repli_type",data=data)
+  reg$coefficients
+},clustervar = "paper_id")
+test$point.estimate
+
+test <- lm("repli_pattern_criteria_met ~ repli_type",data=repli_outcomes)
+
+
+
+repli_outcomes$new_data <- repli_outcomes$repli_type=="new data"
+table(repli_outcomes$repli_pattern_criteria_met,repli_outcomes$new_data)
+
+rr <- (sum(repli_outcomes[repli_outcomes$repli_type=="new data",]$repli_pattern_criteria_met==TRUE)/sum(repli_outcomes$repli_type=="new data"))/
+(sum(repli_outcomes[repli_outcomes$repli_type=="secondary data",]$repli_pattern_criteria_met==TRUE)/sum(repli_outcomes$repli_type=="secondary data"))
+
+test$coefficients
