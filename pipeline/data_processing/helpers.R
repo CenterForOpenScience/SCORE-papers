@@ -154,6 +154,33 @@ read_google_sheet <- function(file_id, mod_date) {
   
 }
 
+# Downloads CSV from OSF if it has been updated, stores the output, and 
+# deletes the temp downloaded file
+load_osf_csv <- function(osf_id,
+                         osf_mod_date) {
+  
+  # This triggers tar_make() to load data if the modification date has
+  # changed since last run
+  if(!is.Date(as.Date(osf_mod_date))){
+    stop(simpleError("File modification date invalid."))
+  }
+  
+  osf_csv_file <- osf_id %>%
+    osf_retrieve_file() %>%
+    osf_download(path = here("pipeline",
+                             "data_processing",
+                             "temp"),
+                 conflicts = "overwrite") %>%
+    pull(local_path)
+  
+  osf_csv_data <- read_csv(osf_csv_file,
+                           show_col_types = FALSE)
+  
+  file.remove(osf_csv_file)
+  
+  return(osf_csv_data)
+}
+
 load_changelog <- function(orig_input_changelog_file,
                            orig_input_changelog_moddate) {
   
@@ -165,4 +192,12 @@ load_changelog <- function(orig_input_changelog_file,
            across(c(change_to, change_from, rationale), ~na_if(., "NA")),
            across(c(change_to, change_from), ~na_if(., "NC")))
   
+}
+
+# Customized rounding function that pushes 5 up rather than down
+round_off <- function(x, digits = 0) {
+  posneg <- sign(x)
+  z <- trunc(abs(x) * 10 ^ (digits + 1)) / 10
+  z <- posneg * (floor(z + 0.5) / 10 ^ digits)
+  return(z)
 }

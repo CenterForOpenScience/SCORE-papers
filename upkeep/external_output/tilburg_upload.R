@@ -1,26 +1,36 @@
 library(googlesheets4)
-source(here("admin_processes",
+library(googledrive)
+library(targets)
+library(tidyverse)
+library(here)
+source(here("upkeep",
             "external_output",
             "tilburg_exports.R"))
 source(here("pipeline",
             "data_processing",
             "helpers.R"))
+tar_make()
 
 # Upload rr_statistics_input to Google Sheets ----
-# Overwrite 45 rows (A:AS) of COS data, leave Tilburg's internal notes rows 
+# Overwrite 45 columns (A:AS) of COS data, leave Tilburg's internal notes rows 
 # alone
 tar_load(orig_dataset)
 
-tar_load(repli_primary)
-
-tar_load(repli_secondary)
+tar_load(repli_export)
 
 input_gsheet <- "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M"
 
 rr_statistics_input <- make_tilburg_rr_input(orig_dataset,
-                                             repli_primary, 
-                                             repli_secondary,
+                                             repli_export,
                                              input_gsheet)
+
+# Add extra variables requested by Andrew
+rr_stat_reported <- rr_statistics_input %>%
+  left_join("1bWi-dOC-VGN253-cbFzb3toj7cDckNS3O9LItdV8wXQ" %>%
+              read_sheet(sheet = 1),
+            by = "unique_report_id") %>%
+  select(rr_statistic_nrow_reported,
+         rr_statistic_ncol_reported)
 
 # WARNING: This will overwrite the existing data! Make sure this is what you
 # really want because it is inconvenient to roll it back.
@@ -28,6 +38,11 @@ range_write(rr_statistics_input,
             ss = "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M",
             sheet = 2,
             range = cell_cols("A:AS"))
+
+range_write(rr_stat_reported,
+            ss = "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M",
+            sheet = 2,
+            range = cell_cols("AZ:BA"))
 
 
 # Upload orig_statistics_input ----
@@ -104,6 +119,29 @@ old_rows <- orig_statistics_input %>%
   mutate(original_poweranalysis_link = orig_statistics_input_tilburg$original_poweranalysis_link)
 
 orig_upload <- rbind(old_rows, new_rows)
+
+# For a few select cases, we want to use the "reported" value as opposed
+# to the "reference" value. Void out the "reference" value in these cases
+# for process consistency 
+report_decision <- "1eKJ6kbM6tZthzbeoghy2XBTIEZueDXB2zqCnZHA8-XE" %>%
+  read_sheet()
+
+for (i in 1:nrow(report_decision)) {
+  
+  ref_col <- report_decision$reported[i] %>%
+    str_extract(".*(?=_reported)") %>%
+    str_c("_reference")
+  
+  orig_upload[orig_upload$unique_claim_id == report_decision$unique_claim_id[i],
+       ref_col] <- NA
+
+}
+
+# orig_stat_reported <- "" %>%
+#   read_sheet() %>%
+#   right_join() %>%
+#   select(orig_statistic_nrow_reported,
+#          orig_statistic_ncol_reported)
 
 range_write(orig_upload,
             ss = "1P4RrEUET-jdgbrMyFofEgKlJR1DX7oKxA9azcmcXwFI",

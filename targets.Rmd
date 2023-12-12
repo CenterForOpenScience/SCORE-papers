@@ -27,12 +27,16 @@ The R package targets is a pipeline tool which watches the dependency graph of t
 We first define some global options and source functions.
 
 ```{targets globals, tar_globals = TRUE}
-options(tidyverse.quiet = TRUE)
+options(tidyverse.quiet = TRUE,
+        # Gmail authorization for accessing sheets
+        # Set google_oauth_email="youremail@cos.io" in your .Renviron file 
+        # to use this document without changing the code.
+        gargle_oauth_email = Sys.getenv("google_oauth_email"),
+        scipen = 999)
 
-# Gmail authorization for accessing sheets
-# Set google_oauth_email="youremail@cos.io" in your .Renviron file to use
-# this document without changing the code.
-options(gargle_oauth_email = Sys.getenv("google_oauth_email"))
+
+options()
+
 googledrive::drive_auth()
 googlesheets4::gs4_auth()
 
@@ -78,6 +82,24 @@ list(
   tar_target(status,
              read_google_csv(status_file,
                              status_moddate))
+)
+```
+
+#### Other Data Sources
+
+Metadata for COVID papers for TA2 from the OSF repository, [Public for TA2](https://osf.io/um7kc/). 
+
+```{targets raw-paper-osf}
+list(
+  # covid_ta2.csv
+  tar_target(covid_ta2_osf,
+             "yr3w8"),
+  tar_target(covid_ta2_mod_date, 
+             get_osf_mod_date(covid_ta2_osf),
+             cue = tar_cue("always")), 
+  tar_target(covid_ta2,
+             load_osf_csv(covid_ta2_osf,
+                          covid_ta2_mod_date))
 )
 ```
 
@@ -187,11 +209,11 @@ list(
 
 #### Other Data Sources
 
-Original variables data from the OSF repository, [SCORE - Phase 1 RR and original article analyses](https://osf.io/3fsbm/). Note: orig_statistics_output_p2 will always throw a parsing warning, but no changes actually need to be made.
+Original variables data from the OSF repository, [SCORE - Phase 1 RR and original article analyses](https://osf.io/3fsbm/). 
 
 ```{targets raw-ov-osf}
 list(
-  # orig_statistics_output_p2.txt
+  # orig_statistics_output_p2.tsv
   tar_target(orig_statistics_output_p2_osf,
              "hk63r"),
   tar_target(orig_statistics_output_p2_mod_date, 
@@ -239,6 +261,16 @@ list(
   tar_target(repli_input_changelog,
              load_changelog(repli_input_changelog_file,
                             repli_input_changelog_moddate)),
+  
+  # p2_repro_input_changelog ()
+  tar_target(p2_repro_input_changelog_file,
+             "1c2i_k-RMzTWAC7RD6cqhheToihtS8_C5r5powvRuMDE"),
+  tar_target(p2_repro_input_changelog_moddate,
+             get_google_mod_date(repli_input_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(p2_repro_input_changelog,
+             load_changelog(p2_repro_input_changelog_file,
+                            p2_repro_input_changelog_moddate)),
   
   # checkins/ ----
   # rr_reporting_checkin.tsv
@@ -319,6 +351,13 @@ list(
   tar_target(reproduction_qa,
              load_reproduction_qa(reproduction_qa_gsheet,
                                   p2_repro_vf),
+             cue = tar_cue("always")),
+  
+  # File: SCORE-P2-097: Prereg check-in form (Reproduction) (Responses)
+  tar_target(prereg_checkin_repro_gsheet,
+             "11UCF2cuoBwLfJrQZC7AoWqG7EjCBoxV_GC-aFMsy6u4"),
+  tar_target(prereg_checkin_repro,
+             load_repro_checkin(prereg_checkin_repro_gsheet),
              cue = tar_cue("always"))
 )
 ```
@@ -341,56 +380,105 @@ list(
 )
 ```
 
+### Process Reproducibility
+
+Process Reproducibility (PR) data from the [SCORE Google Drive](https://drive.google.com/drive/folders/0AHots-bNz56yUk9PVA). Note that these targets do not rely on modification dates like most of the other files downloaded from Google Drive. Adding new entries to sheets through forms doesn't always trigger the modification date to update, so we will always run these targets regardless of when they were last updated.
+
+The PR change log is found on the COS SCORE Data Google Drive.
+
+```{targets raw-pr}
+list(
+  
+  tar_target(pr_gsheet,
+             "1E8LvpcuoUyVZV-EDqVPW_H1Cd-4OJCuR3Kl8HMJMVtI",
+             cue = tar_cue("always")),
+  tar_target(pr_data_raw,
+             load_pr_data(pr_gsheet)),
+  
+  tar_target(pr_changelog_gsheet,
+             "1zek9Lu-s303ZXs3B84h2vy-sJ1avOZSgpZEsna40pdA"),
+  tar_target(pr_changelog_moddate,
+             get_google_mod_date(pr_changelog_gsheet),
+             cue = tar_cue("always")),
+  tar_target(pr_input_changelog,
+             load_changelog(pr_changelog_gsheet,
+                            pr_changelog_moddate))
+  
+)
+```
+
 ## Processed Data
 
 Original variables data. QC'ed and merged. 
 
 ```{targets processed-ov}
-tar_target(orig_dataset,
+list(
+  tar_target(orig_dataset,
            export_orig(orig_input_changelog,
                          orig_statistics_dataset_p1,
                          original_inftest_dataset,
                          orig_statistics_manual_data_entry,
                          orig_vars_qa,
                          tagtable_covid_p1,
-                         orig_statistics_output_p2))
+                         orig_statistics_output_p2)),
+  tar_target(orig_analytic,
+             create_ov_analytic(orig_dataset))
+)
 ```
 
 Replications/Reproductions variables data. QC'ed and merged.
 
 ```{targets processed-rr}
 list(
+  # Full replication dataset
   tar_target(repli_export,
              export_repli(rr_outcomes_dataset_p1,
                           replication_qa,
                           rr_reporting_checkin,
                           repli_input_changelog)),
   
-  tar_target(repli_primary,
-             split_repli_primary(repli_export)),
-  
-  tar_target(repli_secondary,
-             split_repli_secondary(repli_export,
-                                   repli_primary)),
-  
-  tar_target(hybrid,
-             split_hybrid(repli_export)),
-  
   # Create replication analytic dataset
   tar_target(repli_outcomes,
              create_repli_analytic(repli_export,
                                   rr_attempts_minted,
-                                  rr_statistics_output_p2))
+                                  rr_statistics_output_p2)),
+  
+  # Full reproduction dataset
+  tar_target(repro_export,
+             export_repro(reproduction_qa,
+                         p2_repro_input_changelog)),
+  
+  # rr confrontations reproduction claims
+  tar_target(rr_confrontations_repro_claim,
+             process_repro_claims(prereg_checkin_repro)),
+  
+  # Reproduction summary variables
+  tar_target(repro_supplementary,
+             calculate_repro_summary(orig_dataset,
+                                    repro_export,
+                                    rr_confrontations_repro_claim))
 )
 ```
+
+Process reproducibility data. 
+
+```{targets processed-pr}
+
+tar_target(pr_data_form,
+           process_pr_data(pr_data_raw,
+                            covid_ta2,
+                            tagtable_covid_p1))
+
+```
+
 
 # Pipeline
 
 Run the `{targets}` pipeline. Expected warnings:
 
 1) orig_statistics_dataset_p1: One or more parsing issues
-2) orig_statistics_output_p2: One or more parsing issues
-3) replication_qa: There was 1 warning in mutate
+2) replication_qa: There was 1 warning in mutate
+3) rr_confrontations_repro_claim: There was 1 warning in mutate.
 
 ```{r make}
 tar_make()

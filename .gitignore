@@ -6,3 +6,5 @@
 .quarto
 README.html
 targets.html
+_targets/
+_targets_r/

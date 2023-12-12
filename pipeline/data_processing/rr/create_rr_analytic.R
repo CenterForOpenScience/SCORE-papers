@@ -38,7 +38,6 @@ create_repli_analytic <- function(repli_export,
                "manylabs_type")
   
   repli_outcomes <- repli_export %>%
-    # May remove at some point?
     filter(rr_type_internal %in% c("Direct Replication",
                                    "Data Analytic Replication")) %>%
     select(-c(sample_preference, 
@@ -68,11 +67,11 @@ create_repli_analytic <- function(repli_export,
       manylabs_type = case_match(rr_is_manylabs,
                                  "non_ml" ~ NA,
                                  .default = rr_is_manylabs),
-      is_vor = case_when(
+      repli_version_of_record = case_when(
         (unique_report_id %in% repli_vor$unique_report_id) ~ TRUE,
         .default = FALSE
       ),
-      is_generalizability = case_when(
+      repli_is_generalizability = case_when(
         rr_id %in% generalized$rr_id ~ TRUE,
         .default = FALSE
       ),
@@ -80,12 +79,75 @@ create_repli_analytic <- function(repli_export,
         rr_statistic_type_reported,
         "chi_squared" ~ "chi-squared",
         .default = rr_statistic_type_reported),
-      across(factors, as.factor)) %>%
+      across(all_of(factors), as.factor)) %>%
     select(-c(rr_type,
               rr_analytic_sample_stage,
               rr_is_manylabs)) %>%
     rename(report_id = unique_report_id) %>%
     relocate(report_id, .after = rr_id) %>%
-    relocate(claim_id, .after = paper_id)
+    relocate(claim_id, .after = paper_id) %>%
+    # Name changes -----
+    rename(
+      repli_sample_size_units = rr_analytic_sample_size_units_reported,
+      repli_sample_size_value = rr_analytic_sample_size_value_reported,
+      repli_sample_structure = rr_analytic_sample_cells_reported,
+      repli_analysis_type = rr_statistic_analysis_type_reported,
+      repli_stat_interaction = rr_statistic_interaction_reported,
+      repli_stat_type = rr_statistic_type_reported,
+      repli_stat_value = rr_statistic_value_reported,
+      repli_stat_dof_1 = rr_statistic_df1_reported,
+      repli_stat_dof_2 = rr_statistic_df2_reported,
+      repli_coef_type = rr_coefficient_type_reported,
+      repli_coef_value = rr_coefficient_value_reported,
+      repli_coef_se = rr_coefficient_se_reported,
+      repli_p_value_confirmed = rr_p_value_confirmation_reported,
+      repli_p_value = rr_p_value_value_reported,
+      repli_effect_size_text_raw = rr_effect_size_fulltext_reported,
+      repli_effect_size_type_raw = rr_effect_size_type_reported,
+      repli_effect_size_value_raw = rr_effect_size_value_reported,
+      repli_pattern_criteria = rr_repl_pattern_criteria_reported,
+      repli_pattern_description = rr_repl_pattern_description_reported,
+      repli_pattern_criteria_met = rr_repl_pattern_replicated_reported,
+      repli_pattern_direction = rr_repl_effect_direction_reported,
+      repli_interpret_supported = rr_repl_subjective_replicated_reported,
+      repli_interpret_support_notes = rr_repl_subjective_description_reported,
+      repli_total_model_params = rr_total_model_parameters,
+      repli_score_criteria_met = rr_repl_exact_replicated_reference,
+      repli_effect_size_type = rr_effect_size_type_reference,
+      repli_effect_size_value = rr_effect_size_value_reference,
+      repli_effect_size_ci_ub = rr_es_ub_ci_nativeunits,
+      repli_effect_size_ci_lb = rr_es_lb_ci_nativeunits,
+      repli_pearsons_r_defined = rr_pearsons_r_defined,
+      repli_pearsons_r_value = rr_pearsons_r_value,
+      repli_pearsons_r_ci_ub = rr_es_ub_ci_pearson,
+      repli_pearsons_r_ci_lb = rr_es_lb_ci_pearson,
+      repli_effect_size_pi_ub = pi_ub_nativeunits,
+      repli_effect_size_pi_lb = pi_lb_nativeunits,
+      repli_pearsons_r_ub = pi_ub_pearson,
+      repli_pearsons_r_lb = pi_lb_pearson,
+      repli_power_threshold_small = rr_power_small,
+      repli_power_threshold_medium = rr_power_medium,
+      repli_power_for_50_effect = rr_power_50_original_effect,
+      repli_power_for_75_effect = rr_power_75_original_effect
+    ) %>%
+    # Columns to drop ----
+    select(-c(rr_original_data_overlap,
+              rr_analysis_link,
+              rr_expected_sample_reached_reported,
+              rr_analytic_subsample_n1,
+              rr_analytic_subsample_n2,
+              rr_analytic_subsample_a_00,
+              rr_analytic_subsample_b_01,
+              rr_analytic_subsample_c_10,
+              rr_analytic_subsample_d_11,
+              rr_statistic_fulltext_reported,
+              rr_repl_exact_replicated_reported,
+              rr_labteam_notes,
+              rr_cos_notes,
+              rr_replication_difference_notes,
+              rr_input_source,
+              rr_stat_version,
+              pdf_filename,
+              is_covid))
   
 }

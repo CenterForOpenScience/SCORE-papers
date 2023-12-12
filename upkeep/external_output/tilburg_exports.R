@@ -6,8 +6,7 @@
 # for export, saves new rr_statistics_input file.
 make_tilburg_rr_input <- function(
     orig_dataset,
-    repli_primary, 
-    repli_secondary,
+    repli_export,
     input_gsheet = "1xkbE74CmOJaPdN0Y_Z6upcbPo-GGkiBdKT2PS-VoK9M"
   ) {
   
@@ -20,7 +19,8 @@ make_tilburg_rr_input <- function(
     range_read(sheet = 2) %>%
     select(unique_report_id)
   
-  repli <- rbind(repli_primary, repli_secondary) %>%
+  repli <- repli_export %>%
+    filter(rr_type != "Hybrid") %>%
     mutate(
       unique_claim_id = paste0(paper_id,
                                "_",
