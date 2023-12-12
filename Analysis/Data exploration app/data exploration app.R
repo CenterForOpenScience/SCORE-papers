@@ -1,3 +1,4 @@
+
 # Setup
 {
   # Libraries
@@ -9,77 +10,64 @@
     library(ggExtra)
     library(DT)
     library(tidyr)
+    library(pbapply)
+    
   }
   
   # Data loading
   {
-    load(file="repli_outcomes.RData")
-    # Temporary for data cleaning
-    repli_outcomes$generalizability <- ifelse(repli_outcomes$paper_id %in% c("Br0x", "EQxa", "J4W9", "plLK", "rjb", "zlm2"),
-                                              TRUE,FALSE)
-    repli_outcomes$claim_id_unique <- paste0(repli_outcomes$paper_id,"_",repli_outcomes$claim_id)
-    repli_outcomes$rr_type_internal <- NULL
+    if (file.exists("repli_outcomes.RData")) {
+      load(file="repli_outcomes.RData")
+    } else {
+      load(file="Analysis/Data exploration app/repli_outcomes.RData")
+    }
+    
+    if (file.exists("orig_dataset.RData")) {
+      load(file="orig_dataset.RData")
+    } else {
+      load(file="Analysis/Data exploration app/orig_dataset.RData")
+    }
+    
+    if (file.exists("common functions.R")) {
+      source("common functions.R")
+    } else {
+      source(file="Analysis/Data exploration app/common functions.R")
+    }
+
   }
   
   # Data manipulation and other setup
   {
     # RR UI and selection options data
     {
-      select_rr_type_set <- c("Direct Replication","Data Analytic Replication","Hybrid")
-      select_rr_type_labels <- c("Direct Replication","Data Analytic Replication","Hybrid")
-      select_rr_type_selected_default <- c("Direct Replication")
+      select_repli_type_set <- c("new data","secondary data")
+      select_repli_type_labels <- c("New data","Secondary data")
+      select_repli_type_selected_default <- c("new data","secondary data")
       
-      select_generalizability_set  <- c(FALSE,TRUE)
-      select_generalizability_labels  <- c("Standard","Generalizability study")
-      select_generalizability_selected_default <- c(FALSE)
+      select_repli_version_of_record_set  <- c(TRUE,FALSE)
+      select_repli_version_of_record_labels  <- c("VoR","Not VoR")
+      select_repli_version_of_record_selected_default <- c(TRUE)
       
-      select_rr_is_manylabs_set <- c("non_ml","ml_count","ml_instance_primary","ml_aggregation")
-      select_rr_is_manylabs_labels <- c("Not ManyLabs","Count","Primary","Aggregation")
-      select_rr_is_manylabs_selected_default <- c("non_ml")
+      select_repli_is_generalizability_set  <- c(FALSE,TRUE)
+      select_repli_is_generalizability_labels  <- c("Standard","Generalizability study")
+      select_repli_is_generalizability_selected_default <- c(FALSE)
       
-      select_rr_analytic_sample_stage_set <- c("stage 1","stage 2","threshold","no target","lab target")
-      select_rr_analytic_sample_stage_labels <- c("Stage 1","Stage 2","Threshold","No target","Lab target")
-      select_rr_analytic_sample_stage_selected_default <- c("stage 1")
+      select_is_manylabs_set <- c(FALSE,TRUE)
+      select_is_manylabs_labels <- c("Not ManyLabs","ManyLabs")
+      select_is_manylabs_selected_default <- c(FALSE)
+      
+      select_power_for_effect_size_set <- c("50% for 100%","90% for 50%","90% for 75% lab power analysis","not performed")
+      select_power_for_effect_size_labels <- c("50% for 100%","90% for 50%","90% for 75% lab power analysis","Not performed")
+      select_power_for_effect_size_selected_default <- select_power_for_effect_size_set
     }
   }
   
 }
 
-# Aesthetic functions
-{
-  GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
-                             draw_group = function(self, data, ..., draw_quantiles = NULL) {
-                               data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
-                               grp <- data[1, "group"]
-                               newdata <- plyr::arrange(transform(data, x = if (grp %% 2 == 1) xminv else xmaxv), if (grp %% 2 == 1) y else -y)
-                               newdata <- rbind(newdata[1, ], newdata, newdata[nrow(newdata), ], newdata[1, ])
-                               newdata[c(1, nrow(newdata) - 1, nrow(newdata)), "x"] <- round(newdata[1, "x"])
-                               
-                               if (length(draw_quantiles) > 0 & !scales::zero_range(range(data$y))) {
-                                 stopifnot(all(draw_quantiles >= 0), all(draw_quantiles <=
-                                                                           1))
-                                 quantiles <- ggplot2:::create_quantile_segment_frame(data, draw_quantiles)
-                                 aesthetics <- data[rep(1, nrow(quantiles)), setdiff(names(data), c("x", "y")), drop = FALSE]
-                                 aesthetics$alpha <- rep(1, nrow(quantiles))
-                                 both <- cbind(quantiles, aesthetics)
-                                 quantile_grob <- GeomPath$draw_panel(both, ...)
-                                 ggplot2:::ggname("geom_split_violin", grid::grobTree(GeomPolygon$draw_panel(newdata, ...), quantile_grob))
-                               }
-                               else {
-                                 ggplot2:::ggname("geom_split_violin", GeomPolygon$draw_panel(newdata, ...))
-                               }
-                             })
-  
-  geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
-                                draw_quantiles = NULL, trim = TRUE, scale = "area", na.rm = FALSE, 
-                                show.legend = NA, inherit.aes = TRUE) {
-    layer(data = data, mapping = mapping, stat = stat, geom = GeomSplitViolin, 
-          position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
-          params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
-  }
-}
 
-ui <- fluidPage(
+ui <- {
+
+fluidPage(title = "SCORE data visualization playground",
   tabsetPanel(
     tabPanel("Replications",
       page_sidebar(
@@ -88,113 +76,284 @@ ui <- fluidPage(
         sidebar = sidebar(
           h3("Dataset selection"),
           checkboxGroupInput(
-            "select_rr_type_selected", "Replication type (rr_type)",
-            choiceNames = unique(select_rr_type_labels), 
-            choiceValues = unique(select_rr_type_set),
-            selected = c(select_rr_type_selected_default)
+            "select_repli_type_selected", "Replication type (repli_type)",
+            choiceNames = unique(select_repli_type_labels), 
+            choiceValues = unique(select_repli_type_set),
+            selected = c(select_repli_type_selected_default)
           ),
           checkboxGroupInput(
-            "select_generalizability_selected", "Generalizability (generalizability)",
-            choiceNames = unique(select_generalizability_labels), 
-            choiceValues = unique(select_generalizability_set),
-            selected = c(select_generalizability_selected_default)
+            "select_repli_version_of_record_selected", "Version of Record (repli_version_of_record)",
+            choiceNames = unique(select_repli_version_of_record_labels), 
+            choiceValues = unique(select_repli_version_of_record_set),
+            selected = c(select_repli_version_of_record_selected_default)
           ),
           checkboxGroupInput(
-            "select_rr_is_manylabs_selected", "Many Labs (rr_is_manylabs)",
-            choiceNames = unique(select_rr_is_manylabs_labels), 
-            choiceValues = unique(select_rr_is_manylabs_set),
-            selected = c(select_rr_is_manylabs_selected_default)
+            "select_repli_is_generalizability_selected", "Generalizability (repli_is_generalizability)",
+            choiceNames = unique(select_repli_is_generalizability_labels), 
+            choiceValues = unique(select_repli_is_generalizability_set),
+            selected = c(select_repli_is_generalizability_selected_default)
           ),
           checkboxGroupInput(
-            "select_rr_analytic_sample_stage_selected", "Replication type (rr_analytic_sample_stage)",
-            choiceNames = unique(select_rr_analytic_sample_stage_labels), 
-            choiceValues = unique(select_rr_analytic_sample_stage_set),
-            selected = c(select_rr_analytic_sample_stage_selected_default)
+            "select_is_manylabs_selected", "Many Labs (is_manylabs)",
+            choiceNames = unique(select_is_manylabs_labels), 
+            choiceValues = unique(select_is_manylabs_set),
+            selected = c(select_is_manylabs_selected_default)
+          ),
+          checkboxGroupInput(
+            "select_power_for_effect_size_selected", "Replication type (power_for_effect_size)",
+            choiceNames = unique(select_power_for_effect_size_labels), 
+            choiceValues = unique(select_power_for_effect_size_set),
+            selected = c(select_power_for_effect_size_selected_default)
           ),
         ),
         navbarPage("",
-          tabPanel("Replication stats vs original",
-                   # checkboxGroupInput(
-                   #   "rr_stat_outcomes_selected", "Outcome stats types",
-                   #   choiceNames = c("Pearson's R",unique(repli_outcomes$rr_effect_size_type_reported)), 
-                   #   choiceValues = c("Pearson's R",unique(repli_outcomes$rr_effect_size_type_reported)),
-                   #   selected = c("Pearson's R")
-                   # ),
+           tabPanel("Data properties",
+                    htmlOutput("repli_data_text")
+           ),
+          tabPanel("Dataset",
+                  DTOutput("repli_data_table")
+          ),
+          tabPanel("Key stats",
+                   p("takes a bit to load..."),
+                   htmlOutput("repli_success_text")
+          ),
+          tabPanel("Chart: repli vs original ES",
+                   
                    plotOutput("repli_outcomes_vs_orig"),
-                   ),
-          tabPanel("Tab 2"),
-          tabPanel("Tab 3")
-          
+                   h4("Options:"),
+                   fluidRow(
+                     column(4,
+                       #checkboxGroupInput(
+                       radioButtons(
+                         "rr_stat_outcomes_selected", "Effect size stats types",
+                         choiceNames = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
+                         choiceValues = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
+                         selected = c("Pearson's R"),
+                         inline=FALSE
+                       )
+                     ),
+                     column(1),
+                     column(7,
+                            p("Chart elements; add:"),
+                            checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
+                                          "Smoothed distributions",TRUE),
+                            checkboxInput("repli_outcomes_vs_orig_points",
+                                          "Raw data points",TRUE),
+                            checkboxInput("repli_outcomes_vs_orig_lines",
+                                          "Lines",TRUE),
+                            checkboxInput("repli_outcomes_vs_orig_points_jitter",
+                                           "Jittered raw data points",FALSE),
+                            checkboxInput("repli_outcomes_vs_orig_dotplot",
+                                          "Dot plot",FALSE),
+                            
+                            p("Chart extent limits"),
+                            fluidRow(
+                              column(6,numericInput("repli_outcomes_vs_orig_lb",
+                                                    "Lower bound",0)),
+                              column(6,numericInput("repli_outcomes_vs_orig_ub",
+                                                    "Upper bound",1))
+                            ),
+                            numericInput("repli_outcomes_vs_orig_null",
+                                         "Null value",0),
+                            checkboxInput("repli_outcomes_vs_orig_abs",
+                                         "Take absolute value of effect size",FALSE)
+                            
+                     )
+                   )
+          )
         )
       )
     ),
     tabPanel("Reproductions")
   )
 )
+}
 
 server <- function(input, output, session) {
-  df.repli.subsetted <- reactive({
-    df <- repli_outcomes
-
-    df <- df[df$rr_type %in% input$select_rr_type_selected,]
-    df <- df[df$generalizability %in% input$select_generalizability_selected,]
-    df <- df[df$rr_is_manylabs %in% input$select_rr_is_manylabs_selected,]
-    df <- df[df$rr_analytic_sample_stage %in% input$select_rr_analytic_sample_stage_selected,]
-
-    df
+  # Replication
+    # Data generation
+      df_repli_subsetted <- reactive({
+        df <- repli_outcomes
     
-  })
+        df <- df[df$repli_type %in% input$select_repli_type_selected,]
+        df <- df[df$repli_version_of_record %in% input$select_repli_version_of_record_selected,]
+        df <- df[df$repli_is_generalizability %in% input$select_repli_is_generalizability_selected,]
+        # note: change bottom ones to:
+        # df <- df[df$repli_is_manylabs %in% input$select_is_manylabs_selected,]
+        # df <- df[df$repli_power_for_effect_size %in% input$select_power_for_effect_size_selected,]
+        df <- df[df$is_manylabs %in% input$select_is_manylabs_selected,]
+        df <- df[df$power_for_effect_size %in% input$select_power_for_effect_size_selected,]
+    
+        df
+      })
+    # Objects / charts / figures
+      output$repli_outcomes_vs_orig <- renderPlot({
+        df.chart <- df_repli_subsetted()
+        df.chart.orig <- orig_dataset
+        
+      # Merge in orig data
+        #df.chart <- merge(df.chart,df.chart.orig,by.x="claim_id",by.y="unique_claim_id",all.x=TRUE,all.y=FALSE)
+        df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
+        
+        df.chart$orig_pearsons_r <- as.numeric(df.chart$original_pearsons_r_numeric)
+        df.chart$orig_effect_size_value <- as.numeric(df.chart$original_effect_size_value_reported)
+        
+      # Gather up new vs originals
+        # Pearsons
+          df.chart.pearsons <- df.chart[c("repli_pearsons_r_value","orig_pearsons_r")]
+          df.chart.pearsons$stat_type <- "Pearson's R"
+          colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
+      
+        # All others
+          df.chart.others <- df.chart[c("repli_effect_size_value","orig_effect_size_value","repli_effect_size_type")]
+          colnames(df.chart.others) <- c("Replication","Original","stat_type")
+        
+        # Combine and select
+          df.chart <- rbind(df.chart.pearsons,df.chart.others)
+          df.chart$pair <- as.character(1:nrow(df.chart))
+          df.chart <- na.omit(df.chart)
+          df.chart <- df.chart %>% pivot_longer(!"stat_type" & !"pair", names_to = "comparison", values_to = "ES_value")
+          
+          df.chart$comparison <- factor(df.chart$comparison,
+                                        labels=c("Replication","Original"),
+                                        levels=c("Replication","Original"))
+          df.chart <- df.chart[df.chart$stat_type %in% input$rr_stat_outcomes_selected,]
+        
+        # Add options
+          if (input$repli_outcomes_vs_orig_abs==TRUE){
+            df.chart$ES_value <- abs(df.chart$ES_value)
+          }
+          
+      # Chart generation
+        p <- ggplot(data=df.chart,aes(y=ES_value,x=reorder(comparison, desc(comparison)),fill=reorder(comparison, desc(comparison)))) +
+          theme_bw()+
+          scale_fill_manual(values=palette_score_charts)+
+          geom_hline(aes(yintercept =input$repli_outcomes_vs_orig_null),linetype=3,color="#454545")+
+          theme(
+            legend.position = "bottom",
+            panel.grid = element_blank(),
+            axis.line = element_line(color="#393939"),
+            legend.title=element_blank(),
+            axis.title.x = element_blank(),
+            panel.border = element_blank()
+          )+
+          scale_y_continuous(limits=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
+          #scale_x_discrete(expand = c(4, 0))+
+          theme(aspect.ratio = 1)+
+          #xlab("Statistic type")+
+          ylab("Effect size value")
+        
+        pd = position_dodge(width=0.4)
+        if (input$repli_outcomes_vs_orig_lines == TRUE){
+          p <- p + geom_line(aes(group=pair),color="grey",show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_smoothed_dist == TRUE){
+          p <- p + geom_split_violin(show.legend=FALSE)
+        }
+        
+        if (input$repli_outcomes_vs_orig_points_jitter == TRUE){
+          p <- p + geom_point(position=position_jitterdodge(),size=1,show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_points == TRUE){
+          p <- p + geom_point(position=pd,size=1,show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_dotplot == TRUE){
+          p <- p+geom_dotplot(binaxis = "y",
+                            stackdir = "center",
+                            dotsize = 0.5,show.legend=FALSE)
+        }
+        
+        p
+      })
   
-  output$repli_outcomes_vs_orig <- renderPlot({
-    df.chart <- df.repli.subsetted()
-    
-    # TEMPORARY FOR MADE UP DATA
-    df.chart$rr_pearsons_r_value_reference <- df.chart$rr_pearsons_r_value*1.1
-    
-    # Gather up new vs originals
-    # Pearsons
-    df.chart.pearsons <- df.chart[c("rr_pearsons_r_value","rr_effect_size_value_reference")]
-    df.chart.pearsons$stat_type <- "Pearson's R"
-    colnames(df.chart.pearsons) <- c("Replication","Original","stat_type")
-    
-    # All others
-    df.chart.others <- df.chart[c("rr_statistic_value_reported","rr_effect_size_value_reference","rr_effect_size_type_reported")]
-    colnames(df.chart.others) <- c("Replication","Original","stat_type")
-    types_to_keep <- c("ser_method")
-    df.chart.others <- df.chart.others[df.chart.others$stat_type %in% types_to_keep,]
-    
-    # Combine
-    df.chart <- rbind(df.chart.pearsons,df.chart.others)
-    df.chart <- df.chart %>% pivot_longer(!"stat_type", names_to = "comparison", values_to = "ES_value")
-    df.chart <- na.omit(df.chart)
-    df.chart$stat_type <- factor(df.chart$stat_type,
-                                 labels=c("Pearson's R","SER"),
-                                 levels=c("Pearson's R","ser_method"))
-    df.chart$comparison <- factor(df.chart$comparison,
-                                  labels=c("Replication","Original"),
-                                  levels=c("Replication","Original"))
-    
-    ggplot(data=df.chart,aes(y=ES_value,x=stat_type,fill=comparison)) +
-      geom_split_violin()+
-      #geom_histogram(fill="#2B2484",alpha=.4)+
-      #geom_density(fill="#2B2484",alpha=.8)+
-      #scale_x_continuous(expand=c(0,0))+
-      #scale_y_continuous(expand=c(0,0))+
-      theme_minimal()+
-      theme(
-        legend.position = "bottom",
-        panel.grid = element_blank(),
-        axis.line = element_line(color="#393939")
-      )+
-      xlab("Statistic type")+
-      ylab("Effect size value")
+      output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
+      
+      output$repli_data_text <- renderText({
+        df <- df_repli_subsetted()
+        
+        text <- paste0("Replications (n): ",nrow(df))
+        text <- paste0(text,"<br/>","Papers (n): ",length(unique(df$paper_id)))
+        text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
+        HTML(text)
+      })
+      
+      output$repli_success_text <- renderText({
+        df <- df_repli_subsetted()
+        
+        text <- ""
+        # Replication criteria
+        
+          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
+            function(data) {
+              mean(data$repli_pattern_criteria_met,na.rm=TRUE)
+            }, 
+          alpha=.05,tails="two-tailed")
+          
+          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
+              function(data) {
+                data <- data %>% add_count(paper_id)
+                data$weight <- 1/data$n
+                weighted.mean(data$repli_pattern_criteria_met,data$weight,na.rm=TRUE)
+              }, 
+            clustervar = "paper_id", alpha=.05,tails="two-tailed")
+          
+          text <- paste0(text,"<b>Percent meeting replication criteria:</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df$repli_pattern_criteria_met)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
+          
+          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
+                function(data) {
+                  mean(data$repli_interpret_supported=="yes",na.rm=TRUE)
+                }, 
+                alpha=.05,tails="two-tailed",iters=100)
+          
+          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
+               function(data) {
+                 data <- data %>% add_count(paper_id)
+                 data$weight <- 1/data$n
+                 weighted.mean(data$repli_interpret_supported=="yes",data$weight,na.rm=TRUE)
+               }, 
+              clustervar = "paper_id", alpha=.05,tails="two-tailed")
+          
+          text <- paste0(text,"<b>Percent interpretation supported (subjective assessment by lab):</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df$repli_interpret_supported)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
+          
+          rr.success.repli.type.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met","repli_type")],FUN=
+                                                           function(data) {
+                                                             data <- data %>% add_count(paper_id)
+                                                             data$weight <- 1/data$n
+                                                             probability.ratio(exposure = data$repli_type=="new data",
+                                                                               outcome = data$repli_pattern_criteria_met,
+                                                                               weight = data$weight)
+                                                           }, 
+                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed")
+          
+          text <- paste0(text,"<b>Relative proportion replication success by data type: </b>",round(rr.success.repli.type.weighted$point.estimate,3))
+          text <- paste0(text," (95% CI: ",round(rr.success.repli.type.weighted$CI.lb,3)," - ", round(rr.success.repli.type.weighted$CI.ub,3),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Interpretation: Replication attempts using new data were ",round(rr.success.repli.type.weighted$point.estimate,3),
+                         " times as likely to have replication criteria met compared with those replications using pre-existing/secondary data.")
+          text <- paste0(text,"<br/>")
 
-  })
-  
-  output$data.table.temp = renderDT(
-    df.repli.subsetted(), options = list(lengthChange = FALSE)
-  )
-  
+        HTML(text)
+      })
 }
 
 shinyApp(ui, server)
