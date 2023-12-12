@@ -9,6 +9,7 @@ source(here("upkeep",
 source(here("pipeline",
             "data_processing",
             "helpers.R"))
+tar_make()
 
 # Upload rr_statistics_input to Google Sheets ----
 # Overwrite 45 columns (A:AS) of COS data, leave Tilburg's internal notes rows 
