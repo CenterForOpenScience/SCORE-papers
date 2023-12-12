@@ -27,12 +27,16 @@ The R package targets is a pipeline tool which watches the dependency graph of t
 We first define some global options and source functions.
 
 ```{targets globals, tar_globals = TRUE}
-options(tidyverse.quiet = TRUE)
+options(tidyverse.quiet = TRUE,
+        # Gmail authorization for accessing sheets
+        # Set google_oauth_email="youremail@cos.io" in your .Renviron file 
+        # to use this document without changing the code.
+        gargle_oauth_email = Sys.getenv("google_oauth_email"),
+        scipen = 999)
 
-# Gmail authorization for accessing sheets
-# Set google_oauth_email="youremail@cos.io" in your .Renviron file to use
-# this document without changing the code.
-options(gargle_oauth_email = Sys.getenv("google_oauth_email"))
+
+options()
+
 googledrive::drive_auth()
 googlesheets4::gs4_auth()
 
@@ -446,7 +450,13 @@ list(
   
   # rr confrontations reproduction claims
   tar_target(rr_confrontations_repro_claim,
-             process_repro_claims(prereg_checkin_repro))
+             process_repro_claims(prereg_checkin_repro)),
+  
+  # Reproduction summary variables
+  tar_target(repro_supplementary,
+             calculate_repro_summary(orig_dataset,
+                                    repro_export,
+                                    rr_confrontations_repro_claim))
 )
 ```
 
