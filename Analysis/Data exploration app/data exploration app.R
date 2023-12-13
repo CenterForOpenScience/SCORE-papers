@@ -22,10 +22,16 @@
       load(file="Analysis/Data exploration app/repli_outcomes.RData")
     }
     
-    if (file.exists("orig_dataset.RData")) {
-      load(file="orig_dataset.RData")
+    # if (file.exists("orig_dataset.RData")) {
+    #   load(file="orig_dataset.RData")
+    # } else {
+    #   load(file="Analysis/Data exploration app/orig_dataset.RData")
+    # }
+    
+    if (file.exists("orig_analytic.RData")) {
+      load(file="orig_analytic.RData")
     } else {
-      load(file="Analysis/Data exploration app/orig_dataset.RData")
+      load(file="Analysis/Data exploration app/orig_analytic.RData")
     }
     
     if (file.exists("common functions.R")) {
@@ -113,9 +119,13 @@ fluidPage(title = "SCORE data visualization playground",
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Key stats",
+          tabPanel("Key stats whiteboard",
                    p("takes a bit to load..."),
                    htmlOutput("repli_success_text")
+          ),
+          tabPanel("Paper 5 stats",
+                   p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
+                   htmlOutput("paper_5_stats_text")
           ),
           tabPanel("Chart: repli vs original ES",
                    
@@ -189,14 +199,14 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
-        df.chart.orig <- orig_dataset
+        df.chart.orig <- orig_analytic
         
       # Merge in orig data
         #df.chart <- merge(df.chart,df.chart.orig,by.x="claim_id",by.y="unique_claim_id",all.x=TRUE,all.y=FALSE)
         df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
         
-        df.chart$orig_pearsons_r <- as.numeric(df.chart$original_pearsons_r_numeric)
-        df.chart$orig_effect_size_value <- as.numeric(df.chart$original_effect_size_value_reported)
+        df.chart$orig_pearsons_r <- as.numeric(df.chart$orig_pearsons_r_value)
+        df.chart$orig_effect_size_value <- as.numeric(df.chart$orig_effect_size_value_repli)
         
       # Gather up new vs originals
         # Pearsons
@@ -281,6 +291,7 @@ server <- function(input, output, session) {
         df <- df_repli_subsetted()
         
         text <- ""
+        
         # Replication criteria
         
           mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
@@ -352,6 +363,92 @@ server <- function(input, output, session) {
                          " times as likely to have replication criteria met compared with those replications using pre-existing/secondary data.")
           text <- paste0(text,"<br/>")
 
+        HTML(text)
+      })
+      
+      output$paper_5_stats_text <- renderText({
+        df <- df_repli_subsetted()
+        
+        text <- ""
+        
+        # Abstract
+        text <- paste0(text,"<b>","Abstract","</b>")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_claims: ")
+        text <- paste0(text,length(unique(df$claim_id)))
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_papers: ")
+        text <- paste0(text,length(unique(df$paper_id)))
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_ratio_v_orig: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_findings_stat_sig_and_in_direct: ")
+        #repli_score_criteria_met <- mean(df$repli_score_criteria_met)
+        repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
+                                                         function(data) {
+                                                           data <- data %>% add_count(paper_id)
+                                                           data$weight <- 1/data$n
+                                                           weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
+                                                         }, 
+                                                       clustervar = "paper_id", alpha=.05,tails="two-tailed")
+        text <- paste0(text,round(repli_score_criteria_met$point.estimate,3)*100,"% (95% CI ")
+        text <- paste0(text,round(repli_score_criteria_met$CI.lb,3)*100,"-",round(repli_score_criteria_met$CI.ub,3)*100,"%)")
+        
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_business: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_business: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_econ: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_econ: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_edu: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_edu: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_polisci: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_polisci: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_psych: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_psych: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_soc: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_soc: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
         HTML(text)
       })
 }

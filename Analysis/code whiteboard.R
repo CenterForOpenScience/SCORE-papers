@@ -14,8 +14,8 @@
   
 }
 
-# tar_make() # run this to pull new targets
-
+tar_make() # run this to pull new targets
+#rmarkdown::render("targets.Rmd")
 
 #tar_load("repli_export")
 #tar_load("repli_primary")
