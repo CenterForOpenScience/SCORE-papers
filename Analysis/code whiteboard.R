@@ -37,6 +37,9 @@ if (FALSE){
   tar_load("orig_dataset")
   save(orig_dataset,file="Analysis/Data exploration app/orig_dataset.RData")
   
+  tar_load("orig_analytic")
+  save(orig_analytic,file="Analysis/Data exploration app/orig_analytic.RData")
+  
   tar_load("repro_export")
 
 
