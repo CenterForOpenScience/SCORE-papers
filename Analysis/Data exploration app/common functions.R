@@ -138,5 +138,39 @@
 
     return(probability.ratio)
   }
+  
+  weighted.quantile <- function(x,weights,quantile=.5,na.rm=FALSE){
+    # Modified from R package Limma, Gordon Smyth<smyth@wehi.edu.au>, http://bioinf.wehi.edu.au/limma
+    # Check / modify data
+      if (missing(weights)) 
+        weights <- rep.int(1, length(x))
+      else {
+        if(length(weights) != length(x)) stop("'x' and 'weights' must have the same length")
+        if(any(is.na(weights))) stop("NA weights not allowed")
+        if(any(weights<0)) stop("Negative weights not allowed")
+      }
+      if(na.rm==TRUE){
+        weights <- weights[i <- !is.na(x)]
+        x <- x[i]
+      }
+      if(all(weights==0)) {
+        warning("All weights are zero")
+        return(NA)
+      }
+    # Find quantile
+      order.x <- order(x)
+      x <- x[order.x]
+      weights <- weights[order.x]
+      p <- cumsum(weights)/sum(weights)
+      n <- sum(p<quantile)
+      if(p[n+1] > quantile)
+        x[n+1]
+      else
+        (x[n+1]+x[n+2])/2
+  }
+  
+  # Weighted median, wrapper function
+  weighted.median <- function (x, weight, na.rm = FALSE){
+    weighted.quantile(x,weight,quantile=.5,na.rm)
+  }
 }
-

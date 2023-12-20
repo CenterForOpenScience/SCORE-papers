@@ -22,10 +22,10 @@
       load(file="Analysis/Data exploration app/repli_outcomes.RData")
     }
     
-    if (file.exists("orig_dataset.RData")) {
-      load(file="orig_dataset.RData")
+    if (file.exists("orig_analytic.RData")) {
+      load(file="orig_analytic.RData")
     } else {
-      load(file="Analysis/Data exploration app/orig_dataset.RData")
+      load(file="Analysis/Data exploration app/orig_analytic.RData")
     }
     
     if (file.exists("common functions.R")) {
@@ -74,6 +74,11 @@ fluidPage(title = "SCORE data visualization playground",
         theme = bs_theme(bootswatch = "minty"),
         
         sidebar = sidebar(
+          h3("Calculation options"),
+          numericInput(
+            "repli_bootstrap_iterations", "Bootstrap iterations",
+            value=100,min=50,max=2000,step=5
+          ),
           h3("Dataset selection"),
           checkboxGroupInput(
             "select_repli_type_selected", "Replication type (repli_type)",
@@ -113,12 +118,15 @@ fluidPage(title = "SCORE data visualization playground",
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Key stats",
+          tabPanel("Key stats whiteboard",
                    p("takes a bit to load..."),
                    htmlOutput("repli_success_text")
           ),
+          tabPanel("Paper 5 stats",
+                   p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
+                   htmlOutput("paper_5_stats_text")
+          ),
           tabPanel("Chart: repli vs original ES",
-                   
                    plotOutput("repli_outcomes_vs_orig"),
                    h4("Options:"),
                    fluidRow(
@@ -157,9 +165,19 @@ fluidPage(title = "SCORE data visualization playground",
                                          "Null value",0),
                             checkboxInput("repli_outcomes_vs_orig_abs",
                                          "Take absolute value of effect size",FALSE)
-                            
                      )
                    )
+          ),
+          tabPanel("Chart: Repli success vars",
+                   plotOutput("repli_success_vars"),
+                   h4("Options:"),
+          ),
+          tabPanel("Chart: Repli success vars vs sample size",
+                   
+                   selectInput("repli_success_sample_size_var", "Select success outcome variable",
+                               choices = c("SCORE criteria","Pattern criteria","Interpretation supported","Repli point estimate in orig CI","Orig point estimate in repli CI")),
+                   plotOutput("repli_success_sample_size")
+                   
           )
         )
       )
@@ -189,14 +207,13 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
-        df.chart.orig <- orig_dataset
+        df.chart.orig <- orig_analytic
         
       # Merge in orig data
-        #df.chart <- merge(df.chart,df.chart.orig,by.x="claim_id",by.y="unique_claim_id",all.x=TRUE,all.y=FALSE)
         df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
         
-        df.chart$orig_pearsons_r <- as.numeric(df.chart$original_pearsons_r_numeric)
-        df.chart$orig_effect_size_value <- as.numeric(df.chart$original_effect_size_value_reported)
+        df.chart$orig_pearsons_r <- as.numeric(df.chart$orig_pearsons_r_value)
+        df.chart$orig_effect_size_value <- as.numeric(df.chart$orig_effect_size_value_repli)
         
       # Gather up new vs originals
         # Pearsons
@@ -235,12 +252,11 @@ server <- function(input, output, session) {
             axis.line = element_line(color="#393939"),
             legend.title=element_blank(),
             axis.title.x = element_blank(),
-            panel.border = element_blank()
+            panel.border = element_blank(),
+            aspect.ratio = 1
           )+
-          scale_y_continuous(limits=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
-          #scale_x_discrete(expand = c(4, 0))+
-          theme(aspect.ratio = 1)+
-          #xlab("Statistic type")+
+          scale_y_continuous(breaks=seq(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub,(input$repli_outcomes_vs_orig_ub-input$repli_outcomes_vs_orig_lb)/5))+
+          coord_cartesian(ylim=c(input$repli_outcomes_vs_orig_lb,input$repli_outcomes_vs_orig_ub))+
           ylab("Effect size value")
         
         pd = position_dodge(width=0.4)
@@ -266,6 +282,97 @@ server <- function(input, output, session) {
         p
       })
   
+      output$repli_success_vars <- renderPlot({
+        df <- df_repli_subsetted()
+        
+        df$repli_interpret_supported_yes <- df$repli_interpret_supported=="yes"
+        
+        criteria_vars <- c("repli_score_criteria_met","repli_pattern_criteria_met","repli_interpret_supported_yes")
+        criteria_vars_labels <- c("SCORE criteria","Pattern criteria","Interpretation supported")
+        
+        df.chart <- do.call(rbind,lapply(1:length(criteria_vars),function(x) {
+          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id",criteria_vars[x])],FUN=
+                                                           function(data) {
+                                                             data <- data %>% add_count(paper_id)
+                                                             data$weight <- 1/data$n
+                                                             weighted.mean(data[[criteria_vars[x]]],data$weight,na.rm=TRUE)
+                                                             
+                                                           }, 
+                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          df.chart <- data.frame(mean.repli.success.weighted$estimates.bootstrapped)
+          colnames(df.chart) <- c("estimates_bootstrapped")
+          df.chart$type <- criteria_vars[x]
+          df.chart
+        }))
+        
+        df.chart$type <- factor(df.chart$type,labels=criteria_vars_labels,levels=criteria_vars)
+
+        ggplot(df.chart,aes(x=estimates_bootstrapped,fill=type))+
+          theme_bw()+
+          scale_fill_manual(values=palette_score_charts)+
+          theme(
+            legend.position = "bottom",
+            panel.grid = element_blank(),
+            axis.line = element_line(color="#393939"),
+            legend.title=element_blank(),
+            #axis.title.y = element_blank(),
+            panel.border = element_blank()
+          )+
+          xlab("Percent meeting replication success criteria")+
+          ylab("Density")+
+          coord_cartesian(xlim=c(0,1))+
+          scale_x_continuous(labels = scales::percent,expand=c(0,0))+
+          scale_y_continuous(expand=c(0,0))+
+          geom_density(alpha=.5)
+      })
+      
+      output$repli_success_sample_size <- renderPlot({
+        df.chart <- df_repli_subsetted()
+
+        #TEMPORARY
+        #df.chart <- repli_outcomes
+        
+      # Merge in orig data
+        df.chart <- merge(df.chart,orig_analytic,by="claim_id",all.x=TRUE,all.y=FALSE)
+        
+      # Sample size calc
+        df.chart$log_sample_size_ratio <- log(df.chart$repli_sample_size_value / df.chart$orig_sample_size_value)
+        
+      # Outcome vars
+
+        if (input$repli_success_sample_size_var=="SCORE criteria"){
+          df.chart$outcome <- as.numeric(df.chart$repli_score_criteria_met)
+        } else if (input$repli_success_sample_size_var=="Pattern criteria"){
+          df.chart$outcome <- as.numeric(df.chart$repli_pattern_criteria_met)
+        } else if (input$repli_success_sample_size_var=="Interpretation supported"){
+          df.chart$outcome <- as.numeric(df.chart$repli_interpret_supported=="yes")
+        } else if (input$repli_success_sample_size_var=="Repli point estimate in orig CI"){
+          df.chart$outcome <- as.numeric(df.chart$repli_effect_size_value >= df.chart$orig_effect_size_ci_lb & df.chart$repli_effect_size_value <= df.chart$orig_effect_size_ci_ub)
+        } else if (input$repli_success_sample_size_var=="Orig point estimate in repli CI"){
+          df.chart$outcome <- as.numeric(df.chart$orig_effect_size_value_repli >= df.chart$repli_effect_size_ci_lb & df.chart$orig_effect_size_value_repli <= df.chart$repli_effect_size_ci_ub)
+        }
+        
+        ggplot(df.chart,aes(x=log_sample_size_ratio,y=outcome))+
+          theme_bw()+
+          scale_fill_manual(values=palette_score_charts)+
+          theme(
+            legend.position = "bottom",
+            panel.grid = element_blank(),
+            axis.line = element_line(color="#393939"),
+            legend.title=element_blank(),
+            #axis.title.y = element_blank(),
+            panel.border = element_blank()
+          )+
+          geom_vline(xintercept=0,linetype=2)+
+          ylab("Percent meeting replication success criteria")+
+          xlab("Log ratio sample size of replication : original\nHigher indicates greater relative sample size in replication vs original")+
+          scale_x_continuous(expand=c(0,0))+
+          scale_y_continuous(expand=c(0,0),labels = scales::percent)+
+          coord_cartesian(ylim=c(0, 1),xlim=c(-2,2))+
+          #geom_point()+
+          geom_smooth(method = "loess")
+      })
+      
       output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
       
       output$repli_data_text <- renderText({
@@ -281,13 +388,41 @@ server <- function(input, output, session) {
         df <- df_repli_subsetted()
         
         text <- ""
-        # Replication criteria
-        
+        # Replication SCORE criteria met
+        { 
+          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
+                                                  function(data) {
+                                                    mean(data$repli_score_criteria_met,na.rm=TRUE)
+                                                  }, 
+                                                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          
+          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
+                                                           function(data) {
+                                                             data <- data %>% add_count(paper_id)
+                                                             data$weight <- 1/data$n
+                                                             weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
+                                                           }, 
+                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          
+          text <- paste0(text,"<b>Percent meeting replication SCORE criteria:</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df$repli_score_criteria_met)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
+          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
+        }
+        # Replication pattern criteria met
+        { 
           mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
             function(data) {
               mean(data$repli_pattern_criteria_met,na.rm=TRUE)
             }, 
-          alpha=.05,tails="two-tailed")
+          alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
           
           mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
               function(data) {
@@ -295,9 +430,9 @@ server <- function(input, output, session) {
                 data$weight <- 1/data$n
                 weighted.mean(data$repli_pattern_criteria_met,data$weight,na.rm=TRUE)
               }, 
-            clustervar = "paper_id", alpha=.05,tails="two-tailed")
+            clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
           
-          text <- paste0(text,"<b>Percent meeting replication criteria:</b> ")
+          text <- paste0(text,"<b>Percent meeting replication pattern criteria:</b> ")
           text <- paste0(text,"(n=",length(na.omit(df$repli_pattern_criteria_met)),")")
           text <- paste0(text,"<br/>")
           text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
@@ -308,12 +443,14 @@ server <- function(input, output, session) {
           text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
           text <- paste0(text,"<br/>")
           text <- paste0(text,"<br/>")
-          
+        }
+        # Interpretation supported 
+        {
           mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
                 function(data) {
                   mean(data$repli_interpret_supported=="yes",na.rm=TRUE)
                 }, 
-                alpha=.05,tails="two-tailed",iters=100)
+                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
           
           mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
                function(data) {
@@ -321,7 +458,7 @@ server <- function(input, output, session) {
                  data$weight <- 1/data$n
                  weighted.mean(data$repli_interpret_supported=="yes",data$weight,na.rm=TRUE)
                }, 
-              clustervar = "paper_id", alpha=.05,tails="two-tailed")
+              clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
           
           text <- paste0(text,"<b>Percent interpretation supported (subjective assessment by lab):</b> ")
           text <- paste0(text,"(n=",length(na.omit(df$repli_interpret_supported)),")")
@@ -334,7 +471,9 @@ server <- function(input, output, session) {
           text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
           text <- paste0(text,"<br/>")
           text <- paste0(text,"<br/>")
-          
+        }
+        # Replication success by type
+        { 
           rr.success.repli.type.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met","repli_type")],FUN=
                                                            function(data) {
                                                              data <- data %>% add_count(paper_id)
@@ -343,7 +482,7 @@ server <- function(input, output, session) {
                                                                                outcome = data$repli_pattern_criteria_met,
                                                                                weight = data$weight)
                                                            }, 
-                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed")
+                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
           
           text <- paste0(text,"<b>Relative proportion replication success by data type: </b>",round(rr.success.repli.type.weighted$point.estimate,3))
           text <- paste0(text," (95% CI: ",round(rr.success.repli.type.weighted$CI.lb,3)," - ", round(rr.success.repli.type.weighted$CI.ub,3),")")
@@ -351,7 +490,93 @@ server <- function(input, output, session) {
           text <- paste0(text,"Interpretation: Replication attempts using new data were ",round(rr.success.repli.type.weighted$point.estimate,3),
                          " times as likely to have replication criteria met compared with those replications using pre-existing/secondary data.")
           text <- paste0(text,"<br/>")
+        }
 
+        HTML(text)
+      })
+      
+      output$paper_5_stats_text <- renderText({
+        df <- df_repli_subsetted()
+        
+        text <- ""
+        
+        # Abstract
+        text <- paste0(text,"<b>","Abstract","</b>")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_claims: ")
+        text <- paste0(text,length(unique(df$claim_id)))
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_papers: ")
+        text <- paste0(text,length(unique(df$paper_id)))
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_ratio_v_orig: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_findings_stat_sig_and_in_direct: ")
+        repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
+                                                         function(data) {
+                                                           data <- data %>% add_count(paper_id)
+                                                           data$weight <- 1/data$n
+                                                           weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
+                                                         }, 
+                                                       clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+        text <- paste0(text,round(repli_score_criteria_met$point.estimate,3)*100,"% (95% CI ")
+        text <- paste0(text,round(repli_score_criteria_met$CI.lb,3)*100,"-",round(repli_score_criteria_met$CI.ub,3)*100,"%)")
+        
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_business: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_business: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_econ: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_econ: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_edu: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_edu: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_polisci: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_polisci: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_psych: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_psych: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_soc: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
+        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_soc: ")
+        text <- paste0(text,"PENDING")
+        text <- paste0(text,"<br/>")
+        
         HTML(text)
       })
 }
