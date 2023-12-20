@@ -74,7 +74,7 @@ rr_confrontations_prereg <- "1aU2JWLJAoUafz4i7N-Lsn00e3jjEzpCS" %>%
   read_tsv(show_col_types = FALSE,
            na = c("NA", "NC", "N/A", "na", "n/a", ""))
 
-tar_load(repli_primary)
+tar_load(repli_export)
 
 tagtable_p1 <- "1NmhTX53-SWsMpIbgZpm2bWm1SzRq071F" %>%
   googledrive::as_id() %>%
@@ -100,7 +100,7 @@ orig_statistics_input <- make_tilburg_orig_input(
     all_metadata_filled,
     tagtable_covid_p1,
     rr_confrontations_prereg,
-    repli_primary,
+    repli_export,
     tagtable_p1,
     tagtable_p2_CES,
     finalized_claim4_table,

@@ -81,7 +81,16 @@ list(
              cue = tar_cue("always")),
   tar_target(status,
              read_google_csv(status_file,
-                             status_moddate))
+                             status_moddate)),
+  
+  tar_target(all_metadata_filled_file,
+             "1W-sNolZQegujz82TU2RKe0tfCvofrhm1"),
+  tar_target(all_metadata_filled_moddate,
+             get_google_mod_date(all_metadata_filled_file),
+             cue = tar_cue("always")),
+  tar_target(all_metadata_filled,
+             read_google_csv(all_metadata_filled_file,
+                             all_metadata_filled_moddate))
 )
 ```
 
@@ -421,7 +430,7 @@ list(
                          orig_vars_qa,
                          tagtable_covid_p1,
                          orig_statistics_output_p2)),
-  tar_target(orig_analytic,
+  tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset))
 )
 ```
@@ -456,7 +465,12 @@ list(
   tar_target(repro_supplementary,
              calculate_repro_summary(orig_dataset,
                                     repro_export,
-                                    rr_confrontations_repro_claim))
+                                    rr_confrontations_repro_claim)),
+  
+  # Repro outcomes dataset
+  tar_target(repro_outcomes,
+             create_repro_analytic(repro_export,
+                                   repro_supplementary))
 )
 ```
 
