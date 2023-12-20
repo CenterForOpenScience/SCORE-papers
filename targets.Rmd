@@ -465,7 +465,12 @@ list(
   tar_target(repro_supplementary,
              calculate_repro_summary(orig_dataset,
                                     repro_export,
-                                    rr_confrontations_repro_claim))
+                                    rr_confrontations_repro_claim)),
+  
+  # Repro outcomes dataset
+  tar_target(repro_outcomes,
+             create_repro_analytic(repro_export,
+                                   repro_supplementary))
 )
 ```
 
