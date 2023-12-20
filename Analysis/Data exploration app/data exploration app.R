@@ -11,7 +11,6 @@
     library(DT)
     library(tidyr)
     library(pbapply)
-    
   }
   
   # Data loading
@@ -22,10 +21,10 @@
       load(file="Analysis/Data exploration app/repli_outcomes.RData")
     }
     
-    if (file.exists("orig_outcomes.RData")) {
-      load(file="orig_outcomes.RData")
+    if (file.exists("orig_analytic.RData")) {
+      load(file="orig_analytic.RData")
     } else {
-      load(file="Analysis/Data exploration app/orig_outcomes.RData")
+      load(file="Analysis/Data exploration app/orig_analytic.RData")
     }
     
     if (file.exists("common functions.R")) {
@@ -64,53 +63,54 @@
   
 }
 
-
 ui <- {
 
 fluidPage(title = "SCORE data visualization playground",
   tabsetPanel(
-    tabPanel("Replications",
+    tabPanel("Replications",{
       page_sidebar(
         theme = bs_theme(bootswatch = "minty"),
-        
+        # Dataset sidebar ----
         sidebar = sidebar(
           h3("Calculation options"),
-          numericInput(
-            "repli_bootstrap_iterations", "Bootstrap iterations",
-            value=100,min=50,max=2000,step=5
+          numericInput("repli_bootstrap_iterations",
+                       "Bootstrap iterations",
+                       value=100,min=50,max=2000,step=5
           ),
           h3("Dataset selection"),
-          checkboxGroupInput(
-            "select_repli_type_selected", "Replication type (repli_type)",
-            choiceNames = unique(select_repli_type_labels), 
-            choiceValues = unique(select_repli_type_set),
-            selected = c(select_repli_type_selected_default)
+          checkboxGroupInput("select_repli_type_selected",
+                             "Replication type (repli_type)",
+                             choiceNames = unique(select_repli_type_labels),
+                             choiceValues = unique(select_repli_type_set),
+                             selected = c(select_repli_type_selected_default)
           ),
-          checkboxGroupInput(
-            "select_repli_version_of_record_selected", "Version of Record (repli_version_of_record)",
-            choiceNames = unique(select_repli_version_of_record_labels), 
-            choiceValues = unique(select_repli_version_of_record_set),
-            selected = c(select_repli_version_of_record_selected_default)
+          checkboxGroupInput("select_repli_version_of_record_selected",
+                             "Version of Record (repli_version_of_record)",
+                             choiceNames = unique(select_repli_version_of_record_labels),
+                             choiceValues = unique(select_repli_version_of_record_set),
+                             selected = c(select_repli_version_of_record_selected_default)
           ),
-          checkboxGroupInput(
-            "select_repli_is_generalizability_selected", "Generalizability (repli_is_generalizability)",
-            choiceNames = unique(select_repli_is_generalizability_labels), 
-            choiceValues = unique(select_repli_is_generalizability_set),
-            selected = c(select_repli_is_generalizability_selected_default)
+          checkboxGroupInput("select_repli_is_generalizability_selected",
+                             "Generalizability (repli_is_generalizability)",
+                             choiceNames = unique(select_repli_is_generalizability_labels),
+                             choiceValues = unique(select_repli_is_generalizability_set),
+                             selected = c(select_repli_is_generalizability_selected_default)
           ),
-          checkboxGroupInput(
-            "select_is_manylabs_selected", "Many Labs (is_manylabs)",
-            choiceNames = unique(select_is_manylabs_labels), 
-            choiceValues = unique(select_is_manylabs_set),
-            selected = c(select_is_manylabs_selected_default)
+          checkboxGroupInput("select_is_manylabs_selected",
+                             "Many Labs (is_manylabs)",
+                             choiceNames = unique(select_is_manylabs_labels),
+                             choiceValues = unique(select_is_manylabs_set),
+                             selected = c(select_is_manylabs_selected_default)
           ),
-          checkboxGroupInput(
-            "select_power_for_effect_size_selected", "Replication type (power_for_effect_size)",
-            choiceNames = unique(select_power_for_effect_size_labels), 
-            choiceValues = unique(select_power_for_effect_size_set),
-            selected = c(select_power_for_effect_size_selected_default)
+          checkboxGroupInput("select_power_for_effect_size_selected",
+                             "Replication type (power_for_effect_size)",
+                             choiceNames = unique(select_power_for_effect_size_labels), 
+                             choiceValues = unique(select_power_for_effect_size_set),
+                             selected = c(select_power_for_effect_size_selected_default)
           ),
+          
         ),
+        # Main page ----
         navbarPage("",
            tabPanel("Data properties",
                     htmlOutput("repli_data_text")
@@ -183,8 +183,32 @@ fluidPage(title = "SCORE data visualization playground",
           )
         )
       )
-    ),
-    tabPanel("Reproductions")
+    }),
+    tabPanel("Reproductions",{
+      page_sidebar(
+        theme = bs_theme(bootswatch = "minty"),
+        # Dataset sidebar ----
+        sidebar = sidebar(
+          h3("Calculation options"),
+
+          h3("Dataset selection"),
+          
+        ),
+        # Main page ----
+        navbarPage("",
+                   tabPanel("Data properties",
+                            htmlOutput("repro_data_text")
+                   ),
+                   tabPanel("Dataset",
+                            DTOutput("repro_data_table")
+                   ),
+                   tabPanel("Stats whiteboard",
+                            p("takes a bit to load..."),
+                            #htmlOutput("repro_whiteboard_text")
+                   ),
+        )
+      )
+    })
   )
 )
 }
@@ -209,7 +233,7 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
-        df.chart.orig <- orig_outcomes
+        df.chart.orig <- orig_analytic
         
       # Merge in orig data
         df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -343,12 +367,9 @@ server <- function(input, output, session) {
       
       output$repli_success_sample_size <- renderPlot({
         df.chart <- df_repli_subsetted()
-
-        #TEMPORARY
-        #df.chart <- repli_outcomes
         
       # Merge in orig data
-        df.chart <- merge(df.chart,orig_outcomes,by="claim_id",all.x=TRUE,all.y=FALSE)
+        df.chart <- merge(df.chart,orig_analytic,by="claim_id",all.x=TRUE,all.y=FALSE)
         
       # Sample size calc
         df.chart$log_sample_size_ratio <- log(df.chart$repli_sample_size_value / df.chart$orig_sample_size_value)
