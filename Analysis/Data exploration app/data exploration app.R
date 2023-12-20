@@ -22,10 +22,10 @@
       load(file="Analysis/Data exploration app/repli_outcomes.RData")
     }
     
-    if (file.exists("orig_analytic.RData")) {
-      load(file="orig_analytic.RData")
+    if (file.exists("orig_outcomes.RData")) {
+      load(file="orig_outcomes.RData")
     } else {
-      load(file="Analysis/Data exploration app/orig_analytic.RData")
+      load(file="Analysis/Data exploration app/orig_outcomes.RData")
     }
     
     if (file.exists("common functions.R")) {
@@ -118,9 +118,9 @@ fluidPage(title = "SCORE data visualization playground",
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Key stats whiteboard",
+          tabPanel("Stats whiteboard",
                    p("takes a bit to load..."),
-                   htmlOutput("repli_success_text")
+                   htmlOutput("repli_whiteboard_text")
           ),
           tabPanel("Paper 5 stats",
                    p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
@@ -143,6 +143,8 @@ fluidPage(title = "SCORE data visualization playground",
                      column(1),
                      column(7,
                             p("Chart elements; add:"),
+                            checkboxInput("repli_outcomes_vs_orig_weighted_medians",
+                                          "Median effect size lines (weighted)",TRUE),
                             checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
                                           "Smoothed distributions",TRUE),
                             checkboxInput("repli_outcomes_vs_orig_points",
@@ -207,7 +209,7 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
-        df.chart.orig <- orig_analytic
+        df.chart.orig <- orig_outcomes
         
       # Merge in orig data
         df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -240,7 +242,7 @@ server <- function(input, output, session) {
           if (input$repli_outcomes_vs_orig_abs==TRUE){
             df.chart$ES_value <- abs(df.chart$ES_value)
           }
-          
+
       # Chart generation
         p <- ggplot(data=df.chart,aes(y=ES_value,x=reorder(comparison, desc(comparison)),fill=reorder(comparison, desc(comparison)))) +
           theme_bw()+
@@ -277,6 +279,19 @@ server <- function(input, output, session) {
           p <- p+geom_dotplot(binaxis = "y",
                             stackdir = "center",
                             dotsize = 0.5,show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_weighted_medians == TRUE){
+          wm.orig <- weighted.median(df.chart[df.chart$comparison=="Original",]$ES_value,na.rm=TRUE)
+          wm.repli <- weighted.median(df.chart[df.chart$comparison=="Replication",]$ES_value,na.rm=TRUE)
+          
+          p <- p + geom_segment(y=wm.orig,yend=wm.orig,x=-Inf,xend=1.47,linetype=3)
+          p <- p + geom_segment(y=wm.repli,yend=wm.repli,x=1.53,xend=Inf,linetype=3)
+          
+          p <- p + geom_segment(y=wm.orig,yend=wm.orig,x=1.47,xend=1.53,linetype=1)
+          p <- p + geom_segment(y=wm.repli,yend=wm.repli,x=1.47,xend=1.53,linetype=1)
+          
+          p <- p + geom_segment(y=wm.orig,yend=wm.repli,x=1.5,xend=1.5)
+
         }
         
         p
@@ -333,7 +348,7 @@ server <- function(input, output, session) {
         #df.chart <- repli_outcomes
         
       # Merge in orig data
-        df.chart <- merge(df.chart,orig_analytic,by="claim_id",all.x=TRUE,all.y=FALSE)
+        df.chart <- merge(df.chart,orig_outcomes,by="claim_id",all.x=TRUE,all.y=FALSE)
         
       # Sample size calc
         df.chart$log_sample_size_ratio <- log(df.chart$repli_sample_size_value / df.chart$orig_sample_size_value)
@@ -384,7 +399,7 @@ server <- function(input, output, session) {
         HTML(text)
       })
       
-      output$repli_success_text <- renderText({
+      output$repli_whiteboard_text <- renderText({
         df <- df_repli_subsetted()
         
         text <- ""
@@ -490,9 +505,37 @@ server <- function(input, output, session) {
           text <- paste0(text,"Interpretation: Replication attempts using new data were ",round(rr.success.repli.type.weighted$point.estimate,3),
                          " times as likely to have replication criteria met compared with those replications using pre-existing/secondary data.")
           text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
         }
-
-        HTML(text)
+        # Replicated effect sizes (SER method)
+        {
+          df.SER <- df[df$repli_effect_size_type=="ser_method",]
+          median.repli.ES.SER <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_value")],FUN=
+                                                  function(data) {
+                                                    median(data$repli_effect_size_value,na.rm=TRUE)
+                                                  }, 
+                                                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          
+          median.repli.ES.SER.weighted <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_value")],FUN=
+                                                           function(data) {
+                                                             data <- data %>% add_count(paper_id)
+                                                             data$weight <- 1/data$n
+                                                             weighted.median(data$repli_effect_size_value,data$weight,na.rm=TRUE)
+                                                           }, 
+                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          
+          text <- paste0(text,"<b>Median replication SER effect size value:</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df.SER$repli_effect_size_value)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(median.repli.ES.SER$point.estimate,3))
+          text <- paste0(text," (95% CI: ",round(median.repli.ES.SER$CI.lb,3)," - ", round(median.repli.ES.SER$CI.ub,3),")")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(median.repli.ES.SER.weighted$point.estimate,3))
+          text <- paste0(text," (95% CI: ",round(median.repli.ES.SER.weighted$CI.lb,3)," - ", round(median.repli.ES.SER.weighted$CI.ub,3),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
+        }
       })
       
       output$paper_5_stats_text <- renderText({

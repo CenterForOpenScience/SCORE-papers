@@ -34,13 +34,13 @@ if (FALSE){
   tar_load("repli_outcomes")
   save(repli_outcomes,file="Analysis/Data exploration app/repli_outcomes.RData")
 
-  tar_load("orig_dataset")
-  save(orig_dataset,file="Analysis/Data exploration app/orig_dataset.RData")
+  # tar_load("orig_dataset")
+  # save(orig_dataset,file="Analysis/Data exploration app/orig_dataset.RData")
   
-  tar_load("orig_analytic")
-  save(orig_analytic,file="Analysis/Data exploration app/orig_analytic.RData")
+  tar_load("orig_outcomes")
+  save(orig_analytic,file="Analysis/Data exploration app/orig_outcomes.RData")
   
-  tar_load("repro_export")
+  # tar_load("repro_export")
 
 
 }
