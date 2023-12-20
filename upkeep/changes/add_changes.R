@@ -23,6 +23,31 @@ outcome_id <- "" # Add outcome ID here
 # Changes should be added to this list in the form:
 # [variable name] = "value",
 # [variable name] = "value"
+
+# RR Checking Replication Key:
+# analysis_type = rr_statistic_analysis_type_reported
+# coefficient_type = rr_coefficient_type_reported
+# effect_fulltext = rr_effect_size_fulltext_reported
+# effect_type = rr_effect_size_type_reported
+# effect_value = rr_effect_size_value_reported
+# p_value = rr_p_value_value_reported
+# p_confirmation = rr_p_value_confirmation_reported
+# sample_cells = rr_analytic_sample_cells_reported
+# sample_units = rr_analytic_sample_size_units_reported
+# sample_value = rr_analytic_sample_size_value_reported
+# statistic_df1 = rr_statistic_df1_reported
+# statistic_df2 = rr_statistic_df2_reported
+# statistic_fulltext = rr_statistic_fulltext_reported
+# statistic_interaction = rr_statistic_interaction_reported
+# statistic_type = rr_statistic_type_reported
+# statistic_value = rr_statistic_value_reported
+# subsample_a00 = rr_analytic_subsample_a_00
+# subsample_b01 = rr_analytic_subsample_b_01
+# subsample_c10 = rr_analytic_subsample_c_10
+# subsample_d11 = rr_analytic_subsample_d_11
+# subsample_n1 = rr_analytic_subsample_n1
+# subsample_n2 = rr_analytic_subsample_n2
+
 changes_dict <- list(
   # Add changes here
   
