@@ -96,7 +96,7 @@ make_tilburg_orig_input <- function(
     all_metadata_filled,
     tagtable_covid_p1,
     rr_confrontations_prereg,
-    repli_primary,
+    repli_export,
     tagtable_p1,
     tagtable_p2_CES,
     finalized_claim4_table,
@@ -178,9 +178,23 @@ make_tilburg_orig_input <- function(
            .keep = "none")
 
   # Otherwise, everything that is already coded is expected
-  # Only repli primary is necessary because every claim in repli secondary is
-  # represented in there already
-  expected_claims <- repli_primary %>%
+  # Only version of record is necessary because every claim in repli secondary 
+  # is represented in there already
+  expected_claims <- repli_export %>%
+    filter(rr_type_internal %in% c("Direct Replication", 
+                                   "Data Analytic Replication")) %>%
+    arrange(rr_id,
+            claim_id,
+            sample_preference) %>%
+    distinct(rr_id,
+             claim_id,
+             .keep_all = TRUE) %>%
+    arrange(paper_id,
+            claim_id,
+            ml_preference) %>%
+    distinct(paper_id,
+             claim_id,
+             .keep_all = TRUE) %>%
     select(paper_id,
            claim_id) %>%
     mutate(unique_claim_id = str_c(paper_id,
