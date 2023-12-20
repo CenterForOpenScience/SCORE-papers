@@ -430,7 +430,7 @@ list(
                          orig_vars_qa,
                          tagtable_covid_p1,
                          orig_statistics_output_p2)),
-  tar_target(orig_analytic,
+  tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset))
 )
 ```
