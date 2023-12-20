@@ -81,7 +81,16 @@ list(
              cue = tar_cue("always")),
   tar_target(status,
              read_google_csv(status_file,
-                             status_moddate))
+                             status_moddate)),
+  
+  tar_target(all_metadata_filled_file,
+             "1W-sNolZQegujz82TU2RKe0tfCvofrhm1"),
+  tar_target(all_metadata_filled_moddate,
+             get_google_mod_date(all_metadata_filled_file),
+             cue = tar_cue("always")),
+  tar_target(all_metadata_filled,
+             read_google_csv(all_metadata_filled_file,
+                             all_metadata_filled_moddate))
 )
 ```
 
