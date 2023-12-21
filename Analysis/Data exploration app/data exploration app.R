@@ -563,84 +563,51 @@ server <- function(input, output, session) {
       output$paper_5_stats_text <- renderText({
         df <- df_repli_subsetted()
         
-        text <- ""
+
+        # Collapse into a function for ease of transporting away later
+        paper_5_stats <- function(iters = 100){
+          
+          n_claims <- length(unique(df$claim_id))
+          n_papers <- length(unique(df$paper_id))
+          p_effect_size_ratio_v_orig <- "PENDING"
+          
+          
+          repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
+                                                        function(data) {
+                                                          data <- data %>% add_count(paper_id)
+                                                          data$weight <- 1/data$n
+                                                          weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
+                                                        },
+                                                      clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
+
+          p_findings_stat_sig_and_in_direct <- paste0(round(repli_score_criteria_met$point.estimate,3)*100,
+                                                      "% (95% CI ",
+                                                      round(repli_score_criteria_met$CI.lb,3)*100,
+                                                      "-",
+                                                      round(repli_score_criteria_met$CI.ub,3)*100,
+                                                      "%)")
+
+          rm(repli_score_criteria_met)
+          
+          n_effect_size_smaller_v_orig_business <- "PENDING"
+          p_effect_size_smaller_v_orig_business <- "PENDING"
+          n_effect_size_smaller_v_orig_econ <- "PENDING"
+          p_effect_size_smaller_v_orig_econ <- "PENDING"
+          p_effect_size_smaller_v_orig_edu <- "PENDING"
+          n_effect_size_smaller_v_orig_polisci <- "PENDING"
+          p_effect_size_smaller_v_orig_polisci <- "PENDING"
+          n_effect_size_smaller_v_orig_psych <- "PENDING"
+          p_effect_size_smaller_v_orig_psych <- "PENDING"
+          n_effect_size_smaller_v_orig_soc <- "PENDING"
+          p_effect_size_smaller_v_orig_soc <- "PENDING"
+          
+          rm(iters)
+          
+          return(rev(as.list(environment())))
+        }
         
-        # Abstract
-        text <- paste0(text,"<b>","Abstract","</b>")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_claims: ")
-        text <- paste0(text,length(unique(df$claim_id)))
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_papers: ")
-        text <- paste0(text,length(unique(df$paper_id)))
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_ratio_v_orig: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_findings_stat_sig_and_in_direct: ")
-        repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
-                                                         function(data) {
-                                                           data <- data %>% add_count(paper_id)
-                                                           data$weight <- 1/data$n
-                                                           weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
-                                                         }, 
-                                                       clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-        text <- paste0(text,round(repli_score_criteria_met$point.estimate,3)*100,"% (95% CI ")
-        text <- paste0(text,round(repli_score_criteria_met$CI.lb,3)*100,"-",round(repli_score_criteria_met$CI.ub,3)*100,"%)")
-        
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_business: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_business: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_econ: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_econ: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_edu: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_edu: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_polisci: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_polisci: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_psych: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_psych: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_soc: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_soc: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
+        text_tags <- paper_5_stats(iters = input$repli_bootstrap_iterations)
+        text <- paste0(names(text_tags),": ",as.character(text_tags),collapse="<br>")
         
         HTML(text)
       })
