@@ -34,9 +34,6 @@ options(tidyverse.quiet = TRUE,
         gargle_oauth_email = Sys.getenv("google_oauth_email"),
         scipen = 999)
 
-
-options()
-
 googledrive::drive_auth()
 googlesheets4::gs4_auth()
 
@@ -89,7 +86,7 @@ list(
              get_google_mod_date(all_metadata_filled_file),
              cue = tar_cue("always")),
   tar_target(all_metadata_filled,
-             read_google_csv(all_metadata_filled_file,
+             read_google_tsv(all_metadata_filled_file,
                              all_metadata_filled_moddate))
 )
 ```
