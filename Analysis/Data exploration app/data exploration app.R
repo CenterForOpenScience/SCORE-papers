@@ -11,29 +11,29 @@
     library(DT)
     library(tidyr)
     library(pbapply)
-    
   }
   
   # Data loading
   {
+    # Check if this is being run from shinyapps.io or from the github folder (in
+    # which case the data gets pulled from the targets output)
     if (file.exists("repli_outcomes.RData")) {
+      # Being run on shinyapps.io; data files already in folder
       load(file="repli_outcomes.RData")
-    } else {
-      load(file="Analysis/Data exploration app/repli_outcomes.RData")
-    }
-    
-    if (file.exists("orig_analytic.RData")) {
-      load(file="orig_analytic.RData")
-    } else {
-      load(file="Analysis/Data exploration app/orig_analytic.RData")
-    }
-    
-    if (file.exists("common functions.R")) {
+      load(file="repro_outcomes.RData")
+      load(file="orig_outcomes.RData")
       source("common functions.R")
     } else {
-      source(file="Analysis/Data exploration app/common functions.R")
+      # Being run from github/locally, get raw data and copy data files into
+      # same level folder for uploading
+      objects_to_load <- c("repli_outcomes","orig_outcomes","repro_outcomes")
+      for(i in 1:length(objects_to_load)){
+        assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+        save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+      }
+      source(file="Analysis/common functions.R")
+      file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R")
     }
-
   }
   
   # Data manipulation and other setup
@@ -64,53 +64,54 @@
   
 }
 
-
 ui <- {
 
 fluidPage(title = "SCORE data visualization playground",
   tabsetPanel(
-    tabPanel("Replications",
+    tabPanel("Replications",{
       page_sidebar(
         theme = bs_theme(bootswatch = "minty"),
-        
+        # Dataset sidebar ----
         sidebar = sidebar(
           h3("Calculation options"),
-          numericInput(
-            "repli_bootstrap_iterations", "Bootstrap iterations",
-            value=100,min=50,max=2000,step=5
+          numericInput("repli_bootstrap_iterations",
+                       "Bootstrap iterations",
+                       value=100,min=50,max=2000,step=5
           ),
           h3("Dataset selection"),
-          checkboxGroupInput(
-            "select_repli_type_selected", "Replication type (repli_type)",
-            choiceNames = unique(select_repli_type_labels), 
-            choiceValues = unique(select_repli_type_set),
-            selected = c(select_repli_type_selected_default)
+          checkboxGroupInput("select_repli_type_selected",
+                             "Replication type (repli_type)",
+                             choiceNames = unique(select_repli_type_labels),
+                             choiceValues = unique(select_repli_type_set),
+                             selected = c(select_repli_type_selected_default)
           ),
-          checkboxGroupInput(
-            "select_repli_version_of_record_selected", "Version of Record (repli_version_of_record)",
-            choiceNames = unique(select_repli_version_of_record_labels), 
-            choiceValues = unique(select_repli_version_of_record_set),
-            selected = c(select_repli_version_of_record_selected_default)
+          checkboxGroupInput("select_repli_version_of_record_selected",
+                             "Version of Record (repli_version_of_record)",
+                             choiceNames = unique(select_repli_version_of_record_labels),
+                             choiceValues = unique(select_repli_version_of_record_set),
+                             selected = c(select_repli_version_of_record_selected_default)
           ),
-          checkboxGroupInput(
-            "select_repli_is_generalizability_selected", "Generalizability (repli_is_generalizability)",
-            choiceNames = unique(select_repli_is_generalizability_labels), 
-            choiceValues = unique(select_repli_is_generalizability_set),
-            selected = c(select_repli_is_generalizability_selected_default)
+          checkboxGroupInput("select_repli_is_generalizability_selected",
+                             "Generalizability (repli_is_generalizability)",
+                             choiceNames = unique(select_repli_is_generalizability_labels),
+                             choiceValues = unique(select_repli_is_generalizability_set),
+                             selected = c(select_repli_is_generalizability_selected_default)
           ),
-          checkboxGroupInput(
-            "select_is_manylabs_selected", "Many Labs (is_manylabs)",
-            choiceNames = unique(select_is_manylabs_labels), 
-            choiceValues = unique(select_is_manylabs_set),
-            selected = c(select_is_manylabs_selected_default)
+          checkboxGroupInput("select_is_manylabs_selected",
+                             "Many Labs (is_manylabs)",
+                             choiceNames = unique(select_is_manylabs_labels),
+                             choiceValues = unique(select_is_manylabs_set),
+                             selected = c(select_is_manylabs_selected_default)
           ),
-          checkboxGroupInput(
-            "select_power_for_effect_size_selected", "Replication type (power_for_effect_size)",
-            choiceNames = unique(select_power_for_effect_size_labels), 
-            choiceValues = unique(select_power_for_effect_size_set),
-            selected = c(select_power_for_effect_size_selected_default)
+          checkboxGroupInput("select_power_for_effect_size_selected",
+                             "Replication type (power_for_effect_size)",
+                             choiceNames = unique(select_power_for_effect_size_labels), 
+                             choiceValues = unique(select_power_for_effect_size_set),
+                             selected = c(select_power_for_effect_size_selected_default)
           ),
+          
         ),
+        # Main page ----
         navbarPage("",
            tabPanel("Data properties",
                     htmlOutput("repli_data_text")
@@ -118,9 +119,9 @@ fluidPage(title = "SCORE data visualization playground",
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Key stats whiteboard",
+          tabPanel("Stats whiteboard",
                    p("takes a bit to load..."),
-                   htmlOutput("repli_success_text")
+                   htmlOutput("repli_whiteboard_text")
           ),
           tabPanel("Paper 5 stats",
                    p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
@@ -143,6 +144,8 @@ fluidPage(title = "SCORE data visualization playground",
                      column(1),
                      column(7,
                             p("Chart elements; add:"),
+                            checkboxInput("repli_outcomes_vs_orig_weighted_medians",
+                                          "Median effect size lines (weighted)",TRUE),
                             checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
                                           "Smoothed distributions",TRUE),
                             checkboxInput("repli_outcomes_vs_orig_points",
@@ -181,8 +184,32 @@ fluidPage(title = "SCORE data visualization playground",
           )
         )
       )
-    ),
-    tabPanel("Reproductions")
+    }),
+    tabPanel("Reproductions",{
+      page_sidebar(
+        theme = bs_theme(bootswatch = "minty"),
+        # Dataset sidebar ----
+        sidebar = sidebar(
+          h3("Calculation options"),
+
+          h3("Dataset selection"),
+          
+        ),
+        # Main page ----
+        navbarPage("",
+                   tabPanel("Data properties",
+                            htmlOutput("repro_data_text")
+                   ),
+                   tabPanel("Dataset",
+                            DTOutput("repro_data_table")
+                   ),
+                   tabPanel("Stats whiteboard",
+                            p("takes a bit to load..."),
+                            #htmlOutput("repro_whiteboard_text")
+                   ),
+        )
+      )
+    })
   )
 )
 }
@@ -207,7 +234,7 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
-        df.chart.orig <- orig_analytic
+        df.chart.orig <- orig_outcomes
         
       # Merge in orig data
         df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -240,7 +267,7 @@ server <- function(input, output, session) {
           if (input$repli_outcomes_vs_orig_abs==TRUE){
             df.chart$ES_value <- abs(df.chart$ES_value)
           }
-          
+
       # Chart generation
         p <- ggplot(data=df.chart,aes(y=ES_value,x=reorder(comparison, desc(comparison)),fill=reorder(comparison, desc(comparison)))) +
           theme_bw()+
@@ -277,6 +304,19 @@ server <- function(input, output, session) {
           p <- p+geom_dotplot(binaxis = "y",
                             stackdir = "center",
                             dotsize = 0.5,show.legend=FALSE)
+        }
+        if (input$repli_outcomes_vs_orig_weighted_medians == TRUE){
+          wm.orig <- weighted.median(df.chart[df.chart$comparison=="Original",]$ES_value,na.rm=TRUE)
+          wm.repli <- weighted.median(df.chart[df.chart$comparison=="Replication",]$ES_value,na.rm=TRUE)
+          
+          p <- p + geom_segment(y=wm.orig,yend=wm.orig,x=-Inf,xend=1.47,linetype=3)
+          p <- p + geom_segment(y=wm.repli,yend=wm.repli,x=1.53,xend=Inf,linetype=3)
+          
+          p <- p + geom_segment(y=wm.orig,yend=wm.orig,x=1.47,xend=1.53,linetype=1)
+          p <- p + geom_segment(y=wm.repli,yend=wm.repli,x=1.47,xend=1.53,linetype=1)
+          
+          p <- p + geom_segment(y=wm.orig,yend=wm.repli,x=1.5,xend=1.5)
+
         }
         
         p
@@ -328,12 +368,9 @@ server <- function(input, output, session) {
       
       output$repli_success_sample_size <- renderPlot({
         df.chart <- df_repli_subsetted()
-
-        #TEMPORARY
-        #df.chart <- repli_outcomes
         
       # Merge in orig data
-        df.chart <- merge(df.chart,orig_analytic,by="claim_id",all.x=TRUE,all.y=FALSE)
+        df.chart <- merge(df.chart,orig_outcomes,by="claim_id",all.x=TRUE,all.y=FALSE)
         
       # Sample size calc
         df.chart$log_sample_size_ratio <- log(df.chart$repli_sample_size_value / df.chart$orig_sample_size_value)
@@ -384,7 +421,7 @@ server <- function(input, output, session) {
         HTML(text)
       })
       
-      output$repli_success_text <- renderText({
+      output$repli_whiteboard_text <- renderText({
         df <- df_repli_subsetted()
         
         text <- ""
@@ -490,92 +527,87 @@ server <- function(input, output, session) {
           text <- paste0(text,"Interpretation: Replication attempts using new data were ",round(rr.success.repli.type.weighted$point.estimate,3),
                          " times as likely to have replication criteria met compared with those replications using pre-existing/secondary data.")
           text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
         }
-
-        HTML(text)
+        # Replicated effect sizes (SER method)
+        {
+          df.SER <- df[df$repli_effect_size_type=="ser_method",]
+          median.repli.ES.SER <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_value")],FUN=
+                                                  function(data) {
+                                                    median(data$repli_effect_size_value,na.rm=TRUE)
+                                                  }, 
+                                                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          
+          median.repli.ES.SER.weighted <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_value")],FUN=
+                                                           function(data) {
+                                                             data <- data %>% add_count(paper_id)
+                                                             data$weight <- 1/data$n
+                                                             weighted.median(data$repli_effect_size_value,data$weight,na.rm=TRUE)
+                                                           }, 
+                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
+          
+          text <- paste0(text,"<b>Median replication SER effect size value:</b> ")
+          text <- paste0(text,"(n=",length(na.omit(df.SER$repli_effect_size_value)),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"Unweighted/unclustered: ",round(median.repli.ES.SER$point.estimate,3))
+          text <- paste0(text," (95% CI: ",round(median.repli.ES.SER$CI.lb,3)," - ", round(median.repli.ES.SER$CI.ub,3),")")
+          text <- paste0(text,"<br/>")
+          
+          text <- paste0(text,"Clustered/weighted at the paper level: ",round(median.repli.ES.SER.weighted$point.estimate,3))
+          text <- paste0(text," (95% CI: ",round(median.repli.ES.SER.weighted$CI.lb,3)," - ", round(median.repli.ES.SER.weighted$CI.ub,3),")")
+          text <- paste0(text,"<br/>")
+          text <- paste0(text,"<br/>")
+        }
       })
       
       output$paper_5_stats_text <- renderText({
         df <- df_repli_subsetted()
         
-        text <- ""
+
+        # Collapse into a function for ease of transporting away later
+        paper_5_stats <- function(iters = 100){
+          
+          n_claims <- length(unique(df$claim_id))
+          n_papers <- length(unique(df$paper_id))
+          p_effect_size_ratio_v_orig <- "PENDING"
+          
+          
+          repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
+                                                        function(data) {
+                                                          data <- data %>% add_count(paper_id)
+                                                          data$weight <- 1/data$n
+                                                          weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
+                                                        },
+                                                      clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
+
+          p_findings_stat_sig_and_in_direct <- paste0(round(repli_score_criteria_met$point.estimate,3)*100,
+                                                      "% (95% CI ",
+                                                      round(repli_score_criteria_met$CI.lb,3)*100,
+                                                      "-",
+                                                      round(repli_score_criteria_met$CI.ub,3)*100,
+                                                      "%)")
+
+          rm(repli_score_criteria_met)
+          
+          n_effect_size_smaller_v_orig_business <- "PENDING"
+          p_effect_size_smaller_v_orig_business <- "PENDING"
+          n_effect_size_smaller_v_orig_econ <- "PENDING"
+          p_effect_size_smaller_v_orig_econ <- "PENDING"
+          p_effect_size_smaller_v_orig_edu <- "PENDING"
+          n_effect_size_smaller_v_orig_polisci <- "PENDING"
+          p_effect_size_smaller_v_orig_polisci <- "PENDING"
+          n_effect_size_smaller_v_orig_psych <- "PENDING"
+          p_effect_size_smaller_v_orig_psych <- "PENDING"
+          n_effect_size_smaller_v_orig_soc <- "PENDING"
+          p_effect_size_smaller_v_orig_soc <- "PENDING"
+          
+          rm(iters)
+          
+          return(rev(as.list(environment())))
+        }
         
-        # Abstract
-        text <- paste0(text,"<b>","Abstract","</b>")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_claims: ")
-        text <- paste0(text,length(unique(df$claim_id)))
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_papers: ")
-        text <- paste0(text,length(unique(df$paper_id)))
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_ratio_v_orig: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_findings_stat_sig_and_in_direct: ")
-        repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
-                                                         function(data) {
-                                                           data <- data %>% add_count(paper_id)
-                                                           data$weight <- 1/data$n
-                                                           weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
-                                                         }, 
-                                                       clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-        text <- paste0(text,round(repli_score_criteria_met$point.estimate,3)*100,"% (95% CI ")
-        text <- paste0(text,round(repli_score_criteria_met$CI.lb,3)*100,"-",round(repli_score_criteria_met$CI.ub,3)*100,"%)")
-        
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_business: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_business: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_econ: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_econ: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_edu: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_edu: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_polisci: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_polisci: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_psych: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_psych: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_p_effect_size_smaller_v_orig_soc: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
-        
-        text <- paste0(text,"repli_n_effect_size_smaller_v_orig_soc: ")
-        text <- paste0(text,"PENDING")
-        text <- paste0(text,"<br/>")
+        text_tags <- paper_5_stats(iters = input$repli_bootstrap_iterations)
+        text <- paste0(names(text_tags),": ",as.character(text_tags),collapse="<br>")
         
         HTML(text)
       })
