@@ -15,24 +15,25 @@
   
   # Data loading
   {
+    # Check if this is being run from shinyapps.io or from the github folder (in
+    # which case the data gets pulled from the targets output)
     if (file.exists("repli_outcomes.RData")) {
+      # Being run on shinyapps.io; data files already in folder
       load(file="repli_outcomes.RData")
-    } else {
-      load(file="Analysis/Data exploration app/repli_outcomes.RData")
-    }
-    
-    if (file.exists("orig_analytic.RData")) {
-      load(file="orig_analytic.RData")
-    } else {
-      load(file="Analysis/Data exploration app/orig_analytic.RData")
-    }
-    
-    if (file.exists("common functions.R")) {
+      load(file="repro_outcomes.RData")
+      load(file="orig_outcomes.RData")
       source("common functions.R")
     } else {
-      source(file="Analysis/Data exploration app/common functions.R")
+      # Being run from github/locally, get raw data and copy data files into
+      # same level folder for uploading
+      objects_to_load <- c("repli_outcomes","orig_outcomes","repro_outcomes")
+      for(i in 1:length(objects_to_load)){
+        assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+        save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+      }
+      source(file="Analysis/common functions.R")
+      file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R")
     }
-
   }
   
   # Data manipulation and other setup
@@ -233,7 +234,7 @@ server <- function(input, output, session) {
     # Objects / charts / figures
       output$repli_outcomes_vs_orig <- renderPlot({
         df.chart <- df_repli_subsetted()
-        df.chart.orig <- orig_analytic
+        df.chart.orig <- orig_outcomes
         
       # Merge in orig data
         df.chart <- merge(df.chart,df.chart.orig,by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -369,7 +370,7 @@ server <- function(input, output, session) {
         df.chart <- df_repli_subsetted()
         
       # Merge in orig data
-        df.chart <- merge(df.chart,orig_analytic,by="claim_id",all.x=TRUE,all.y=FALSE)
+        df.chart <- merge(df.chart,orig_outcomes,by="claim_id",all.x=TRUE,all.y=FALSE)
         
       # Sample size calc
         df.chart$log_sample_size_ratio <- log(df.chart$repli_sample_size_value / df.chart$orig_sample_size_value)
