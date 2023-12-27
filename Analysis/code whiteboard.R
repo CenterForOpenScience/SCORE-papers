@@ -2,19 +2,22 @@
 {
   rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
   
+  
+  
 }
 
-# Update app data
+# Find tags in text file
 if (FALSE){
+  library(stringr)
+  library(googledrive)
+  paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
+                      type = "text/plain")  %>%
+    strsplit(split = "(\r\n|\r|\n)") %>%
+    .[[1]]
+  paper_5_text <- paste0(paper_5_text,collapse="  ")
   
-  objects_to_load <- c("repli_outcomes","orig_outcomes","repro_outcomes")
-  
-  for(i in 1:length(objects_to_load)){
-    assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-    save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
-  }
-  
-
+  tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+  tags <- tags[tags!=""]
  
 }
 

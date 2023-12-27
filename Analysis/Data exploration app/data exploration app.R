@@ -11,6 +11,8 @@
     library(DT)
     library(tidyr)
     library(pbapply)
+    library(googledrive)
+    library(stringr)
   }
   
   # Data loading
@@ -23,6 +25,8 @@
       load(file="repro_outcomes.RData")
       load(file="orig_outcomes.RData")
       source("common functions.R")
+      source("paper 5 stats and figures.R")
+      drive_deauth()
     } else {
       # Being run from github/locally, get raw data and copy data files into
       # same level folder for uploading
@@ -33,6 +37,9 @@
       }
       source(file="Analysis/common functions.R")
       file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R")
+      
+      source(file="Analysis/paper 5 stats and figures.R")
+      file.copy("Analysis/paper 5 stats and figures.R", "Analysis/Data exploration app/paper 5 stats and figures.R")
     }
   }
   
@@ -120,12 +127,14 @@ fluidPage(title = "SCORE data visualization playground",
                   DTOutput("repli_data_table")
           ),
           tabPanel("Stats whiteboard",
-                   p("takes a bit to load..."),
+                   p("May take a moment to load due to bootstrap iterations..."),
                    htmlOutput("repli_whiteboard_text")
           ),
           tabPanel("Paper 5 stats",
                    p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
-                   htmlOutput("paper_5_stats_text")
+                   p("May take a moment to load due to bootstrap iterations..."),
+                   #htmlOutput("paper_5_stats_text"),
+                   DTOutput("paper_5_stats_table")
           ),
           tabPanel("Chart: repli vs original ES",
                    plotOutput("repli_outcomes_vs_orig"),
@@ -410,7 +419,7 @@ server <- function(input, output, session) {
           geom_smooth(method = "loess")
       })
       
-      output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE))
+      output$repli_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE),rownames= FALSE)
       
       output$repli_data_text <- renderText({
         df <- df_repli_subsetted()
@@ -560,57 +569,43 @@ server <- function(input, output, session) {
         }
       })
       
-      output$paper_5_stats_text <- renderText({
-        df <- df_repli_subsetted()
+      
+      output$paper_5_stats_table <- renderDT({
+        # Pull paper to find what tags are in paper
+        paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
+                                          type = "text/plain",encoding="UTF-8")  %>%
+          strsplit(split = "(\r\n|\r|\n)") %>%
+          .[[1]]
+        paper_5_text <- paste0(paper_5_text,collapse="  ")
         
-
-        # Collapse into a function for ease of transporting away later
-        paper_5_stats <- function(iters = 100){
-          
-          n_claims <- length(unique(df$claim_id))
-          n_papers <- length(unique(df$paper_id))
-          p_effect_size_ratio_v_orig <- "PENDING"
-          
-          
-          repli_score_criteria_met <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
-                                                        function(data) {
-                                                          data <- data %>% add_count(paper_id)
-                                                          data$weight <- 1/data$n
-                                                          weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
-                                                        },
-                                                      clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-
-          p_findings_stat_sig_and_in_direct <- paste0(round(repli_score_criteria_met$point.estimate,3)*100,
-                                                      "% (95% CI ",
-                                                      round(repli_score_criteria_met$CI.lb,3)*100,
-                                                      "-",
-                                                      round(repli_score_criteria_met$CI.ub,3)*100,
-                                                      "%)")
-
-          rm(repli_score_criteria_met)
-          
-          n_effect_size_smaller_v_orig_business <- "PENDING"
-          p_effect_size_smaller_v_orig_business <- "PENDING"
-          n_effect_size_smaller_v_orig_econ <- "PENDING"
-          p_effect_size_smaller_v_orig_econ <- "PENDING"
-          p_effect_size_smaller_v_orig_edu <- "PENDING"
-          n_effect_size_smaller_v_orig_polisci <- "PENDING"
-          p_effect_size_smaller_v_orig_polisci <- "PENDING"
-          n_effect_size_smaller_v_orig_psych <- "PENDING"
-          p_effect_size_smaller_v_orig_psych <- "PENDING"
-          n_effect_size_smaller_v_orig_soc <- "PENDING"
-          p_effect_size_smaller_v_orig_soc <- "PENDING"
-          
-          rm(iters)
-          
-          return(rev(as.list(environment())))
-        }
+        # Pull paper to find what tags are calculated
+        tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+        tags <- tags[tags!=""]
+        tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
         
-        text_tags <- paper_5_stats(iters = input$repli_bootstrap_iterations)
-        text <- paste0(names(text_tags),": ",as.character(text_tags),collapse="<br>")
+        values_text <- paper_5_stats(input$repli_bootstrap_iterations,
+                                              repli_outcomes = df_repli_subsetted(),
+                                              orig_outcomes = orig_outcomes)
+        # Generate list of tags
+        values_text <- do.call(c,lapply(1:length(tags),function(x) {
+          tag_to_find <- tags[x]
+          if(tag_to_find %in% names(values_text)){
+            as.character(values_text[[tag_to_find]])
+          } else {
+            "MISSING"
+          }
+        }))
         
-        HTML(text)
-      })
+        output_table <- data.frame(tags,values_text)
+        output_table
+        # print(output_table)
+        # 
+        # renderDataTable(output_table)
+        # print("here")
+      },options = list(pageLength=-1,
+                       lengthChange = FALSE),
+      rownames= FALSE
+      )
 }
 
 shinyApp(ui, server)
