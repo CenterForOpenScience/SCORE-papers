@@ -57,6 +57,10 @@
                               palette_weezer_van_weezer[3]
     )
   }
+  
+  format.pct <- function(x,digits){
+    format(round(x*100,digits),nsmall=digits)
+  }
 }
 
 # Statistical functions

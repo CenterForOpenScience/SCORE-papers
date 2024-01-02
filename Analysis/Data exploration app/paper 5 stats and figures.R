@@ -22,11 +22,11 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                         weighted.median(1-data$repli_effect_size_ratio_v_orig,data$weight,na.rm=TRUE)
                                                       }, 
                                                     clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_effect_size_neg_ratio_v_orig <- paste0(round(median_SER_effect_size_ratio_v_orig$point.estimate,3)*100,
+    p_effect_size_neg_ratio_v_orig <- paste0(format.pct(median_SER_effect_size_ratio_v_orig$point.estimate,1),
                                          "% (95% CI ",
-                                         round(median_SER_effect_size_ratio_v_orig$CI.lb,3)*100,
+                                         format.pct(median_SER_effect_size_ratio_v_orig$CI.lb,1),
                                          "-",
-                                         round(median_SER_effect_size_ratio_v_orig$CI.ub,3)*100,
+                                         format.pct(median_SER_effect_size_ratio_v_orig$CI.ub,1),
                                          "%)")
     rm(df.SER,median_SER_effect_size_ratio_v_orig)
     
@@ -37,11 +37,11 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                     weighted.mean(data$repli_pattern_direction & data$repli_p_value<=.05,data$weight,na.rm=TRUE)
                                                   },
                                                 clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_findings_stat_sig_and_in_direct <- paste0(round(p_findings_stat_sig_and_in_direct_obj$point.estimate,3)*100,
+    p_findings_stat_sig_and_in_direct <- paste0(format.pct(p_findings_stat_sig_and_in_direct_obj$point.estimate,1),
                                                 "% (95% CI ",
-                                                round(p_findings_stat_sig_and_in_direct_obj$CI.lb,3)*100,
+                                                format.pct(p_findings_stat_sig_and_in_direct_obj$CI.lb,1),
                                                 "-",
-                                                round(p_findings_stat_sig_and_in_direct_obj$CI.ub,3)*100,
+                                                format.pct(p_findings_stat_sig_and_in_direct_obj$CI.ub,1),
                                                 "%)")
     rm(p_findings_stat_sig_and_in_direct_obj)
     
@@ -118,11 +118,11 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                     mean(as.numeric(data$repli_p_value <= 0.05),na.rm=TRUE)
                                                   },
                                                 clustervar = "claim_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_stat_sig_claims <- paste0(round(p_repli_stat_sig_claims_obj$point.estimate,3)*100,
+    p_repli_stat_sig_claims <- paste0(format.pct(p_repli_stat_sig_claims_obj$point.estimate,1),
                                                 "% (95% CI ",
-                                                round(p_repli_stat_sig_claims_obj$CI.lb,3)*100,
+                                                format.pct(p_repli_stat_sig_claims_obj$CI.lb,1),
                                                 "-",
-                                                round(p_repli_stat_sig_claims_obj$CI.ub,3)*100,
+                                                format.pct(p_repli_stat_sig_claims_obj$CI.ub,1),
                                                 "%)")
     rm(p_repli_stat_sig_claims_obj)
     
@@ -133,11 +133,11 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                            weighted.mean(as.numeric(data$repli_p_value <= 0.05),weight=data$weight,na.rm=TRUE)
                                                          },
                                                        clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_stat_sig_claims_weighted <- paste0(round(p_repli_stat_sig_claims_weighted_obj$point.estimate,3)*100,
+    p_repli_stat_sig_claims_weighted <- paste0(format.pct(p_repli_stat_sig_claims_weighted_obj$point.estimate,1),
                                       "% (95% CI ",
-                                      round(p_repli_stat_sig_claims_weighted_obj$CI.lb,3)*100,
+                                      format.pct(p_repli_stat_sig_claims_weighted_obj$CI.lb,1),
                                       "-",
-                                      round(p_repli_stat_sig_claims_weighted_obj$CI.ub,3)*100,
+                                      format.pct(p_repli_stat_sig_claims_weighted_obj$CI.ub,1),
                                       "%)")
     rm(p_repli_stat_sig_claims_weighted_obj)
     
@@ -148,11 +148,11 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                                 weighted.mean(as.numeric(data$repli_pattern_direction <= 0.05),weight=data$weight,na.rm=TRUE)
                                                               },
                                                             clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_stat_sig_claims_same_dir_weighted <- paste0(round(p_repli_stat_sig_claims_same_dir_weighted_obj$point.estimate,3)*100,
+    p_repli_stat_sig_claims_same_dir_weighted <- paste0(format.pct(p_repli_stat_sig_claims_same_dir_weighted_obj$point.estimate,1),
                                                "% (95% CI ",
-                                               round(p_repli_stat_sig_claims_same_dir_weighted_obj$CI.lb,3)*100,
+                                               format.pct(p_repli_stat_sig_claims_same_dir_weighted_obj$CI.lb,1),
                                                "-",
-                                               round(p_repli_stat_sig_claims_same_dir_weighted_obj$CI.ub,3)*100,
+                                               format.pct(p_repli_stat_sig_claims_same_dir_weighted_obj$CI.ub,1),
                                                "%)")
     rm(p_repli_stat_sig_claims_same_dir_weighted_obj)
   }
