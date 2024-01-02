@@ -19,15 +19,7 @@
   {
     # Check if this is being run from shinyapps.io or from the github folder (in
     # which case the data gets pulled from the targets output)
-    if (file.exists("repli_outcomes.RData")) {
-      # Being run on shinyapps.io; data files already in folder
-      load(file="repli_outcomes.RData")
-      load(file="repro_outcomes.RData")
-      load(file="orig_outcomes.RData")
-      source("common functions.R")
-      source("paper 5 stats and figures.R")
-      drive_deauth()
-    } else {
+    if (file.exists("Analysis/common functions.R")) {
       # Being run from github/locally, get raw data and copy data files into
       # same level folder for uploading
       objects_to_load <- c("repli_outcomes","orig_outcomes","repro_outcomes")
@@ -35,11 +27,23 @@
         assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
         save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
       }
+      
       source(file="Analysis/common functions.R")
-      file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R")
+      file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R",overwrite = TRUE)
       
       source(file="Analysis/paper 5 stats and figures.R")
-      file.copy("Analysis/paper 5 stats and figures.R", "Analysis/Data exploration app/paper 5 stats and figures.R")
+      file.copy("Analysis/paper 5 stats and figures.R", "Analysis/Data exploration app/paper 5 stats and figures.R",overwrite = TRUE)
+
+    } else {
+      # Being run on shinyapps.io; data files already in folder
+      load(file="repli_outcomes.RData")
+      load(file="repro_outcomes.RData")
+      load(file="orig_outcomes.RData")
+      source("common functions.R")
+      source("paper 5 stats and figures.R")
+      drive_deauth()
+      
+     
     }
   }
   
@@ -59,12 +63,12 @@
       select_repli_is_generalizability_labels  <- c("Standard","Generalizability study")
       select_repli_is_generalizability_selected_default <- c(FALSE)
       
-      select_is_manylabs_set <- c(FALSE,TRUE)
-      select_is_manylabs_labels <- c("Not ManyLabs","ManyLabs")
-      select_is_manylabs_selected_default <- c(FALSE)
+      select_manylabs_set <- c("not_manylabs","ml_aggregation","ml_count","ml_instance_primary")
+      select_manylabs_labels <- c("Not ManyLabs","ManyLabs Aggregation","ManyLabs Count","ManyLabs Instance Primary")
+      select_manylabs_selected_default <- c("not_manylabs","ml_aggregation")
       
-      select_power_for_effect_size_set <- c("50% for 100%","90% for 50%","90% for 75% lab power analysis","not performed")
-      select_power_for_effect_size_labels <- c("50% for 100%","90% for 50%","90% for 75% lab power analysis","Not performed")
+      select_power_for_effect_size_set <- c("50% for 100%","90% for 50%","90% for 75%","lab power analysis","not performed")
+      select_power_for_effect_size_labels <- c("50% for 100%","90% for 50%","90% for 75%", "lab power analysis","Not performed")
       select_power_for_effect_size_selected_default <- select_power_for_effect_size_set
     }
   }
@@ -104,14 +108,14 @@ fluidPage(title = "SCORE data visualization playground",
                              choiceValues = unique(select_repli_is_generalizability_set),
                              selected = c(select_repli_is_generalizability_selected_default)
           ),
-          checkboxGroupInput("select_is_manylabs_selected",
-                             "Many Labs (is_manylabs)",
-                             choiceNames = unique(select_is_manylabs_labels),
-                             choiceValues = unique(select_is_manylabs_set),
-                             selected = c(select_is_manylabs_selected_default)
+          checkboxGroupInput("select_manylabs_selected",
+                             "ManyLabs (is_manylabs, manylabs_type)",
+                             choiceNames = unique(select_manylabs_labels),
+                             choiceValues = unique(select_manylabs_set),
+                             selected = c(select_manylabs_selected_default)
           ),
           checkboxGroupInput("select_power_for_effect_size_selected",
-                             "Replication type (power_for_effect_size)",
+                             "Power for effect size (power_for_effect_size)",
                              choiceNames = unique(select_power_for_effect_size_labels), 
                              choiceValues = unique(select_power_for_effect_size_set),
                              selected = c(select_power_for_effect_size_selected_default)
@@ -152,7 +156,9 @@ fluidPage(title = "SCORE data visualization playground",
                      ),
                      column(1),
                      column(7,
-                            p("Chart elements; add:"),
+                            checkboxInput("repli_outcomes_vs_orig_abs",
+                                          "Take absolute value of effect size",TRUE),
+                            p("Chart elements:"),
                             checkboxInput("repli_outcomes_vs_orig_weighted_medians",
                                           "Median effect size lines (weighted)",TRUE),
                             checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
@@ -174,9 +180,8 @@ fluidPage(title = "SCORE data visualization playground",
                                                     "Upper bound",1))
                             ),
                             numericInput("repli_outcomes_vs_orig_null",
-                                         "Null value",0),
-                            checkboxInput("repli_outcomes_vs_orig_abs",
-                                         "Take absolute value of effect size",FALSE)
+                                         "Null value",0)
+                            
                      )
                    )
           ),
@@ -232,10 +237,13 @@ server <- function(input, output, session) {
         df <- df[df$repli_type %in% input$select_repli_type_selected,]
         df <- df[df$repli_version_of_record %in% input$select_repli_version_of_record_selected,]
         df <- df[df$repli_is_generalizability %in% input$select_repli_is_generalizability_selected,]
-        # note: change bottom ones to:
-        # df <- df[df$repli_is_manylabs %in% input$select_is_manylabs_selected,]
-        # df <- df[df$repli_power_for_effect_size %in% input$select_power_for_effect_size_selected,]
-        df <- df[df$is_manylabs %in% input$select_is_manylabs_selected,]
+        
+        if ("not_manylabs" %in% input$select_manylabs_selected){
+          df[df$manylabs_type %in% input$select_manylabs_selected | df$is_manylabs==FALSE,]
+        } else {
+          df <- df[df$manylabs_type %in% input$select_manylabs_selected,]
+        }
+        
         df <- df[df$power_for_effect_size %in% input$select_power_for_effect_size_selected,]
     
         df
