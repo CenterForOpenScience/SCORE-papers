@@ -13,6 +13,7 @@
     library(pbapply)
     library(googledrive)
     library(stringr)
+    library(Hmisc)
   }
   
   # Data loading
@@ -87,7 +88,7 @@ fluidPage(title = "SCORE data visualization playground",
           h3("Calculation options"),
           numericInput("repli_bootstrap_iterations",
                        "Bootstrap iterations",
-                       value=100,min=50,max=2000,step=5
+                       value=50,min=50,max=2000,step=5
           ),
           h3("Dataset selection"),
           checkboxGroupInput("select_repli_type_selected",
@@ -124,22 +125,19 @@ fluidPage(title = "SCORE data visualization playground",
         ),
         # Main page ----
         navbarPage("",
+           tabPanel("Paper 5 stats",
+                    p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
+                    p("May take a moment to load due to bootstrap iterations..."),
+                    #htmlOutput("paper_5_stats_text"),
+                    DTOutput("paper_5_stats_table")
+           ),
            tabPanel("Data properties",
-                    htmlOutput("repli_data_text")
+            htmlOutput("repli_data_text")
            ),
           tabPanel("Dataset",
                   DTOutput("repli_data_table")
           ),
-          tabPanel("Stats whiteboard",
-                   p("May take a moment to load due to bootstrap iterations..."),
-                   htmlOutput("repli_whiteboard_text")
-          ),
-          tabPanel("Paper 5 stats",
-                   p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
-                   p("May take a moment to load due to bootstrap iterations..."),
-                   #htmlOutput("paper_5_stats_text"),
-                   DTOutput("paper_5_stats_table")
-          ),
+          
           tabPanel("Chart: repli vs original ES",
                    plotOutput("repli_outcomes_vs_orig"),
                    h4("Options:"),
@@ -437,146 +435,6 @@ server <- function(input, output, session) {
         text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
         HTML(text)
       })
-      
-      output$repli_whiteboard_text <- renderText({
-        df <- df_repli_subsetted()
-        
-        text <- ""
-        # Replication SCORE criteria met
-        { 
-          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
-                                                  function(data) {
-                                                    mean(data$repli_score_criteria_met,na.rm=TRUE)
-                                                  }, 
-                                                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_score_criteria_met")],FUN=
-                                                           function(data) {
-                                                             data <- data %>% add_count(paper_id)
-                                                             data$weight <- 1/data$n
-                                                             weighted.mean(data$repli_score_criteria_met,data$weight,na.rm=TRUE)
-                                                           }, 
-                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          text <- paste0(text,"<b>Percent meeting replication SCORE criteria:</b> ")
-          text <- paste0(text,"(n=",length(na.omit(df$repli_score_criteria_met)),")")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
-          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
-          text <- paste0(text,"<br/>")
-          
-          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
-          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"<br/>")
-        }
-        # Replication pattern criteria met
-        { 
-          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
-            function(data) {
-              mean(data$repli_pattern_criteria_met,na.rm=TRUE)
-            }, 
-          alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met")],FUN=
-              function(data) {
-                data <- data %>% add_count(paper_id)
-                data$weight <- 1/data$n
-                weighted.mean(data$repli_pattern_criteria_met,data$weight,na.rm=TRUE)
-              }, 
-            clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          text <- paste0(text,"<b>Percent meeting replication pattern criteria:</b> ")
-          text <- paste0(text,"(n=",length(na.omit(df$repli_pattern_criteria_met)),")")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
-          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
-          text <- paste0(text,"<br/>")
-          
-          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
-          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"<br/>")
-        }
-        # Interpretation supported 
-        {
-          mean.repli.success <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
-                function(data) {
-                  mean(data$repli_interpret_supported=="yes",na.rm=TRUE)
-                }, 
-                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          mean.repli.success.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_interpret_supported")],FUN=
-               function(data) {
-                 data <- data %>% add_count(paper_id)
-                 data$weight <- 1/data$n
-                 weighted.mean(data$repli_interpret_supported=="yes",data$weight,na.rm=TRUE)
-               }, 
-              clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          text <- paste0(text,"<b>Percent interpretation supported (subjective assessment by lab):</b> ")
-          text <- paste0(text,"(n=",length(na.omit(df$repli_interpret_supported)),")")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"Unweighted/unclustered: ",round(mean.repli.success$point.estimate,3)*100,"%")
-          text <- paste0(text," (95% CI: ",round(mean.repli.success$CI.lb,3)*100," - ", round(mean.repli.success$CI.ub,3)*100,"%)")
-          text <- paste0(text,"<br/>")
-          
-          text <- paste0(text,"Clustered/weighted at the paper level: ",round(mean.repli.success.weighted$point.estimate,3)*100,"%")
-          text <- paste0(text," (95% CI: ",round(mean.repli.success.weighted$CI.lb,3)*100," - ", round(mean.repli.success.weighted$CI.ub,3)*100,"%)")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"<br/>")
-        }
-        # Replication success by type
-        { 
-          rr.success.repli.type.weighted <- bootstrap.clust(data=df[c("paper_id","claim_id","repli_pattern_criteria_met","repli_type")],FUN=
-                                                           function(data) {
-                                                             data <- data %>% add_count(paper_id)
-                                                             data$weight <- 1/data$n
-                                                             probability.ratio(exposure = data$repli_type=="new data",
-                                                                               outcome = data$repli_pattern_criteria_met,
-                                                                               weight = data$weight)
-                                                           }, 
-                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          text <- paste0(text,"<b>Relative proportion replication success by data type: </b>",round(rr.success.repli.type.weighted$point.estimate,3))
-          text <- paste0(text," (95% CI: ",round(rr.success.repli.type.weighted$CI.lb,3)," - ", round(rr.success.repli.type.weighted$CI.ub,3),")")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"Interpretation: Replication attempts using new data were ",round(rr.success.repli.type.weighted$point.estimate,3),
-                         " times as likely to have replication criteria met compared with those replications using pre-existing/secondary data.")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"<br/>")
-        }
-        # Replicated effect sizes (SER method)
-        {
-          df.SER <- df[df$repli_effect_size_type=="ser_method",]
-          median.repli.ES.SER <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_value")],FUN=
-                                                  function(data) {
-                                                    median(data$repli_effect_size_value,na.rm=TRUE)
-                                                  }, 
-                                                alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          median.repli.ES.SER.weighted <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_value")],FUN=
-                                                           function(data) {
-                                                             data <- data %>% add_count(paper_id)
-                                                             data$weight <- 1/data$n
-                                                             weighted.median(data$repli_effect_size_value,data$weight,na.rm=TRUE)
-                                                           }, 
-                                                         clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=input$repli_bootstrap_iterations)
-          
-          text <- paste0(text,"<b>Median replication SER effect size value:</b> ")
-          text <- paste0(text,"(n=",length(na.omit(df.SER$repli_effect_size_value)),")")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"Unweighted/unclustered: ",round(median.repli.ES.SER$point.estimate,3))
-          text <- paste0(text," (95% CI: ",round(median.repli.ES.SER$CI.lb,3)," - ", round(median.repli.ES.SER$CI.ub,3),")")
-          text <- paste0(text,"<br/>")
-          
-          text <- paste0(text,"Clustered/weighted at the paper level: ",round(median.repli.ES.SER.weighted$point.estimate,3))
-          text <- paste0(text," (95% CI: ",round(median.repli.ES.SER.weighted$CI.lb,3)," - ", round(median.repli.ES.SER.weighted$CI.ub,3),")")
-          text <- paste0(text,"<br/>")
-          text <- paste0(text,"<br/>")
-        }
-      })
-      
       
       output$paper_5_stats_table <- renderDT({
         # Pull paper to find what tags are in paper
