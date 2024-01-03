@@ -6,11 +6,30 @@ This project uses the R packages `renv` and `{targets}` to facilitate reproducib
 
 For first time setup of this repository, open the project in R Studio and run `renv::restore()` in the console. This will install **all** packages used in the project in the versions that were used during development. If you are having issues with `renv::restore()`, make sure your installation of R and its [mandatory tools](https://mac.r-project.org/tools/) are up to date.
 
-Next, run `usethis::edit_r_environ()` in the console to open your .Renviron file. Enter 'google_oauth_email="youremail@cos.io"' as a new line in the file, making sure to replace "youremail@cos.io" with your actual email within quotations. This will allow Google to silently authenticate without needing to change any code. To set this option, run `googledrive::drive_auth(email = Sys.getenv("google_oauth_email"))` and `googlesheets4::gs4_auth(email = Sys.getenv("google_oauth_email"))` in the console. You may need to complete a one-time authentication through your browser if you have not used these packages before. If you have not used osfr before, you may also need to complete authentication using `osfr::osf_auth()` and a token from [OSF](https://osf.io/settings/tokens/). See the [osfr reference manual](https://cran.r-project.org/web/packages/osfr/osfr.pdf) for more information.
+Next, run `usethis::edit_r_environ()` in the console to open your .Renviron file. Enter 'google_oauth_email="youremail@cos.io"' as a new line in the file, making sure to replace "youremail@cos.io" with your actual email within quotations. This will allow Google to silently authenticate without needing to change any code. To set this option, run `googledrive::drive_auth(email = Sys.getenv("google_oauth_email"))` and `googlesheets4::gs4_auth(email = Sys.getenv("google_oauth_email"))` in the console. You may need to complete a one-time authentication through your browser if you have not used these packages before. 
 
-Finally, run `rmarkdown::render("targets.Rmd")` in the console. This will complete the first time set up of the reproducible targets pipeline on your computer. 
+If you have not used osfr before, you may also need to complete authentication using `osfr::osf_auth()` and a token from [OSF](https://osf.io/settings/tokens/). See the [osfr reference manual](https://cran.r-project.org/web/packages/osfr/osfr.pdf) for more information.
+
+Finally, run `rmarkdown::render("targets.Rmd")` in the console. This will set up of the reproducible targets pipeline on your computer. 
 
 Please read through the rest of this document for more information on `renv`, `{targets}`, and best practices for working on project code. 
+
+## Workflow Maintenance 
+
+While working with SCORE data, data might change in two ways:
+
+1) New datasets can be added
+2) New data can be added to existing datasets
+
+### Updating to include new datasets
+
+When a new dataset is added, first pull from GitHub. Next, run `rmarkdown::render("targets.Rmd")` in the console. The data manager will typically post in Slack when these types of updates happen. This function will also update any new data added to existing datasets, so it is not necessary to run `targets::tar_make()` after running `rmarkdown::render("targets.Rmd")`. 
+
+### Updating to include new data in existing datasets
+
+When new data is added to an existing dataset, run `targets::tar_make()` in the console. I recommend doing this regularly if your work depends on having the most up-to-date data available. 
+
+If in doubt about which of these commands to run to get updated data or if you get an error stating a target is not found, default to `rmarkdown::render("targets.Rmd")`.
 
 ## renv
 
@@ -24,7 +43,7 @@ The R package [\{targets\}](https://books.ropensci.org/targets/) is a pipeline t
 
 The targets pipeline requires users to adopt a [function-oriented](https://books.ropensci.org/targets/functions.html) style of programming. All data transformations (including any model and figure generation) must be encapsulated within discrete functions that use any number of targets as inputs and create a single output. Once a function has been tested and is ready to add to the pipeline, you will need to add a new target or list of targets to `targets.Rmd`. See the [targets](https://books.ropensci.org/targets/targets.html) package documentation for more information on making a good target.
 
-After identifying an appropriate section to place the new targets, insert a new code chunk into the Rmd with the type "targets" (e.g. ```````{targets}````). It is best practice to also name the code chunk so that it can be more easily found in the future (e.g. ````{targets chunk-name}`). 
+After identifying an appropriate section to place the new targets, insert a new code chunk into the Rmd with the type "targets" (e.g. ` ```{targets}`). It is best practice to also name the code chunk so that it can be more easily found in the future (e.g. ` ```{targets chunk-name}`). 
 
 A single target is defined using `tar_target(name, command)`, where "name" defines how the target will be referred to in the pipeline and "command" is the R code to run the target. "Command" is often either a string (in the case of when the target is a file identifier) or a function. To initialize multiple targets within a single code chunk, use a list (e.g. `list(tar_target(name, command), tar_target(name2, command2))`). Run the code chunk to add the targets to the `_targets_r/targets/` folder, then run `targets::tar_visnetwork()` to make sure the new targets are placed where they are expected in the pipeline dependency tree. 
 
