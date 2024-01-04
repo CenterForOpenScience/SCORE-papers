@@ -88,7 +88,7 @@ fluidPage(title = "SCORE data visualization playground",
           h3("Calculation options"),
           numericInput("repli_bootstrap_iterations",
                        "Bootstrap iterations",
-                       value=50,min=50,max=2000,step=5
+                       value=10,min=10,max=2000,step=5
           ),
           h3("Dataset selection"),
           checkboxGroupInput("select_repli_type_selected",
@@ -128,7 +128,6 @@ fluidPage(title = "SCORE data visualization playground",
            tabPanel("Paper 5 stats",
                     p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
                     p("May take a moment to load due to bootstrap iterations..."),
-                    #htmlOutput("paper_5_stats_text"),
                     DTOutput("paper_5_stats_table")
            ),
            tabPanel("Data properties",
@@ -464,10 +463,7 @@ server <- function(input, output, session) {
         
         output_table <- data.frame(tags,values_text)
         output_table
-        # print(output_table)
-        # 
-        # renderDataTable(output_table)
-        # print("here")
+
       },options = list(pageLength=-1,
                        lengthChange = FALSE),
       rownames= FALSE

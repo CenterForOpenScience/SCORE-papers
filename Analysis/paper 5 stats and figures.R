@@ -17,22 +17,22 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
     
     repli_outcomes_merged$repli_effect_size_ratio_v_orig <- abs(repli_outcomes_merged$repli_effect_size_value)/abs(repli_outcomes_merged$orig_effect_size_value_repli)
     df.SER <- repli_outcomes_merged[repli_outcomes_merged$orig_effect_size_type_repli=="ser_method",]
-    p_med_SER_neg_ratio_v_orig_weighted_obj <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_ratio_v_orig")],FUN=
+    p_median_SER_neg_ratio_v_orig_wtd_obj <- bootstrap.clust(data=df.SER[c("paper_id","claim_id","repli_effect_size_ratio_v_orig")],FUN=
                                                       function(data) {
                                                         data <- data %>% add_count(paper_id)
                                                         data$weight <- 1/data$n
                                                         weighted.median(1-data$repli_effect_size_ratio_v_orig,data$weight,na.rm=TRUE)
                                                       }, 
                                                     clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_med_SER_neg_ratio_v_orig_weighted <- paste0(format.pct(p_med_SER_neg_ratio_v_orig_weighted_obj$point.estimate,1),
+    p_median_SER_neg_ratio_v_orig_wtd <- paste0(format.pct(p_median_SER_neg_ratio_v_orig_wtd_obj$point.estimate,1),
                                          "% (95% CI ",
-                                         format.pct(p_med_SER_neg_ratio_v_orig_weighted_obj$CI.lb,1),
+                                         format.pct(p_median_SER_neg_ratio_v_orig_wtd_obj$CI.lb,1),
                                          "-",
-                                         format.pct(p_med_SER_neg_ratio_v_orig_weighted_obj$CI.ub,1),
+                                         format.pct(p_median_SER_neg_ratio_v_orig_wtd_obj$CI.ub,1),
                                          "%)")
-    rm(df.SER,p_med_SER_neg_ratio_v_orig_weighted_obj)
+    rm(df.SER,p_median_SER_neg_ratio_v_orig_wtd_obj)
     
-    p_repli_stat_sig_claims_same_dir_weighted_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
+    p_repli_stat_sig_claims_same_dir_wtd_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
                                                                        function(data) {
                                                                          data <- data %>% add_count(paper_id)
                                                                          data$weight <- 1/data$n
@@ -40,13 +40,13 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                                          #weighted.mean(data$repli_pattern_direction & data$repli_p_value<=.05,data$weight,na.rm=TRUE)
                                                                        },
                                                                      clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_stat_sig_claims_same_dir_weighted <- paste0(format.pct(p_repli_stat_sig_claims_same_dir_weighted_obj$point.estimate,1),
+    p_repli_stat_sig_claims_same_dir_wtd <- paste0(format.pct(p_repli_stat_sig_claims_same_dir_wtd_obj$point.estimate,1),
                                                         "% (95% CI ",
-                                                        format.pct(p_repli_stat_sig_claims_same_dir_weighted_obj$CI.lb,1),
+                                                        format.pct(p_repli_stat_sig_claims_same_dir_wtd_obj$CI.lb,1),
                                                         "-",
-                                                        format.pct(p_repli_stat_sig_claims_same_dir_weighted_obj$CI.ub,1),
+                                                        format.pct(p_repli_stat_sig_claims_same_dir_wtd_obj$CI.ub,1),
                                                         "%)")
-    rm(p_repli_stat_sig_claims_same_dir_weighted_obj)
+    rm(p_repli_stat_sig_claims_same_dir_wtd_obj)
     
     p_effect_size_smaller_v_orig_business <- "Pending paper process data pipeline"
     
@@ -128,7 +128,7 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
     
     n_repli_stat_sig_claims_same_dir <- sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_direction==TRUE)
     
-    p_repli_stat_sig_claims_opposite_dir_weighted_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
+    p_repli_stat_sig_claims_opposite_dir_wtd_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
                                                                        function(data) {
                                                                          data <- data %>% add_count(paper_id)
                                                                          data$weight <- 1/data$n
@@ -136,30 +136,43 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                                          #weighted.mean(data$repli_pattern_direction & data$repli_p_value<=.05,data$weight,na.rm=TRUE)
                                                                        },
                                                                      clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_stat_sig_claims_opposite_dir_weighted <- paste0(format.pct(p_repli_stat_sig_claims_opposite_dir_weighted_obj$point.estimate,1),
+    p_repli_stat_sig_claims_opposite_dir_wtd <- paste0(format.pct(p_repli_stat_sig_claims_opposite_dir_wtd_obj$point.estimate,1),
                                                         "% (95% CI ",
-                                                        format.pct(p_repli_stat_sig_claims_opposite_dir_weighted_obj$CI.lb,1),
+                                                        format.pct(p_repli_stat_sig_claims_opposite_dir_wtd_obj$CI.lb,1),
                                                         "-",
-                                                        format.pct(p_repli_stat_sig_claims_opposite_dir_weighted_obj$CI.ub,1),
+                                                        format.pct(p_repli_stat_sig_claims_opposite_dir_wtd_obj$CI.ub,1),
                                                         "%)")
-    rm(p_repli_stat_sig_claims_opposite_dir_weighted_obj)
+    rm(p_repli_stat_sig_claims_opposite_dir_wtd_obj)
     
     n_repli_stat_sig_claims_opposite_dir <- sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_direction==FALSE)
     
-    p_repli_null_sig_claims_or_opposite_dir_weighted_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
+    p_repli_stat_sig_claims_opposite_dir_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
+                                                                           function(data) {
+                                                                             mean(data$repli_p_value <= 0.05 & data$repli_pattern_direction==FALSE,na.rm=TRUE)
+                                                                           },
+                                                                         clustervar = "claim_id", alpha=.05,tails="two-tailed",iters=iters)
+    p_repli_stat_sig_claims_opposite_dir <- paste0(format.pct(p_repli_stat_sig_claims_opposite_dir_obj$point.estimate,1),
+                                                            "% (95% CI ",
+                                                            format.pct(p_repli_stat_sig_claims_opposite_dir_obj$CI.lb,1),
+                                                            "-",
+                                                            format.pct(p_repli_stat_sig_claims_opposite_dir_obj$CI.ub,1),
+                                                            "%)")
+    rm(p_repli_stat_sig_claims_opposite_dir_obj)
+    
+    p_repli_null_sig_claims_or_opposite_dir_wtd_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value","repli_pattern_direction")],FUN=
                                                                            function(data) {
                                                                              data <- data %>% add_count(paper_id)
                                                                              data$weight <- 1/data$n
                                                                              weighted.mean(data$repli_p_value > 0.05 | data$repli_pattern_direction==FALSE,w=data$weight,na.rm=TRUE)
                                                                            },
                                                                          clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_null_sig_claims_or_opposite_dir_weighted <- paste0(format.pct(p_repli_null_sig_claims_or_opposite_dir_weighted_obj$point.estimate,1),
+    p_repli_null_sig_claims_or_opposite_dir_wtd <- paste0(format.pct(p_repli_null_sig_claims_or_opposite_dir_wtd_obj$point.estimate,1),
                                                             "% (95% CI ",
-                                                            format.pct(p_repli_null_sig_claims_or_opposite_dir_weighted_obj$CI.lb,1),
+                                                            format.pct(p_repli_null_sig_claims_or_opposite_dir_wtd_obj$CI.lb,1),
                                                             "-",
-                                                            format.pct(p_repli_null_sig_claims_or_opposite_dir_weighted_obj$CI.ub,1),
+                                                            format.pct(p_repli_null_sig_claims_or_opposite_dir_wtd_obj$CI.ub,1),
                                                             "%)")
-    rm(p_repli_null_sig_claims_or_opposite_dir_weighted_obj)
+    rm(p_repli_null_sig_claims_or_opposite_dir_wtd_obj)
     
     n_repli_null_sig_claims_or_opposite_dir <- sum(repli_outcomes$repli_p_value > 0.05 | repli_outcomes$repli_pattern_direction==FALSE)
     
@@ -195,15 +208,15 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
     
     orig_outcomes <- orig_outcomes %>% add_count(paper_id)
     orig_outcomes$weight <- 1/orig_outcomes$n
-    median_orig_sample_size_weighted <- weighted.median(orig_outcomes$orig_sample_size_value,w=orig_outcomes$weight,na.rm = TRUE)
+    median_orig_sample_size_wtd <- weighted.median(orig_outcomes$orig_sample_size_value,w=orig_outcomes$weight,na.rm = TRUE)
     
-    SD_orig_sample_size_weighted <- round(sqrt(Hmisc::wtd.var(orig_outcomes$orig_sample_size_value,weights=orig_outcomes$weight)),0)
+    SD_orig_sample_size_wtd <- round(sqrt(Hmisc::wtd.var(orig_outcomes$orig_sample_size_value,weights=orig_outcomes$weight)),0)
 
     repli_outcomes <- repli_outcomes %>% add_count(paper_id)
     repli_outcomes$weight <- 1/repli_outcomes$n
-    median_repli_sample_size_weighted <- weighted.median(repli_outcomes$repli_sample_size_value,w=repli_outcomes$weight,na.rm = TRUE)
+    median_repli_sample_size_wtd <- weighted.median(repli_outcomes$repli_sample_size_value,w=repli_outcomes$weight,na.rm = TRUE)
     
-    SD_repli_sample_size_weighted <- round(sqrt(Hmisc::wtd.var(repli_outcomes$repli_sample_size_value,weights=repli_outcomes$weight)),0)
+    SD_repli_sample_size_wtd <- round(sqrt(Hmisc::wtd.var(repli_outcomes$repli_sample_size_value,weights=repli_outcomes$weight)),0)
     
     figure_effect_size_comparison <- "Pending figure"
     
@@ -215,40 +228,104 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
     papers_pearsons_estimatable_orig <- unique(orig_outcomes[!is.na(orig_outcomes$orig_pearsons_r_value),]$paper_id)
     papers_pearsons_estimatable_orig_and_repli <- papers_pearsons_estimatable_repli[papers_pearsons_estimatable_repli %in% papers_pearsons_estimatable_orig]
     
-    n_papers_orig_and_repli_Pearsons_estimatable <- length(papers_pearsons_estimatable_orig_and_repli)
+    n_papers_orig_and_repli_pearsons_estimatable <- length(papers_pearsons_estimatable_orig_and_repli)
     
-    orig_outcomes$paper_id_orig_and_repli_Pearsons_estimatable <- ifelse(orig_outcomes$paper_id %in% papers_pearsons_estimatable_orig_and_repli & !is.na(orig_outcomes$orig_pearsons_r_value),
+    orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable <- ifelse(orig_outcomes$paper_id %in% papers_pearsons_estimatable_orig_and_repli & !is.na(orig_outcomes$orig_pearsons_r_value),
                                                                          orig_outcomes$paper_id,NA)
     orig_outcomes$n <- NULL
-    orig_outcomes <- orig_outcomes %>% add_count(paper_id_orig_and_repli_Pearsons_estimatable)
+    orig_outcomes <- orig_outcomes %>% add_count(paper_id_orig_and_repli_pearsons_estimatable)
     orig_outcomes$weight <- 1/orig_outcomes$n
-    median_orig_Pearsons_both_estimatable_weighted <- round(weighted.median(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$orig_pearsons_r_value,
-                                                                      orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$weight,na.rm=TRUE),3)
+    median_orig_pearsons_both_estimatable_wtd <- round(weighted.median(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$orig_pearsons_r_value,
+                                                                      orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight,na.rm=TRUE),3)
     
-    SD_orig_Pearsons_both_estimatable_weighted <- round(sqrt(Hmisc::wtd.var(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$orig_pearsons_r_value,
-    orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$weight,na.rm=TRUE)),3)
+    SD_orig_pearsons_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$orig_pearsons_r_value,
+    orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight,na.rm=TRUE)),3)
     
     
-    repli_outcomes$paper_id_orig_and_repli_Pearsons_estimatable <- ifelse(repli_outcomes$paper_id %in% papers_pearsons_estimatable_orig_and_repli & !is.na(repli_outcomes$repli_pearsons_r_value),
+    repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable <- ifelse(repli_outcomes$paper_id %in% papers_pearsons_estimatable_orig_and_repli & !is.na(repli_outcomes$repli_pearsons_r_value),
                                                                           repli_outcomes$paper_id,NA)
     repli_outcomes$n <- NULL
-    repli_outcomes <- repli_outcomes %>% add_count(paper_id_orig_and_repli_Pearsons_estimatable)
+    repli_outcomes <- repli_outcomes %>% add_count(paper_id_orig_and_repli_pearsons_estimatable)
     repli_outcomes$weight <- 1/repli_outcomes$n
-    median_repli_Pearsons_both_estimatable_weighted <- round(weighted.median(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$repli_pearsons_r_value,
-                                                                            repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$weight,na.rm=TRUE),3)
+    median_repli_pearsons_both_estimatable_wtd <- round(weighted.median(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$repli_pearsons_r_value,
+                                                                            repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight,na.rm=TRUE),3)
     
-    SD_repli_Pearsons_both_estimatable_weighted <- round(sqrt(Hmisc::wtd.var(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$repli_pearsons_r_value,
-                                                                            repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_Pearsons_estimatable),]$weight,na.rm=TRUE)),3)
+    SD_repli_pearsons_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$repli_pearsons_r_value,
+                                                                            repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight,na.rm=TRUE)),3)
     
+    repli_outcomes_merged$repli_pearsons_ratio_v_orig <- repli_outcomes_merged$repli_pearsons_r_value/repli_outcomes_merged$orig_pearsons_r_value
+    p_median_pearsons_neg_ratio_v_orig_wtd_obj <- bootstrap.clust(data=repli_outcomes_merged[c("paper_id","claim_id","repli_pearsons_ratio_v_orig")],FUN=
+                                                                 function(data) {
+                                                                   data <- data %>% add_count(paper_id)
+                                                                   data$weight <- 1/data$n
+                                                                   weighted.median(1-data$repli_pearsons_ratio_v_orig,data$weight,na.rm=TRUE)
+                                                                 }, 
+                                                               clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
+    p_median_pearsons_neg_ratio_v_orig_wtd <- paste0(format.pct(p_median_pearsons_neg_ratio_v_orig_wtd_obj$point.estimate,1),
+                                                  "% (95% CI ",
+                                                  format.pct(p_median_pearsons_neg_ratio_v_orig_wtd_obj$CI.lb,1),
+                                                  "-",
+                                                  format.pct(p_median_pearsons_neg_ratio_v_orig_wtd_obj$CI.ub,1),
+                                                  "%)")
+    rm(p_median_pearsons_neg_ratio_v_orig_wtd_obj)
     
+    repli_outcomes_SER <- repli_outcomes[repli_outcomes$repli_effect_size_type=="ser_method",]
+    orig_outcomes_SER <- orig_outcomes[orig_outcomes$orig_effect_size_type_repli=="ser_method" & !is.na(orig_outcomes$orig_effect_size_type_repli),]
+    repli_outcomes_SER_merged <- merge(repli_outcomes_SER,orig_outcomes_SER[,!(names(orig_outcomes_SER) %in% c("paper_id"))],
+                                       by="claim_id",all.x=TRUE,all.y=FALSE)
     
+    papers_SER_estimatable_repli <- unique(repli_outcomes_SER[!is.na(repli_outcomes_SER$repli_effect_size_value),]$paper_id)
+    papers_SER_estimatable_orig <- unique(orig_outcomes_SER[!is.na(orig_outcomes_SER$orig_effect_size_value_repli),]$paper_id)
+    papers_SER_estimatable_orig_and_repli <- papers_SER_estimatable_repli[papers_SER_estimatable_repli %in% papers_SER_estimatable_orig]
+    
+    n_papers_orig_and_repli_SER_estimatable <- length(papers_SER_estimatable_orig_and_repli)
 
-    # p_Pearsons_neg_ratio_v_orig	MISSING
-    # n_papers_orig_and_repli_SER_estimatable	MISSING
-    # median_orig_SER_both_estimatable	MISSING
-    # SD_orig_SER_both_estimatable	MISSING
-    # median_repli_SER_both_estimatable	MISSING
-    # SD_repli_SER_both_estimatable	MISSING
+    orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable <- ifelse(orig_outcomes_SER$paper_id %in% papers_SER_estimatable_orig_and_repli & !is.na(orig_outcomes_SER$orig_effect_size_value_repli),
+                                                                        orig_outcomes_SER$paper_id,NA)
+    orig_outcomes_SER$n <- NULL
+    orig_outcomes_SER <- orig_outcomes_SER %>% add_count(paper_id_orig_and_repli_SER_estimatable)
+    orig_outcomes_SER$weight <- 1/orig_outcomes_SER$n
+    median_orig_SER_both_estimatable_wtd <- round(
+      weighted.median(abs(orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$orig_effect_size_value_repli),
+                      orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight,na.rm=TRUE),
+      3)
+
+    SD_orig_SER_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(
+      abs(orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$orig_effect_size_value_repli),
+      orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight,na.rm=TRUE)),
+    2)
+
+
+    repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable <- ifelse(repli_outcomes_SER$paper_id %in% papers_SER_estimatable_orig_and_repli & !is.na(repli_outcomes_SER$repli_effect_size_value),
+                                                                          repli_outcomes_SER$paper_id,NA)
+    repli_outcomes_SER$n <- NULL
+    repli_outcomes_SER <- repli_outcomes_SER %>% add_count(paper_id_orig_and_repli_SER_estimatable)
+    repli_outcomes_SER$weight <- 1/repli_outcomes_SER$n
+    median_repli_SER_both_estimatable_wtd <- round(
+      weighted.median(abs(repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$repli_effect_size_value),
+                      repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight,na.rm=TRUE),
+      2)
+
+    SD_repli_SER_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(
+      abs(repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$repli_effect_size_value),
+      repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight,na.rm=TRUE)),
+      2)
+
+    repli_outcomes_SER_merged$repli_SER_ratio_v_orig <- abs(repli_outcomes_SER_merged$repli_effect_size_value)/abs(repli_outcomes_SER_merged$orig_effect_size_value_repli)
+    p_median_SER_neg_ratio_v_orig_wtd_obj <- bootstrap.clust(data=repli_outcomes_SER_merged[c("paper_id","claim_id","repli_SER_ratio_v_orig")],FUN=
+                                                                         function(data) {
+                                                                           data <- data %>% add_count(paper_id)
+                                                                           data$weight <- 1/data$n
+                                                                           weighted.median(1-data$repli_SER_ratio_v_orig,data$weight,na.rm=TRUE)
+                                                                         },
+                                                                       clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
+    p_median_SER_neg_ratio_v_orig_wtd <- paste0(format.pct(p_median_SER_neg_ratio_v_orig_wtd_obj$point.estimate,1),
+                                                          "% (95% CI ",
+                                                          format.pct(p_median_SER_neg_ratio_v_orig_wtd_obj$CI.lb,1),
+                                                          "-",
+                                                          format.pct(p_median_SER_neg_ratio_v_orig_wtd_obj$CI.ub,1),
+                                                          "%)")
+    rm(p_median_SER_neg_ratio_v_orig_wtd_obj)
     
     n_repli_stat_sig_claims <- sum(repli_outcomes$repli_p_value <= 0.05)
     
@@ -265,23 +342,22 @@ paper_5_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA)
                                                 "%)")
     rm(p_repli_stat_sig_claims_obj)
     
-    p_repli_stat_sig_claims_weighted_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value")],FUN=
+    p_repli_stat_sig_claims_wtd_obj <- bootstrap.clust(data=repli_outcomes[c("paper_id","claim_id","repli_p_value")],FUN=
                                                          function(data) {
                                                            data <- data %>% add_count(paper_id)
                                                            data$weight <- 1/data$n
                                                            weighted.mean(as.numeric(data$repli_p_value <= 0.05),w=data$weight,na.rm=TRUE)
                                                          },
                                                        clustervar = "paper_id", alpha=.05,tails="two-tailed",iters=iters)
-    p_repli_stat_sig_claims_weighted <- paste0(format.pct(p_repli_stat_sig_claims_weighted_obj$point.estimate,1),
+    p_repli_stat_sig_claims_wtd <- paste0(format.pct(p_repli_stat_sig_claims_wtd_obj$point.estimate,1),
                                       "% (95% CI ",
-                                      format.pct(p_repli_stat_sig_claims_weighted_obj$CI.lb,1),
+                                      format.pct(p_repli_stat_sig_claims_wtd_obj$CI.lb,1),
                                       "-",
-                                      format.pct(p_repli_stat_sig_claims_weighted_obj$CI.ub,1),
+                                      format.pct(p_repli_stat_sig_claims_wtd_obj$CI.ub,1),
                                       "%)")
-    rm(p_repli_stat_sig_claims_weighted_obj)
+    rm(p_repli_stat_sig_claims_wtd_obj)
     
-    #p_effect_size_neg_ratio_v_orig	MISSING
-    #p_replication_rate_succss_field_max	MISSING
+    p_replication_rate_succss_field_max <- "Pending paper process data pipeline"
   }
   
 
