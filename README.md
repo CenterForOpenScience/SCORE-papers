@@ -4,7 +4,7 @@ This project uses the R packages `renv` and `{targets}` to facilitate reproducib
 
 ## Quick Start Guide
 
-For first time setup of this repository, open the project in R Studio and run `renv::restore()` in the console. This will install **all** packages used in the project in the versions that were used during development. If you are having issues with `renv::restore()`, make sure your installation of R and its [mandatory tools](https://mac.r-project.org/tools/) are up to date.
+For first time setup of this repository, open the project in R Studio and run `renv::restore()` in the console. This will install **all** packages used in the project in the versions that were used during development. 
 
 Next, run `usethis::edit_r_environ()` in the console to open your .Renviron file. Enter 'google_oauth_email="youremail@cos.io"' as a new line in the file, making sure to replace "youremail@cos.io" with your actual email within quotations. This will allow Google to silently authenticate without needing to change any code. To set this option, run `googledrive::drive_auth(email = Sys.getenv("google_oauth_email"))` and `googlesheets4::gs4_auth(email = Sys.getenv("google_oauth_email"))` in the console. You may need to complete a one-time authentication through your browser if you have not used these packages before. 
 
@@ -14,7 +14,15 @@ Finally, run `rmarkdown::render("targets.Rmd")` in the console. This will set up
 
 Please read through the rest of this document for more information on `renv`, `{targets}`, and best practices for working on project code. 
 
-## Workflow Maintenance 
+## Troubleshooting First Time Setup 
+
+The biggest failure point in project installation seems to be with the renv package. If you are encountering errors while running `renv::restore()`, start by making sure your installation of R and its [mandatory tools](https://mac.r-project.org/tools/) are up to date. If that does not solve the issue, try `install.packages("renv")` to update the package, then run `renv::restore()`. If those methods fail, contact the data manager for help. 
+
+If you encounter issues while running `rmarkdown::render("targets.Rmd")`, the most likely issue is that you do not have permission to access one or more online sources it pulls raw data from. Contact the data manager to get appropriate access here.
+
+## Accessing data and Workflow Maintenance
+
+Project data is reproducibly generated using `targets::tar_make()`. After running `rmarkdown::render("targets.Rmd")`, during first time setup, you will have access to all SCORE data products. To load any particular dataset into the R environment, use `targets::tar_load()` with the name of the dataset you want as the parameter. Multiple datasets can be loaded in at one time by using a concatenated list of dataset names (e.g., `targets::tar_load(c(repli_outcomes, repro_outcomes))`). Dataset names are documented in `targets.Rmd`. 
 
 While working with SCORE data, data might change in two ways:
 
@@ -27,7 +35,7 @@ When a new dataset is added, first pull from GitHub. Next, run `rmarkdown::rende
 
 ### Updating to include new data in existing datasets
 
-When new data is added to an existing dataset, run `targets::tar_make()` in the console. I recommend doing this regularly if your work depends on having the most up-to-date data available. 
+When new data is added to an existing dataset (e.g., updates to changelogs or new lines of data from submitting something to Google Forms), you can run `targets::tar_make()` in the console to update your local copy of the data. I recommend doing this regularly if your work depends on having the most up-to-date data available. 
 
 If in doubt about which of these commands to run to get updated data or if you get an error stating a target is not found, default to `rmarkdown::render("targets.Rmd")`.
 
@@ -37,7 +45,17 @@ The R package [renv](https://rstudio.github.io/renv/articles/renv.html) is used 
 
 ## {targets}
 
-The R package [\{targets\}](https://books.ropensci.org/targets/) is a pipeline tool. It watches the dependency graph of the whole project workflow to update only steps, or "targets", whose code, data, and upstream dependencies have changed since the last run of the pipeline, and skip targets that have not changed since the last run. The read-only file `_targets.R` configures and defines the pipeline. The function `targets::tar_visnetwork()` displays the dependency graph of the pipeline. The function `targets::tar_make()` runs the pipeline and stores targets and their metadata in the folder `_targets/`. The functions `tar::tar_read()` and `tar::tar_load()` read and load a target's return value, respectively. The file `targets.Rmd` is used to generate `_targets.R`. Knitting `targets.Rmd` also runs `targets::tar_make()` and `targets::tar_visnetwork()`. Rendering this Rmd file writes scripts to a special `_targets_r/` directory to define individual targets and global objects. The `targets.html` file rendered from the Rmd file can be used to view the documentation for all targets in the pipeline. 
+The R package `targets` is a [make](https://www.gnu.org/software/make/)-like tool for reproducibly running the code that generates project products, such as analytic datasets, models, and figures. 
+
+The file `targets.Rmd` and the file it generates, `targets.html`, contains the human-readable documentation of all data products generated and the functions that are used to create them. Rending this file using `rmarkdown::render("targets.Rmd")` executes a series of functions in the correct order to build target files (also known as "targets", e.g., intermediate data files, analytic datasets, figures) from source files (e.g., raw data). It also documents the dependencies of the target files, which includes all files (whether source files or other targets) which are used as inputs to the functions used to generate the target file. It also generates the read-only file `_targets.R`, which configures and defines the pipeline.
+
+Useful targets functions:
+
+- `targets::tar_make()` runs the pipeline of functions and stores data and their metadata in the folder `_targets/`.
+- `targets::tar_visnetwork()`: displays the dependency graph of of all project files.  
+- `tar::tar_read()` and `tar::tar_load()`: read and load a target's return value, respectively.  
+
+Knitting `targets.Rmd` also runs `targets::tar_make()` and `targets::tar_visnetwork()`. Rendering this Rmd file writes scripts to a special `_targets_r/` directory to define individual targets and global objects. The `targets.html` file rendered from the Rmd file can be used to view the documentation for all targets in the pipeline. 
 
 ### Adding to the {targets} pipeline
 
