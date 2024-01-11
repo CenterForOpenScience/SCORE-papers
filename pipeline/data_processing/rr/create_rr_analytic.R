@@ -1,9 +1,10 @@
-
 # Create Replications Analytic Dataset
 create_repli_analytic <- function(repli_export,
                                   rr_attempts_minted,
                                   rr_statistics_output_p2) {
   
+  # Establish which version is the "version of record" for replications
+  # Previously "repli_primary"
   repli_vor <- repli_export %>%
     filter(rr_type_internal %in% c("Direct Replication", 
                                    "Data Analytic Replication")) %>%
@@ -36,7 +37,7 @@ create_repli_analytic <- function(repli_export,
                "power_for_effect_size",
                "manylabs_type")
   
-  repli_outcomes <- repli_export %>%
+  repli_export %>%
     filter(rr_type_internal %in% c("Direct Replication",
                                    "Data Analytic Replication")) %>%
     select(-c(sample_preference, 
@@ -77,7 +78,19 @@ create_repli_analytic <- function(repli_export,
       rr_statistic_type_reported = case_match(
         rr_statistic_type_reported,
         "chi_squared" ~ "chi-squared",
+        "f" ~ "F",
         .default = rr_statistic_type_reported),
+      rr_statistic_interaction_reported  = case_match(
+        rr_statistic_interaction_reported,
+        "main effect" ~ "main or simple effect",
+        "simple/main effect" ~ "main or simple effect",
+        .default = rr_statistic_interaction_reported
+      ),
+      repli_pearsons_r_defined = case_match(
+        rr_pearsons_r_defined,
+        "yes" ~ TRUE,
+        "no" ~ FALSE
+      ),
       across(all_of(factors), as.factor)) %>%
     select(-c(rr_type,
               rr_analytic_sample_stage,
@@ -116,14 +129,11 @@ create_repli_analytic <- function(repli_export,
       repli_effect_size_value = rr_effect_size_value_reference,
       repli_effect_size_ci_ub = rr_es_ub_ci_nativeunits,
       repli_effect_size_ci_lb = rr_es_lb_ci_nativeunits,
-      repli_pearsons_r_defined = rr_pearsons_r_defined,
       repli_pearsons_r_value = rr_pearsons_r_value,
       repli_pearsons_r_ci_ub = rr_es_ub_ci_pearson,
       repli_pearsons_r_ci_lb = rr_es_lb_ci_pearson,
       repli_effect_size_pi_ub = pi_ub_nativeunits,
       repli_effect_size_pi_lb = pi_lb_nativeunits,
-      repli_pearsons_r_ub = pi_ub_pearson,
-      repli_pearsons_r_lb = pi_lb_pearson,
       repli_power_threshold_small = rr_power_small,
       repli_power_threshold_medium = rr_power_medium,
       repli_power_for_50_effect = rr_power_50_original_effect,
@@ -147,7 +157,12 @@ create_repli_analytic <- function(repli_export,
               rr_input_source,
               rr_stat_version,
               pdf_filename,
-              is_covid))
+              is_covid,
+              rr_pearsons_r_defined,
+              # These two, previously repli_pearsons_r_ub and 
+              # repli_pearsons_r_lb, appear not to actually be used
+              pi_ub_pearson,
+              pi_lb_pearson))
   
 }
 
@@ -156,9 +171,16 @@ create_repro_analytic <- function(repro_export,
   
   repro_export %>%
     left_join(repro_supplementary, by = "unique_report_id") %>%
-    mutate(claim_id = str_c(paper_id,
-                            "_",
-                            claim_id)) %>%
+    mutate(
+      claim_id = str_c(paper_id,
+                       "_",
+                       claim_id),
+      repro_outcome_overall = case_when(
+        repro_outcome_overall == "precise" & 
+          rr_type_internal == "Push Button Reproduction" ~ "push button",
+        .default = repro_outcome_overall
+      )
+    ) %>%
     select(
       paper_id,
       rr_id,
