@@ -109,18 +109,13 @@
       point.estimate <- FUN(data.internal)
     # Create distribution of bootstrapped samples
       estimates.bootstrapped <- replicate(iters,{
-        #time.iter.start <- Sys.time()
         # Generate sample of clusters to include
           clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
         # Build dataset from cluster list
-          # data.clust <- do.call(rbind,lapply(1:length(clust.list), function(i) {
-          #   data.internal[data.internal$cluster.id == clust.list[i],]
-          # }))
           data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
           data.clust <- data.internal[unlist(data.clust),]
         # Run function on new data
           tryCatch(FUN(data.clust),finally=NA)
-          #print(paste0("Time: ",Sys.time()-time.iter.start))
       },simplify=TRUE)
     # Generate outcomes measures
       if(is.matrix(estimates.bootstrapped)){

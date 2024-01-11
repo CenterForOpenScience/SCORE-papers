@@ -43,8 +43,6 @@
       source("common functions.R")
       source("paper 5 stats and figures.R")
       drive_deauth()
-      
-     
     }
   }
   
@@ -178,7 +176,6 @@ fluidPage(title = "SCORE data visualization playground",
                             ),
                             numericInput("repli_outcomes_vs_orig_null",
                                          "Null value",0)
-                            
                      )
                    )
           ),
@@ -202,7 +199,10 @@ fluidPage(title = "SCORE data visualization playground",
         # Dataset sidebar ----
         sidebar = sidebar(
           h3("Calculation options"),
-
+          numericInput("repro_bootstrap_iterations",
+                       "Bootstrap iterations",
+                       value=10,min=10,max=2000,step=5
+          ),
           h3("Dataset selection"),
           
         ),
@@ -468,6 +468,25 @@ server <- function(input, output, session) {
                        lengthChange = FALSE),
       rownames= FALSE
       )
+    # Reproductions
+      # Data generation
+        df_repro_subsetted <- reactive({
+          df <- repro_outcomes
+  
+          
+          df
+        })
+      # Charts and figures
+        output$repro_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE),rownames= FALSE)
+        
+        output$repro_data_text <- renderText({
+          df <- df_repro_subsetted()
+          
+          text <- paste0("Reproductions (n): ",nrow(df))
+          text <- paste0(text,"<br/>","Papers (n): ",length(unique(df$paper_id)))
+          text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
+          HTML(text)
+        })
 }
 
 shinyApp(ui, server)
