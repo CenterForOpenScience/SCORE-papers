@@ -2,8 +2,17 @@
 {
   rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
   
-  
-  
+
+    bootstrap.clust(data=,
+                    FUN=function(x) {
+                      x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
+                      
+                    },
+                    clustervar = "paper_id",
+                    keepvars=,
+                    alpha=.05,tails="two-tailed",iters=iters,
+                    format.percent=TRUE,digits=1
+    )$formatted.text
 }
 
 # Find tags in text file

@@ -58,64 +58,101 @@
     )
   }
   
-  format.pct <- function(x,digits){
-    format(round(x*100,digits),nsmall=digits)
+  format.round <- function(x,digits){
+    format(round(x,digits),nsmall=digits)
+  }
+  
+  format.text.bootstrap <- function(bootstrap.obj,digits=1,format.percent=FALSE){
+    if (format.percent==TRUE){
+      point.estimate <- 100*bootstrap.obj$point.estimate
+      CI.lb <- 100*bootstrap.obj$CI.lb
+      CI.ub <- 100*bootstrap.obj$CI.ub
+      end.notation <- "%"
+    } else {
+      point.estimate <- bootstrap.obj$point.estimate
+      CI.lb <- bootstrap.obj$CI.lb
+      CI.ub <- bootstrap.obj$CI.ub
+      end.notation <- ""
+    }
+    
+    paste0(format.round(point.estimate,digits),
+           end.notation," (",100*(1-bootstrap.obj$alpha),"% CI ",
+           format.round(CI.lb,digits),"-",format.round(CI.ub,digits),
+           end.notation,")")
   }
 }
 
 # Statistical functions
 {
-  bootstrap.clust <- function(data=NA,FUN=NA,clustervar=NA,
-                              alpha=.05,tails="two-tailed",iters=200){
-    # Set up cluster designations
-    if(anyNA(clustervar)){ data$cluster.id <- 1:nrow(data) 
-    } else { data$cluster.id <- data[[clustervar]] }
-    cluster.set <- unique(data$cluster.id)
-    # Generate original target variable
-    point.estimate <- FUN(data)
-    # Create distribution of bootstrapped samples
-    estimates.bootstrapped <- replicate(iters,{
-      # Generate sample of clusters to include
-      clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
-      # Build dataset from cluster list
-      data.clust <- do.call(rbind,lapply(1:length(clust.list), function(x) {
-        data[data$cluster.id == clust.list[x],]
-      }))
-      # Run function on new data
-      tryCatch(FUN(data.clust),finally=NA)
-    },
-    simplify=TRUE)
-    # Outcomes measures
-    if(is.matrix(estimates.bootstrapped)){
-      n_estimates <- nrow(estimates.bootstrapped)
-      SE <- unlist(lapply(1:n_estimates,function(x) {sd(estimates.bootstrapped[x,],na.rm = TRUE)}))
-      if (tails == "two-tailed"){
-        CI.lb <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], alpha/2,na.rm = TRUE)}))
-        CI.ub <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], 1-alpha/2,na.rm = TRUE)}))
-      } else if (tails == "one-tailed, upper"){
-        CI.lb <- unlist(lapply(1:n_estimates,function(x) {NA}))
-        CI.ub <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], 1-alpha,na.rm = TRUE)}))
-      } else if (tails == "one-tailed, lower"){
-        CI.lb <- unlist(lapply(1:n_estimates,function(x) {quantile(estimates.bootstrapped[x,], alpha,na.rm = TRUE)}))
-        CI.ub <- unlist(lapply(1:n_estimates,function(x) {NA}))
-      }
-    } else {
-      SE <- sd(estimates.bootstrapped,na.rm = TRUE)
-      if (tails == "two-tailed"){
-        CI.lb <- quantile(estimates.bootstrapped, alpha/2,na.rm = TRUE)
-        CI.ub <- quantile(estimates.bootstrapped, 1-alpha/2,na.rm = TRUE)
-      } else if (tails == "one-tailed, upper"){
-        CI.lb <- NA
-        CI.ub <- quantile(estimates.bootstrapped, 1-alpha,na.rm = TRUE)
-      } else if (tails == "one-tailed, lower"){
-        CI.lb <- quantile(estimates.bootstrapped, alpha,na.rm = TRUE)
-        CI.ub <- NA
-      }
+  bootstrap.clust <- function(data=NA,FUN=NA,keepvars=NA,clustervar=NA,
+                              alpha=.05,tails="two-tailed",iters=200,
+                              format.percent=FALSE,digits=1,na.rm=TRUE){
+    # Drop any variables from the dataframe that are not required for speed (optional)
+    # and/or with missing values
+    data.internal <- data
+    if (!anyNA(keepvars)){
+      keepvars <- na.omit(unique(c(keepvars,clustervar)))
+      data.internal <- data.internal[c(keepvars)]
+      # Drop any rows with missing data
+      if (na.rm){ data.internal <- na.omit(data.internal)}
+    }
+    # Warn that na.rm not enabled if keepvars isn't specified
+    if (anyNA(keepvars) & na.rm==TRUE){
+      warning("na.rm not enabled for boostrap.clust if keepvars isn't specified")
     }
     
+    # Set up cluster designations
+      if(anyNA(clustervar)){ data.internal$cluster.id <- 1:nrow(data.internal) 
+      } else { data.internal$cluster.id <- data.internal[[clustervar]] }
+      cluster.set <- unique(data.internal$cluster.id)
+    # Generate original target variable
+      point.estimate <- FUN(data.internal)
+    # Create distribution of bootstrapped samples
+      estimates.bootstrapped <- replicate(iters,{
+        # Generate sample of clusters to include
+          clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+        # Build dataset from cluster list
+          data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+          data.clust <- data.internal[unlist(data.clust),]
+        # Run function on new data
+          tryCatch(FUN(data.clust),finally=NA)
+      },simplify=TRUE)
+    # Generate outcomes measures
+      if(is.matrix(estimates.bootstrapped)){
+        n_estimates <- nrow(estimates.bootstrapped)
+        SE <- unlist(lapply(1:n_estimates,function(i) {sd(estimates.bootstrapped[i,],na.rm = TRUE)}))
+        if (tails == "two-tailed"){
+          CI.lb <- unlist(lapply(1:n_estimates,function(i) {quantile(estimates.bootstrapped[i,], alpha/2,na.rm = TRUE)}))
+          CI.ub <- unlist(lapply(1:n_estimates,function(i) {quantile(estimates.bootstrapped[i,], 1-alpha/2,na.rm = TRUE)}))
+        } else if (tails == "one-tailed, upper"){
+          CI.lb <- unlist(lapply(1:n_estimates,function(i) {NA}))
+          CI.ub <- unlist(lapply(1:n_estimates,function(i) {quantile(estimates.bootstrapped[i,], 1-alpha,na.rm = TRUE)}))
+        } else if (tails == "one-tailed, lower"){
+          CI.lb <- unlist(lapply(1:n_estimates,function(i) {quantile(estimates.bootstrapped[i,], alpha,na.rm = TRUE)}))
+          CI.ub <- unlist(lapply(1:n_estimates,function(i) {NA}))
+        }
+      } else {
+        SE <- sd(estimates.bootstrapped,na.rm = TRUE)
+        if (tails == "two-tailed"){
+          CI.lb <- quantile(estimates.bootstrapped, alpha/2,na.rm = TRUE)
+          CI.ub <- quantile(estimates.bootstrapped, 1-alpha/2,na.rm = TRUE)
+        } else if (tails == "one-tailed, upper"){
+          CI.lb <- NA
+          CI.ub <- quantile(estimates.bootstrapped, 1-alpha,na.rm = TRUE)
+        } else if (tails == "one-tailed, lower"){
+          CI.lb <- quantile(estimates.bootstrapped, alpha,na.rm = TRUE)
+          CI.ub <- NA
+        }
+      }
+    
     # Outputs
-    return(list("point.estimate"=point.estimate,"SE"=SE,
-                "CI.lb"=CI.lb,"CI.ub"=CI.ub,"estimates.bootstrapped"=estimates.bootstrapped))
+      output.list <- list("point.estimate"=point.estimate,"SE"=SE,
+                          "CI.lb"=CI.lb,"CI.ub"=CI.ub,
+                          "estimates.bootstrapped"=estimates.bootstrapped,
+                          "alpha"=alpha, "tails"=tails
+                          )
+      output.list[["formatted.text"]] <- format.text.bootstrap(bootstrap.obj=output.list,digits=digits,format.percent=format.percent)
+    return(output.list)
   }
   
   # Probability/Risk ratio
