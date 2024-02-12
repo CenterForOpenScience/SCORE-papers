@@ -477,7 +477,17 @@ load_rr_statistics_output_p2 <- function(
            rr_power_small,
            rr_power_medium,
            rr_power_50_original_effect,
-           rr_power_75_original_effect)
+           rr_power_75_original_effect,
+           rr_power_100_original_effect,
+           rr_power_50_original_effect_alpha_.025,
+           rr_power_75_original_effect_alpha_.025,
+           rr_power_100_original_effect_alpha_.025,
+           rr_power_50_original_effect_design,
+           rr_power_75_original_effect_design,
+           rr_power_100_original_effect_design,
+           rr_power_50_original_effect_alpha_.025_design,
+           rr_power_75_original_effect_alpha_.025_design,
+           rr_power_100_original_effect_alpha_.025_design)
 }
 
 load_repro_checkin <- function(prereg_checkin_repro_gsheet) {
