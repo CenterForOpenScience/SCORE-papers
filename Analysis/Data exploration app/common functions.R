@@ -62,21 +62,19 @@
     format(round(x,digits),nsmall=digits)
   }
   
-  format.text.bootstrap <- function(bootstrap.obj,digits=1,format.percent=FALSE){
+  
+  format.text.CI <- function(point.estimate,CI.lb,CI.ub,alpha=.05,digits=1,format.percent=FALSE){
     if (format.percent==TRUE){
-      point.estimate <- 100*bootstrap.obj$point.estimate
-      CI.lb <- 100*bootstrap.obj$CI.lb
-      CI.ub <- 100*bootstrap.obj$CI.ub
+      point.estimate <- 100*point.estimate
+      CI.lb <- 100*CI.lb
+      CI.ub <- 100*CI.ub
       end.notation <- "%"
     } else {
-      point.estimate <- bootstrap.obj$point.estimate
-      CI.lb <- bootstrap.obj$CI.lb
-      CI.ub <- bootstrap.obj$CI.ub
       end.notation <- ""
     }
     
     paste0(format.round(point.estimate,digits),
-           end.notation," (",100*(1-bootstrap.obj$alpha),"% CI ",
+           end.notation," (",100*(1-alpha),"% CI ",
            format.round(CI.lb,digits),"-",format.round(CI.ub,digits),
            end.notation,")")
   }
@@ -151,7 +149,11 @@
                           "estimates.bootstrapped"=estimates.bootstrapped,
                           "alpha"=alpha, "tails"=tails
                           )
-      output.list[["formatted.text"]] <- format.text.bootstrap(bootstrap.obj=output.list,digits=digits,format.percent=format.percent)
+      output.list[["formatted.text"]] <- 
+        format.text.CI(point.estimate=point.estimate,
+                       "CI.lb"=CI.lb,"CI.ub"=CI.ub,
+                       alpha=alpha,digits=digits,
+                       format.percent=format.percent)
     return(output.list)
   }
   
@@ -213,5 +215,29 @@
   # Weighted median, wrapper function
   weighted.median <- function (x, weight, na.rm = FALSE){
     weighted.quantile(x,weight,quantile=.5,na.rm)
+  }
+}
+
+# Paper-specific functions
+{
+  # Replications
+  {
+    repli_outcomes_default_subset <- function(){
+      df <- repli_outcomes
+      
+      df <- df[df$repli_type %in% c("new data","secondary data"),]
+      df <- df[df$repli_version_of_record %in% c(TRUE),]
+      df <- df[df$repli_is_generalizability %in% c(FALSE),]
+      
+      select_manylabs_selected <- c("not_manylabs","ml_aggregation")
+      if ("not_manylabs" %in% select_manylabs_selected){
+        df[df$manylabs_type %in% select_manylabs_selected | df$is_manylabs==FALSE,]
+      } else {
+        df <- df[df$manylabs_type %in% select_manylabs_selected,]
+      }
+      df <- df[df$power_for_effect_size %in% c("50% for 100%","90% for 50%","90% for 75%","lab power analysis","not performed"),]
+      
+      df
+    }
   }
 }
