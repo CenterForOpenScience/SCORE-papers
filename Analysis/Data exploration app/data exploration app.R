@@ -14,6 +14,7 @@
     library(googledrive)
     library(stringr)
     library(Hmisc)
+    library(zcurve)
   }
   
   # Data loading
@@ -23,6 +24,7 @@
     if (file.exists("Analysis/common functions.R")) {
       # Being run from github/locally, get raw data and copy data files into
       # same level folder for uploading
+      run_location <- "local"
       objects_to_load <- c("repli_outcomes","orig_outcomes","repro_outcomes")
       for(i in 1:length(objects_to_load)){
         assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
@@ -32,16 +34,17 @@
       source(file="Analysis/common functions.R")
       file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R",overwrite = TRUE)
       
-      source(file="Analysis/paper 5 stats and figures.R")
-      file.copy("Analysis/paper 5 stats and figures.R", "Analysis/Data exploration app/paper 5 stats and figures.R",overwrite = TRUE)
+      source(file="Analysis/Paper 5/Code/tagged stats and figures.R")
+      file.copy("Analysis/Paper 5/Code/tagged stats and figures.R", "Analysis/Data exploration app/tagged stats and figures.R",overwrite = TRUE)
 
     } else {
       # Being run on shinyapps.io; data files already in folder
+      run_location <- "server"
       load(file="repli_outcomes.RData")
       load(file="repro_outcomes.RData")
       load(file="orig_outcomes.RData")
       source("common functions.R")
-      source("paper 5 stats and figures.R")
+      source("tagged stats and figures.R")
       drive_deauth()
     }
   }
@@ -448,7 +451,7 @@ server <- function(input, output, session) {
         tags <- tags[tags!=""]
         tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
         
-        values_text <- paper_5_stats(input$repli_bootstrap_iterations,
+        values_text <- tagged_stats(input$repli_bootstrap_iterations,
                                               repli_outcomes = df_repli_subsetted(),
                                               orig_outcomes = orig_outcomes)
         # Generate list of tags
