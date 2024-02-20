@@ -91,7 +91,18 @@ list(
              cue = tar_cue("always")),
   tar_target(all_metadata_filled,
              read_google_tsv(all_metadata_filled_file,
-                             all_metadata_filled_moddate))
+                             all_metadata_filled_moddate)),
+  
+  # publications.csv
+  tar_target(publications_file,
+             "1fXHxIcsFjiAgmydESNkgLjx36dTCSC34"),
+  tar_target(publications_moddate,
+             get_google_mod_date(publications_file),
+             cue = tar_cue("always")),
+  tar_target(publications,
+             read_google_csv(publications_file,
+                             publications_moddate))
+  
 )
 ```
 
@@ -419,12 +430,22 @@ list(
 
 ## Processed Data
 
+Paper metadata.
+
+```{targets processed-papers}
+list(
+  tar_target(paper_metadata,
+             merge_paper_metadata(all_metadata_filled,
+                                  publications))
+)
+```
+
 Original variables data. QC'ed and merged. 
 
 ```{targets processed-ov}
 list(
   tar_target(orig_dataset,
-           export_orig(orig_input_changelog,
+             export_orig(orig_input_changelog,
                          orig_statistics_dataset_p1,
                          original_inftest_dataset,
                          orig_statistics_manual_data_entry,
