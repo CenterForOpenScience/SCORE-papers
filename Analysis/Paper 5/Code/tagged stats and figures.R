@@ -1,24 +1,3 @@
-# # Initial setup and libraries
-# {
-#   rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
-#   
-#   library(shiny)
-#   library(bslib)
-#   library(dplyr)
-#   library(ggplot2)
-#   library(ggExtra)
-#   library(DT)
-#   library(tidyr)
-#   library(pbapply)
-#   library(googledrive)
-#   library(stringr)
-#   library(Hmisc)
-#   library(googlesheets4)
-#   
-#   drive_auth(Sys.getenv("google_oauth_email"))
-# Common functions
-# source(file="Analysis/common functions.R")
-# }
 
 # Functions (also readable by external sources)
 {
@@ -27,18 +6,24 @@
   
     # Data preparation
     {
+      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year")]
+      orig_outcomes <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
+      
       repli_outcomes_merged <- merge(repli_outcomes,orig_outcomes[,!(names(orig_outcomes) %in% c("paper_id"))],
                                      by="claim_id",all.x=TRUE,all.y=FALSE)
       orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n())
       repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n())
       repli_outcomes_merged <- repli_outcomes_merged %>% group_by(paper_id) %>% mutate(weight = 1/n())
+      
     }
     
     # Stats
     {
-      n_claims <- length(unique(repli_outcomes$claim_id))
+      n_claims <- length(unique(repli_outcomes_merged$claim_id))
       
-      n_papers <- length(unique(repli_outcomes$paper_id))
+      n_papers <- length(unique(repli_outcomes_merged$paper_id))
+      
+      n_journals <- length(unique(repli_outcomes_merged$publication_standard))
       
       p_repli_stat_sig_claims_same_dir_wtd <- 
         bootstrap.clust(data=repli_outcomes,
@@ -76,8 +61,6 @@
       p_effect_size_smaller_v_orig_soc <- "Pending paper process data pipeline"
   
       n_effect_size_smaller_v_orig_soc <- "Pending paper process data pipeline"
-  
-      n_journals <- "Pending paper process data pipeline"
   
       n_journals_business <- "Pending paper process data pipeline"
   
@@ -590,46 +573,72 @@
   }
 }
 
-# # Run tag generation
-# {
-#   # Load data
-#     objects_to_load <- c("repli_outcomes","orig_outcomes")
-#     for(i in 1:length(objects_to_load)){
-#       assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-#       save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
-#     }
-# 
-#     
-#     # Pull paper to find what tags are in paper
-#     paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
-#                                       type = "text/plain",encoding="UTF-8")  %>%
-#       strsplit(split = "(\r\n|\r|\n)") %>%
-#       .[[1]]
-#     paper_5_text <- paste0(paper_5_text,collapse="  ")
-#     
-#     # Pull paper to find what tags are calculated
-#       tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
-#       tags <- tags[tags!=""]
-#       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
-#     
-#     # Generate stats
-#       results_tagged_stats <- tagged_stats(iters = 20,repli_outcomes_default_subset(),orig_outcomes,df.papers=NA)
-#       
-#     # Generate list of tags
-#       values_text <- do.call(c,lapply(1:length(tags),function(x) {
-#         tag_to_find <- tags[x]
-#         if(tag_to_find %in% names(results_tagged_stats)){
-#           as.character(results_tagged_stats[[tag_to_find]])
-#         } else {
-#           "MISSING"
-#         }
-#       }))
-#     
-#     
-#   # Export
-#     sheet_write(data.frame(tags,values_text),
-#                 ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Sheet1")
-#     
-#     
-#     
-# }
+# Run tag generation for testing
+if(TRUE){
+
+  # Initial setup and libraries
+  {
+    #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+    
+    library(shiny)
+    library(bslib)
+    library(dplyr)
+    library(ggplot2)
+    library(ggExtra)
+    library(DT)
+    library(tidyr)
+    library(pbapply)
+    library(googledrive)
+    library(stringr)
+    library(Hmisc)
+    library(targets)
+    library(googlesheets4)
+    library(zcurve)
+    
+    drive_auth(Sys.getenv("google_oauth_email"))
+    # Common functions
+    source(file="Analysis/common functions.R")
+  }
+  
+  
+  # Load data
+    objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata")
+    for(i in 1:length(objects_to_load)){
+      assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+      save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+    }
+
+
+    # Pull paper to find what tags are in paper
+    paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
+                                      type = "text/plain",encoding="UTF-8")  %>%
+      strsplit(split = "(\r\n|\r|\n)") %>%
+      .[[1]]
+    paper_5_text <- paste0(paper_5_text,collapse="  ")
+
+    # Pull paper to find what tags are calculated
+      tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+      tags <- tags[tags!=""]
+      tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
+
+    # Generate stats
+      results_tagged_stats <- tagged_stats(iters = 20,repli_outcomes_default_subset(),orig_outcomes,df.papers=NA)
+
+    # Generate list of tags
+      values_text <- do.call(c,lapply(1:length(tags),function(x) {
+        tag_to_find <- tags[x]
+        if(tag_to_find %in% names(results_tagged_stats)){
+          as.character(results_tagged_stats[[tag_to_find]])
+        } else {
+          "MISSING"
+        }
+      }))
+
+
+  # Export
+    sheet_write(data.frame(tags,values_text),
+                ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Sheet1")
+
+
+
+}
