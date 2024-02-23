@@ -1,0 +1,12 @@
+name: SCORE_paper_5_data_app
+title: SCORE_paper_5_data_app
+username: centerforopenscience
+account: centerforopenscience
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11313917
+bundleId: 8290667
+url: https://centerforopenscience.shinyapps.io/SCORE_paper_5_data_app/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

@@ -21,29 +21,29 @@
   {
     # Check if this is being run from shinyapps.io or from the github folder (in
     # which case the data gets pulled from the targets output)
+    objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata")
     if (file.exists("Analysis/common functions.R")) {
       # Being run from github/locally, get raw data and copy data files into
       # same level folder for uploading
       run_location <- "local"
-      objects_to_load <- c("repli_outcomes","orig_outcomes","repro_outcomes")
       for(i in 1:length(objects_to_load)){
         assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-        save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+        save(list=objects_to_load[i],file=paste0("Analysis/Paper 5/Code and data/Commons/",objects_to_load[i],".RData"))
       }
       
       source(file="Analysis/common functions.R")
-      file.copy("Analysis/common functions.R", "Analysis/Data exploration app/common functions.R",overwrite = TRUE)
+      file.copy("Analysis/common functions.R", "Analysis/Paper 5/Code and data/Commons/common functions.R",overwrite = TRUE)
       
-      source(file="Analysis/Paper 5/Code/tagged stats and figures.R")
-      file.copy("Analysis/Paper 5/Code/tagged stats and figures.R", "Analysis/Data exploration app/tagged stats and figures.R",overwrite = TRUE)
+      source(file="Analysis/Paper 5/Code and data/tagged stats and figures.R")
+      #file.copy("Analysis/Paper 5/Code and data/Commons/tagged stats and figures.R", "Analysis/Data exploration app/tagged stats and figures.R",overwrite = TRUE)
       
     } else {
       # Being run on shinyapps.io; data files already in folder
       run_location <- "server"
-      load(file="repli_outcomes.RData")
-      load(file="repro_outcomes.RData")
-      load(file="orig_outcomes.RData")
-      source("common functions.R")
+      for(i in 1:length(objects_to_load)){
+        load(file=paste0("Commons/",objects_to_load[i],".RData"))
+      }
+      source("Commons/common functions.R")
       source("tagged stats and figures.R")
       drive_deauth()
     }
@@ -440,25 +440,7 @@ server <- function(input, output, session) {
                    lengthChange = FALSE),
   rownames= FALSE
   )
-  # Reproductions
-  # Data generation
-  df_repro_subsetted <- reactive({
-    df <- repro_outcomes
-    
-    
-    df
-  })
-  # Charts and figures
-  output$repro_data_table <- renderDT(df_repli_subsetted(), options = list(lengthChange = FALSE),rownames= FALSE)
-  
-  output$repro_data_text <- renderText({
-    df <- df_repro_subsetted()
-    
-    text <- paste0("Reproductions (n): ",nrow(df))
-    text <- paste0(text,"<br/>","Papers (n): ",length(unique(df$paper_id)))
-    text <- paste0(text,"<br/>","Claims (n): ",length(unique(df$claim_id)))
-    HTML(text)
-  })
+
 }
 
 shinyApp(ui, server)

@@ -2,7 +2,7 @@
 # Functions (also readable by external sources)
 {
   # Create an object that contains the tagged stats for figure 5
-  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,df.papers=NA){
+  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata){
   
     # Data preparation
     {
@@ -38,41 +38,41 @@
                         format.percent=TRUE,digits=1
         )$formatted.text
   
-      p_effect_size_smaller_v_orig_business <- "Pending paper process data pipeline"
+      p_effect_size_smaller_v_orig_business <- "Pending effect size decisions"
   
-      n_effect_size_smaller_v_orig_business <- "Pending paper process data pipeline"
+      n_effect_size_smaller_v_orig_business <- "Pending effect size decisions"
   
-      p_effect_size_smaller_v_orig_econ <- "Pending paper process data pipeline"
+      p_effect_size_smaller_v_orig_econ <- "Pending effect size decisions"
   
-      n_effect_size_smaller_v_orig_econ <- "Pending paper process data pipeline"
+      n_effect_size_smaller_v_orig_econ <- "Pending effect size decisions"
   
-      p_effect_size_smaller_v_orig_edu <- "Pending paper process data pipeline"
+      p_effect_size_smaller_v_orig_edu <- "Pending effect size decisions"
   
-      n_effect_size_smaller_v_orig_edu <- "Pending paper process data pipeline"
+      n_effect_size_smaller_v_orig_edu <- "Pending effect size decisions"
   
-      p_effect_size_smaller_v_orig_polisci <- "Pending paper process data pipeline"
+      p_effect_size_smaller_v_orig_polisci <- "Pending effect size decisions"
   
-      n_effect_size_smaller_v_orig_polisci <- "Pending paper process data pipeline"
+      n_effect_size_smaller_v_orig_polisci <- "Pending effect size decisions"
   
-      p_effect_size_smaller_v_orig_psych <- "Pending paper process data pipeline"
+      p_effect_size_smaller_v_orig_psych <- "Pending effect size decisions"
   
-      n_effect_size_smaller_v_orig_psych <- "Pending paper process data pipeline"
+      n_effect_size_smaller_v_orig_psych <- "Pending effect size decisions"
   
-      p_effect_size_smaller_v_orig_soc <- "Pending paper process data pipeline"
+      p_effect_size_smaller_v_orig_soc <- "Pending effect size decisions"
   
-      n_effect_size_smaller_v_orig_soc <- "Pending paper process data pipeline"
+      n_effect_size_smaller_v_orig_soc <- "Pending effect size decisions"
   
-      n_journals_business <- "Pending paper process data pipeline"
+      n_journals_business <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="business",]$publication_standard))
   
-      n_journals_econ <- "Pending paper process data pipeline"
+      n_journals_econ <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="economics and finance",]$publication_standard))
   
-      n_journals_edu <- "Pending paper process data pipeline"
+      n_journals_edu <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="education",]$publication_standard))
   
-      n_journals_polisci <- "Pending paper process data pipeline"
+      n_journals_polisci <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="political science",]$publication_standard))
   
-      n_journals_psych <- "Pending paper process data pipeline"
+      n_journals_psych <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="psychology and health",]$publication_standard))
   
-      n_journals_soc <- "Pending paper process data pipeline"
+      n_journals_soc <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="sociology and criminology",]$publication_standard))
   
       n_papers_initial_sample <- "Pending paper process data pipeline"
   
@@ -498,6 +498,66 @@
       
       p_neg_ratio_all_ES_repli_vs_orig <- "Pending discussion, probably drop"
       
+      table_4_r1_c1 <- length(unique(orig_outcomes$paper_id))
+      
+      table_4_r1_c2 <- length(unique(repli_outcomes$paper_id))
+      
+      table_4_r1_c3 <- length(unique(orig_outcomes$claim_id))
+      
+      table_4_r1_c4 <- length(unique(repli_outcomes$claim_id))
+      
+      table_4_r2_c1 <- "Pending discussion on effect sizes"
+      table_4_r2_c2 <- "Pending discussion on effect sizes"
+      table_4_r2_c3 <- "Pending discussion on effect sizes"
+      table_4_r2_c4 <- "Pending discussion on effect sizes"
+      table_4_r3_c1 <- "Pending discussion on effect sizes"
+      table_4_r3_c2 <- "Pending discussion on effect sizes"
+      table_4_r3_c3 <- "Pending discussion on effect sizes"
+      table_4_r3_c4 <- "Pending discussion on effect sizes"
+      table_4_r4_c1 <- "Pending discussion on effect sizes"
+      table_4_r4_c2 <- "Pending discussion on effect sizes"
+      table_4_r4_c3 <- "Pending discussion on effect sizes"
+      table_4_r4_c4 <- "Pending discussion on effect sizes"
+      table_4_r5_c1 <- "Pending discussion on effect sizes"
+      table_4_r5_c2 <- "Pending discussion on effect sizes"
+      table_4_r5_c3 <- "Pending discussion on effect sizes"
+      table_4_r5_c4 <- "Pending discussion on effect sizes"
+      table_4_r6_c1 <- "Pending discussion on effect sizes"
+      table_4_r6_c2 <- "Pending discussion on effect sizes"
+      table_4_r6_c3 <- "Pending discussion on effect sizes"
+      table_4_r6_c4 <- "Pending discussion on effect sizes"
+      
+      orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(paper_weight = 1/n())
+      repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(paper_weight = 1/n())
+      
+      table_4_r7_c1 <- paste0(prettyNum(weighted.median(orig_outcomes$orig_sample_size_value,orig_outcomes$paper_weight,na.rm=TRUE),big.mark = ","),
+                              " (IQR: ",
+                              prettyNum(weighted.quantile(orig_outcomes$orig_sample_size_value,orig_outcomes$paper_weight,quantile=.75,na.rm=TRUE) - 
+                                weighted.quantile(orig_outcomes$orig_sample_size_value,orig_outcomes$paper_weight,quantile=.25,na.rm=TRUE),big.mark = ","),
+                              ")"
+      )
+      
+      table_4_r7_c2 <- paste0(prettyNum(weighted.median(repli_outcomes$repli_sample_size_value,repli_outcomes$paper_weight,na.rm=TRUE),big.mark = ","),
+                              " (IQR: ",
+                              prettyNum(weighted.quantile(repli_outcomes$repli_sample_size_value,repli_outcomes$paper_weight,quantile=.75,na.rm=TRUE) - 
+                                weighted.quantile(repli_outcomes$repli_sample_size_value,repli_outcomes$paper_weight,quantile=.25,na.rm=TRUE),big.mark = ","),
+                              ")"
+      )
+      
+      table_4_r7_c3 <- paste0(prettyNum(median(orig_outcomes$orig_sample_size_value,na.rm=TRUE),big.mark = ","),
+                              " (IQR: ",
+                              prettyNum(IQR(orig_outcomes$orig_sample_size_value,na.rm=TRUE),big.mark = ","),
+                              ")"
+      )
+      
+      table_4_r7_c4 <- paste0(prettyNum(median(repli_outcomes$repli_sample_size_value,na.rm=TRUE),big.mark = ","),
+                              " (IQR: ",
+                              prettyNum(IQR(repli_outcomes$repli_sample_size_value,na.rm=TRUE),big.mark = ","),
+                              ")"
+      )
+
+      
+      
       ratio_repli_stat_sig_same_dir_new_data_vs_secondary <- 
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
@@ -567,78 +627,79 @@
   
     # Clean up input values and export
     {
-      rm(iters,orig_outcomes,repli_outcomes,df.papers,repli_outcomes_merged)
+      rm(iters,orig_outcomes,repli_outcomes,repli_outcomes_merged)
       return(rev(as.list(environment())))
     }
   }
 }
-
-# Run tag generation for testing
-if(TRUE){
-
-  # Initial setup and libraries
-  {
-    #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
-    
-    library(shiny)
-    library(bslib)
-    library(dplyr)
-    library(ggplot2)
-    library(ggExtra)
-    library(DT)
-    library(tidyr)
-    library(pbapply)
-    library(googledrive)
-    library(stringr)
-    library(Hmisc)
-    library(targets)
-    library(googlesheets4)
-    library(zcurve)
-    
-    drive_auth(Sys.getenv("google_oauth_email"))
-    # Common functions
-    source(file="Analysis/common functions.R")
-  }
-  
-  
-  # Load data
-    objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata")
-    for(i in 1:length(objects_to_load)){
-      assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-      save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
-    }
-
-
-    # Pull paper to find what tags are in paper
-    paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
-                                      type = "text/plain",encoding="UTF-8")  %>%
-      strsplit(split = "(\r\n|\r|\n)") %>%
-      .[[1]]
-    paper_5_text <- paste0(paper_5_text,collapse="  ")
-
-    # Pull paper to find what tags are calculated
-      tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
-      tags <- tags[tags!=""]
-      tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
-
-    # Generate stats
-      results_tagged_stats <- tagged_stats(iters = 20,repli_outcomes_default_subset(),orig_outcomes,df.papers=NA)
-
-    # Generate list of tags
-      values_text <- do.call(c,lapply(1:length(tags),function(x) {
-        tag_to_find <- tags[x]
-        if(tag_to_find %in% names(results_tagged_stats)){
-          as.character(results_tagged_stats[[tag_to_find]])
-        } else {
-          "MISSING"
-        }
-      }))
-
-
-  # Export
-    sheet_write(data.frame(tags,values_text),
-                ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Sheet1")
-
-
-
-}
+# 
+# # Run tag generation for testing
+# if(TRUE){
+# 
+#   # Initial setup and libraries
+#   {
+#     #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+#     
+#     library(shiny)
+#     library(bslib)
+#     library(dplyr)
+#     library(ggplot2)
+#     library(ggExtra)
+#     library(DT)
+#     library(tidyr)
+#     library(pbapply)
+#     library(googledrive)
+#     library(stringr)
+#     library(Hmisc)
+#     library(targets)
+#     library(googlesheets4)
+#     library(zcurve)
+#     library(scales)
+#     
+#     drive_auth(Sys.getenv("google_oauth_email"))
+#     # Common functions
+#     source(file="Analysis/common functions.R")
+#   }
+#   
+#   
+#   # Load data
+#     objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata")
+#     for(i in 1:length(objects_to_load)){
+#       assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+#       save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+#     }
+# 
+# 
+#     # Pull paper to find what tags are in paper
+#     paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
+#                                       type = "text/plain",encoding="UTF-8")  %>%
+#       strsplit(split = "(\r\n|\r|\n)") %>%
+#       .[[1]]
+#     paper_5_text <- paste0(paper_5_text,collapse="  ")
+# 
+#     # Pull paper to find what tags are calculated
+#       tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+#       tags <- tags[tags!=""]
+#       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
+# 
+#     # Generate stats
+#       results_tagged_stats <- tagged_stats(iters = 20,repli_outcomes_default_subset(),orig_outcomes)
+# 
+#     # Generate list of tags
+#       values_text <- do.call(c,lapply(1:length(tags),function(x) {
+#         tag_to_find <- tags[x]
+#         if(tag_to_find %in% names(results_tagged_stats)){
+#           as.character(results_tagged_stats[[tag_to_find]])
+#         } else {
+#           "MISSING"
+#         }
+#       }))
+# 
+# 
+#   # Export
+#     sheet_write(data.frame(tags,values_text),
+#                 ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Sheet1")
+# 
+# 
+# 
+# }
