@@ -422,7 +422,8 @@ server <- function(input, output, session) {
     
     values_text <- tagged_stats(input$repli_bootstrap_iterations,
                                 repli_outcomes = df_repli_subsetted(),
-                                orig_outcomes = orig_outcomes)
+                                orig_outcomes = orig_outcomes,
+                                paper_metadata = paper_metadata)
     # Generate list of tags
     values_text <- do.call(c,lapply(1:length(tags),function(x) {
       tag_to_find <- tags[x]
