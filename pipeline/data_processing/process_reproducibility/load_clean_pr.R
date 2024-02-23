@@ -92,3 +92,38 @@ process_pr_data <- function(pr_data_raw,
     select(-c(pdf_paper_id))
   
 }
+
+update_pr <- function(pr_data_form) {
+  
+  # Return itself for now, add changelog changes in future
+  pr_data_form
+  
+}
+
+load_process_oa <- function(oa_sheet) {
+  
+  # OA data is found across two sheets
+  non_repro <- read_sheet(
+    oa_sheet,
+    sheet = "OA_coding_nonrepro"
+  ) %>%
+    slice(-(1:2)) %>%
+    mutate(paper_id = str_extract(pdf_filename,
+                                  "[:alnum:]*$"))
+  
+  repro <- read_sheet(
+    oa_sheet,
+    sheet = "OA_coding_repro"
+  ) %>%
+    slice(-(1:2)) %>%
+    mutate(paper_id = as.character(paper_id))
+  
+  # Merge the two sheets to create a single dataset
+  add_row(non_repro, repro) %>%
+    # Resolve and remove duplicates
+    group_by(paper_id) %>%
+    fill(OA_notes_internal, .direction = "up") %>%
+    distinct() %>%
+    ungroup()
+  
+}

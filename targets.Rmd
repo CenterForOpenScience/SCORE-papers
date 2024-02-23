@@ -93,6 +93,16 @@ list(
              read_google_tsv(all_metadata_filled_file,
                              all_metadata_filled_moddate)),
   
+  # covid_metadata.tsv
+  tar_target(covid_metadata_file,
+             "1coSF-yytg1uNvboJ90qWWjrlJMGzjfMu"),
+  tar_target(covid_metadata_moddate,
+             get_google_mod_date(covid_metadata_file),
+             cue = tar_cue("always")),
+  tar_target(covid_metadata,
+             read_google_tsv(covid_metadata_file,
+                             covid_metadata_moddate)),
+  
   # publications.csv
   tar_target(publications_file,
              "1fXHxIcsFjiAgmydESNkgLjx36dTCSC34"),
@@ -409,7 +419,12 @@ The PR change log is found on the COS SCORE Data Google Drive.
 
 ```{targets raw-pr}
 list(
+  # Original Author Outreach (OA_outreach_PR_coding)
+  tar_target(oa_sheet,
+             "1ke9auRcjFeFscpH53zM98dV6_ObpKckzX-YaXRzkuIw",
+             cue = tar_cue("always")),
   
+  # Process Reproducibility
   tar_target(pr_gsheet,
              "1E8LvpcuoUyVZV-EDqVPW_H1Cd-4OJCuR3Kl8HMJMVtI",
              cue = tar_cue("always")),
@@ -500,10 +515,23 @@ Process reproducibility data.
 
 ```{targets processed-pr}
 
-tar_target(pr_data_form,
-           process_pr_data(pr_data_raw,
-                            covid_ta2,
-                            tagtable_covid_p1))
+list(
+  
+  tar_target(oa_outreach,
+           load_process_oa(oa_sheet)),
+  
+  tar_target(pr_data_form,
+             process_pr_data(pr_data_raw,
+                           covid_ta2,
+                           tagtable_covid_p1)),
+           
+  tar_target(pr_qc,
+             update_pr(pr_data_form)),
+  
+  tar_target(pr_outcomes,
+             create_pr_analytic(pr_qc, oa_outreach))
+  
+)
 
 ```
 
