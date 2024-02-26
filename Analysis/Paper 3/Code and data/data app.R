@@ -96,9 +96,9 @@ ui <- {
             # Main page ----
             navbarPage("",
                        tabPanel("Tagged statistics",
-                                #p("Paper 5 here: https://docs.google.com/document/d/1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg/edit"),
-                                #p("May take a moment to load due to bootstrap iterations..."),
-                                #DTOutput("paper_5_stats_table")
+                                p("Paper 3 here: https://docs.google.com/document/d/1yqMVMzZMmGMyPG4IiD_urFHmBfztFXv-om-Y2M0T7jQ/edit"),
+                                p("May take a moment to load due to bootstrap iterations..."),
+                                DTOutput("tagged_stats_table")
                        ),
                        tabPanel("Data properties",
                                 #htmlOutput("repli_data_text")
@@ -114,6 +114,38 @@ ui <- {
 }
 
 server <- function(input, output, session) {
+  
+  output$tagged_stats_table <- renderDT({
+    # Pull paper to find what tags are in paper
+    paper_text <- drive_read_string(file=googledrive::as_id("1yqMVMzZMmGMyPG4IiD_urFHmBfztFXv-om-Y2M0T7jQ"),
+                                      type = "text/plain",encoding="UTF-8")  %>%
+      strsplit(split = "(\r\n|\r|\n)") %>%
+      .[[1]]
+    paper_text <- paste0(paper_text,collapse="  ")
+    
+    # Pull paper to find what tags are calculated
+    tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+    tags <- tags[tags!=""]
+    tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
+    
+    values_text <- tagged_stats(repro_outcomes,orig_outcomes,paper_metadata)
+    # Generate list of tags
+    values_text <- do.call(c,lapply(1:length(tags),function(x) {
+      tag_to_find <- tags[x]
+      if(tag_to_find %in% names(values_text)){
+        as.character(values_text[[tag_to_find]])
+      } else {
+        "MISSING"
+      }
+    }))
+    
+    output_table <- data.frame(tags,values_text)
+    output_table
+    
+  },options = list(pageLength=-1,
+                   lengthChange = FALSE),
+  rownames= FALSE
+  )
   
 
 }

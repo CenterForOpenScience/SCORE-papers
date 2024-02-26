@@ -1,7 +1,7 @@
 
 # Functions (also readable by external sources)
 {
-  # Create an object that contains the tagged stats for figure 5
+  # Create an object that contains the tagged stats
   tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata){
   
     # Data preparation
@@ -671,14 +671,14 @@
 # 
 # 
 #     # Pull paper to find what tags are in paper
-#     paper_5_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
+#     paper_text <- drive_read_string(file=googledrive::as_id("1dg5aajBhnc4v1i7h1d4oJ0ij4w8joS65CD2Tgv15bjg"),
 #                                       type = "text/plain",encoding="UTF-8")  %>%
 #       strsplit(split = "(\r\n|\r|\n)") %>%
 #       .[[1]]
-#     paper_5_text <- paste0(paper_5_text,collapse="  ")
+#     paper_text <- paste0(paper_text,collapse="  ")
 # 
 #     # Pull paper to find what tags are calculated
-#       tags <- unique(str_match_all(paper_5_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+#       tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
 #       tags <- tags[tags!=""]
 #       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
 # 

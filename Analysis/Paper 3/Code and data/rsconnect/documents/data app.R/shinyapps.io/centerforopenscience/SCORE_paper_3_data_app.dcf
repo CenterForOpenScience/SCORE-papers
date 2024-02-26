@@ -5,7 +5,7 @@ account: centerforopenscience
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 11314310
-bundleId: 8290766
+bundleId: 8299468
 url: https://centerforopenscience.shinyapps.io/SCORE_paper_3_data_app/
 version: 1
 asMultiple: FALSE
