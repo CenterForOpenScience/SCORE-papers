@@ -21,7 +21,7 @@
   {
     # Check if this is being run from shinyapps.io or from the github folder (in
     # which case the data gets pulled from the targets output)
-    objects_to_load <- c("repro_outcomes","orig_outcomes","paper_metadata")
+    objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata")
     if (file.exists("Analysis/common functions.R")) {
       # Being run from github/locally, get raw data and copy data files into
       # same level folder for uploading
@@ -47,6 +47,7 @@
       source("tagged stats and figures.R")
       drive_deauth()
     }
+    print(run_location)
   }
   
   # Data manipulation and other setup
@@ -128,7 +129,10 @@ server <- function(input, output, session) {
     tags <- tags[tags!=""]
     tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
     
-    values_text <- tagged_stats(repro_outcomes,orig_outcomes,paper_metadata)
+    values_text <- tagged_stats(repro_outcomes=repro_outcomes,
+                                pr_outcomes=pr_outcomes,
+                                orig_outcomes=orig_outcomes,
+                                paper_metadata=paper_metadata)
     # Generate list of tags
     values_text <- do.call(c,lapply(1:length(tags),function(x) {
       tag_to_find <- tags[x]
