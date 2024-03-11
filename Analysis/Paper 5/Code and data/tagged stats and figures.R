@@ -426,7 +426,7 @@
       repli_outcomes_merged$repli_pearsons_ratio_v_orig <- repli_outcomes_merged$repli_pearsons_r_value/repli_outcomes_merged$orig_pearsons_r_value
       
       p_median_pearsons_neg_ratio_v_orig_wtd <- 
-        bootstrap.clust(data=repli_outcomes_merged,
+        bootstrap.clust(data=repli_outcomes_merged[],
                         FUN=function(x) {
                           x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
                           weighted.median(1-x$repli_pearsons_ratio_v_orig,x$weight,na.rm=TRUE)
