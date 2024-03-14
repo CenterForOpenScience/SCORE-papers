@@ -124,7 +124,7 @@
       wm.orig.obj <- bootstrap.clust(data=df.chart[df.chart$comparison=="Original",],
                                      FUN=function(x) {
                                        x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                                       weighted.median(x$ES_value,na.rm=TRUE)
+                                       weighted.mean(x$ES_value,x$weight,na.rm=TRUE)
                                      },
                                      clustervar = "paper_id",
                                      keepvars=c("paper_id","comparison","ES_value"),
@@ -136,7 +136,7 @@
       wm.repli.obj <- bootstrap.clust(data=df.chart[df.chart$comparison=="Replication",],
                                       FUN=function(x) {
                                         x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                                        weighted.median(x$ES_value,na.rm=TRUE)
+                                        weighted.mean(x$ES_value,x$weight,na.rm=TRUE)
                                       },
                                       clustervar = "paper_id",
                                       keepvars=c("paper_id","comparison","ES_value"),
@@ -145,10 +145,10 @@
       )
       wm.repli <- wm.repli.obj$point.estimate
       
-      wm.diff.obj <- bootstrap.clust(data=df.chart.wide,
+      wm.diff.obj <- bootstrap.clust(data=df.chart.wide[df.chart.wide$stat_type=="Pearson's R",],
                                      FUN=function(x) {
                                        x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                                       weighted.median(x$Original-x$Replication,na.rm=TRUE)
+                                       weighted.mean(x$Original-x$Replication,x$weight,na.rm=TRUE)
                                      },
                                      clustervar = "paper_id",
                                      keepvars=c("paper_id","Original","Replication"),
@@ -181,17 +181,41 @@
   
       p1 <- p1 + geom_line(aes(group=pair),color="grey88",show.legend=FALSE)
       
-  
-      p1 <- p1 + 
-        geom_split_violin(show.legend=FALSE,linetype=0,aes(weight=df.chart$weight)) +
-        annotate("rect", xmin = 0.5, xmax = 1, ymin = wm.orig.obj$CI.ub, ymax = 1,
-                 alpha = .4,fill = "white") +
-        annotate("rect", xmin = 0.5, xmax = 1, ymin = 0, ymax = wm.orig.obj$CI.lb,
-                 alpha = .4,fill = "white") +
-        annotate("rect", xmin = 2, xmax = 2.5, ymin = wm.repli.obj$CI.ub, ymax = 1,
-                 alpha = .4,fill = "white") +
-        annotate("rect", xmin = 2, xmax = 2.5, ymin = 0, ymax = wm.repli.obj$CI.lb,
-                 alpha = .4,fill = "white")
+      p1 <- p1 +
+        geom_split_violin(show.legend=FALSE,linetype=0,aes(weight=weight))
+      
+      # p1 <- p1 + 
+      #   annotate("rect", xmin = 0.5, xmax = 1, ymin = wm.orig.obj$CI.ub, ymax = 1,
+      #            alpha = .4,fill = "white") +
+      #   annotate("rect", xmin = 0.5, xmax = 1, ymin = 0, ymax = wm.orig.obj$CI.lb,
+      #            alpha = .4,fill = "white") +
+      #   annotate("rect", xmin = 2, xmax = 2.5, ymin = wm.repli.obj$CI.ub, ymax = 1,
+      #            alpha = .4,fill = "white") +
+      #   annotate("rect", xmin = 2, xmax = 2.5, ymin = 0, ymax = wm.repli.obj$CI.lb,
+      #            alpha = .4,fill = "white")
+      
+      left_x_center <- .55
+      right_x_center <- 2.45
+      bar_width <- .04
+      bracket_color="grey10"
+      # p1 <- p1 +
+      #   #geom_segment(y=wm.orig,yend=wm.orig,x=left_x_center-bar_width*2,xend=left_x_center+bar_width*2,color=bracket_color)+
+      #   geom_segment(y=wm.orig.obj$CI.lb,yend=wm.orig.obj$CI.ub,x=left_x_center,xend=left_x_center,color=bracket_color) +
+      #   geom_segment(y=wm.orig.obj$CI.lb,yend=wm.orig.obj$CI.lb,x=left_x_center-bar_width,xend=left_x_center+bar_width,color=bracket_color)+
+      #   geom_segment(y=wm.orig.obj$CI.ub,yend=wm.orig.obj$CI.ub,x=left_x_center-bar_width,xend=left_x_center+bar_width,color=bracket_color)+
+      #   #geom_segment(y=wm.repli,yend=wm.repli,x=right_x_center-bar_width*2,xend=right_x_center+bar_width*2,color=bracket_color)+
+      #   geom_segment(y=wm.repli.obj$CI.lb,yend=wm.repli.obj$CI.ub,x=right_x_center,xend=right_x_center,color=bracket_color) +
+      #   geom_segment(y=wm.repli.obj$CI.lb,yend=wm.repli.obj$CI.lb,x=right_x_center-bar_width,xend=right_x_center+bar_width,color=bracket_color)+
+      #   geom_segment(y=wm.repli.obj$CI.ub,yend=wm.repli.obj$CI.ub,x=right_x_center-bar_width,xend=right_x_center+bar_width,color=bracket_color)
+      
+      p1 <- p1 +
+        annotate("text", x=left_x_center, y=wm.orig.obj$point.estimate+.03,
+                 label= paste0("Mean:\n",format.round(wm.orig.obj$point.estimate,2)),
+                 vjust=0,size=4) +
+        annotate("text", x=right_x_center, y=wm.repli.obj$point.estimate+.03,
+                 label= paste0("Mean:\n",format.round(wm.repli.obj$point.estimate,2)),
+                 vjust=0,size=4)
+      
       
       p1 <- p1 + 
         geom_segment(y=wm.orig,yend=wm.orig,x=-Inf,xend=1.47,linetype=2) +
@@ -207,10 +231,11 @@
         
 
         annotate("text", x=1.45, y=(wm.orig+wm.repli)/2,
-               label= "Median\ndifference:",
+               label= "Mean\ndifference:",
                         hjust=1,size=4)+
         annotate("text", x=1.55, y=(wm.orig+wm.repli)/2,
                  label= -round(wm.diff.obj$point.estimate,2),
+                 #label= -round(wm.orig-wm.repli,2),
                  hjust=0,size=4)
     
     p2 <- ggplot(data=df.chart.wide[df.chart.wide$stat_type=="Pearson's R",],aes(x=Original,y=Replication)) +
@@ -234,8 +259,9 @@
       ylab("Replication Pearson's R Value")+
       geom_point(alpha=.6,shape=16,
                  color=MixColor(palette_score_charts[1],palette_score_charts[2],0.5))+
-      geom_smooth(method = "glm", 
-                  method.args = list(family = "binomial"),
+      geom_smooth(method = "glm", fullrange=TRUE,
+                  #method.args = list(family = "binomial"),
+                  method.args = list(family = "quasibinomial"),
                   color=MixColor(palette_score_charts[1],palette_score_charts[2],0.5),
                   fill=MixColor(palette_score_charts[1],palette_score_charts[2],0.5))
     

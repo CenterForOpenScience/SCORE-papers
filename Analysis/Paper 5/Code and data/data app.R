@@ -198,7 +198,6 @@ ui <- {
 }
 
 server <- function(input, output, session) {
-  # Replication
   # Data generation
   df_repli_subsetted <- reactive({
     df <- repli_outcomes
