@@ -221,123 +221,50 @@ if (FALSE){
     mutate(cat = ifelse(field == "Sociology" & cat == 0, 0.79, cat)) %>% 
     mutate(cat = ifelse(field == "Economics" & avail == "neither" & cat == 0, 0.79, cat))
   
-  n_bins <- 4
-  group_ext <- cats$field
-  group_int <- ordered(cats$avail)
-  position_nudge_width <- .25/2
-  df <- data.frame(group_ext,group_int) %>%
-    arrange(group_ext,group_int)
   
-  snake_bins <- function(n,n_bins){
-    do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
-      if(IsOdd(i)){bin <- 1:n_bins
-      } else {bin <- n_bins:1
+  stacked_snake_count_plot <- function(group_ext,group_int,data,n_bins=4,
+                                 position_nudge_width = .25/2,legend.position = "bottom",
+                                 aspect.ratio=.75,coord_flip=TRUE,xlab=""){
+    # Organize data and positioning
+      df <- data.frame(group_ext,group_int) %>%
+        arrange(group_ext,group_int)
+      
+      snake_bins <- function(n,n_bins){
+        do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
+          if(IsOdd(i)){bin <- 1:n_bins
+          } else {bin <- n_bins:1
+          }
+          y <- rep(i,n_bins)
+          data.frame(bin,y)
+        }))[1:n,]
       }
-      y <- rep(i,n_bins)
-      data.frame(bin,y)
-    }))[1:n,]
+      
+      df <- cbind(df,
+                  do.call(rbind,lapply(1:length(unique(df$group_ext)),function(x) {
+                    snake_bins(n=nrow(df[df$group_ext==unique(df$group_ext)[x],]),n_bins=n_bins)
+      })))
+      
+      df$position_nudge <- position_nudge_width*(df$bin-(n_bins+1)/2)-position_nudge_width/2
+  # Output plot
+    p <- ggplot() +
+      geom_dotplot(data=df,aes(x=group_ext,(y=y-0.5)*n_bins,fill=group_int),
+                   binaxis = "y", binwidth = n_bins,stackratio=0,
+                   method = "dotdensity", position_nudge(x = df$position_nudge))+
+      scale_y_continuous(expand=c(0,0))+
+      theme_light() +
+      theme(legend.position = "bottom",
+            aspect.ratio=aspect.ratio,
+            panel.border = element_blank(),
+            panel.grid = element_blank(),
+            axis.line.y = element_line()
+            )+
+      ylab("Count")+
+      xlab(xlab)
+    if(coord_flip){
+      p <- p + coord_flip() + theme(aspect.ratio=1/aspect.ratio)
+    }
+    p 
   }
   
-  df <- cbind(df,
-              do.call(rbind,lapply(1:length(unique(df$group_ext)),function(x) {
-                snake_bins(n=nrow(df[df$group_ext==unique(df$group_ext)[x],]),n_bins=n_bins)
-  })))
-  
-  df$position_nudge <- position_nudge_width*(df$bin-(n_bins+1)/2)-position_nudge_width/2
-  
-  ggplot() +
-    geom_dotplot(data=df,aes(x=group_ext,(y=y-0.5)*n_bins,fill=group_int),
-                 binaxis = "y", binwidth = n_bins,stackratio=0,
-                 method = "dotdensity", position_nudge(x = df$position_nudge))+
-    scale_fill_manual(
-      limits = c("neither", "code", "data", "both"),
-      values = c("tomato3", "seagreen3", "khaki3", "deepskyblue4"),
-      labels = c("Neither", "Code", "Data", "Code + data")
-    ) +
-    theme_light() +
-    #scale_y_discrete(sec.axis = sec_axis(~.*4))+
-    theme(legend.position = "bottom",
-          aspect.ratio=.75,)
-  
-  
-  +
-    coord_flip() +
-    labs(
-      x = "",
-      y = "",
-      title = "",
-      fill = "",
-    ) +
-    theme_light() +
-    theme(legend.position = "bottom")
-  
-  
-  
-    theme(
-      axis.text.x = element_blank(),
-      #axis.text.y = element_text(family = "open sans", margin = margin(r = 300), hjust = 0.5),
-      #axis.text.y = element_blank(),
-      legend.position = "bottom",
-      #legend.text = element_text(size = 100),
-      text = element_text(family="open sans")
-    )
-  
-  
-  
-  pr %>% 
-    ggplot() +
-    # geom_dotplot(data = cats %>% filter(avail == "neither") %>% filter(cat >= 0.8), 
-    #              aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-    #              stackdir = "down", stackgroups = T, binpositions = "all", position_nudge(x = -0.26)) +
-    # geom_dotplot(data = cats %>% filter(avail == "neither") %>% filter(cat >= 0.6 & cat < 0.8), 
-    #              aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-    #              stackdir = "down", stackgroups = T, binpositions = "all", position_nudge(x = -0.13)) + 
-    # geom_dotplot(data = cats %>% filter(avail == "neither") %>% filter(cat >= 0.4 & cat < 0.6), 
-    #              aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-    #              stackdir = "down", stackgroups = T, binpositions = "all", position_nudge(x = 0)) +
-    # geom_dotplot(data = cats %>% filter(avail == "neither") %>% filter(cat >= 0.2 & cat < 0.4), 
-    #              aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-    #              stackdir = "down", stackgroups = T, binpositions = "all", position_nudge(x = 0.13)) +
-    # geom_dotplot(data = cats %>% filter(avail == "neither") %>% filter(cat < 0.2), 
-    #              aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-    #              stackdir = "down", stackgroups = T, binpositions = "all", position_nudge(x = 0.26)) +
-    geom_dotplot(data = cats %>% filter(avail != "neither") %>% filter(cat >= 0.8), 
-                 aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-                 stackdir = "up", stackgroups = T, binpositions = "all", position_nudge(x = -0.26)) +
-    geom_dotplot(data = cats %>% filter(avail != "neither") %>% filter(cat >= 0.6 & cat < 0.8), 
-                 aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-                 stackdir = "up", stackgroups = T, binpositions = "all", position_nudge(x = -0.13)) +
-    geom_dotplot(data = cats %>% filter(avail != "neither") %>% filter(cat >= 0.4 & cat < 0.6), 
-                 aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-                 stackdir = "up", stackgroups = T, binpositions = "all", position_nudge(x = 0)) +
-    geom_dotplot(data = cats %>% filter(avail != "neither") %>% filter(cat >= 0.2 & cat < 0.4), 
-                 aes(field, fill = avail), binwidth = 1/3, dotsize = 0.4,
-                 stackdir = "up", stackgroups = T, binpositions = "all", position_nudge(x = 0.13)) +
-    geom_dotplot(data = cats %>% filter(avail != "neither") %>% filter(cat < 0.2), 
-                 aes(reorder(field, -pr_ord), fill = avail), binwidth = 1/3, dotsize = 0.4,
-                 stackdir = "up", stackgroups = T, binpositions = "all", position_nudge(x = 0.26)) +
-    geom_text(data = pr, aes(x = field, y = 1, label = glue("{(pr_ord %>% round(2))*100}%")),
-              inherit.aes = F, family = "open sans") +
-    scale_fill_manual(
-      limits = c("neither", "code", "data", "both"),
-      values = c("tomato3", "seagreen3", "khaki3", "deepskyblue4"),
-      labels = c("Neither", "Code", "Data", "Code + data")
-    ) +
-    coord_flip() +
-    labs(
-      x = "",
-      y = "",
-      title = "",
-      fill = "",
-    ) +
-    theme_light() +
-    theme(
-      axis.text.x = element_blank(),
-      #axis.text.y = element_text(family = "open sans", margin = margin(r = 300), hjust = 0.5),
-      #axis.text.y = element_blank(),
-      legend.position = "bottom",
-      #legend.text = element_text(size = 100),
-      text = element_text(family="open sans")
-    )
-    #guides(fill = guide_legend(override.aes = list(size = 100)))
+  stacked_snake_count_plot(group_ext=cats$field,group_int=cats$avail,coord_flip = TRUE)
 }

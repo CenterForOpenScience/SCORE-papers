@@ -1,7 +1,9 @@
 
 # Aesthetic functions and presets
 {
-  GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
+  # GeomSplitViolin
+  {
+    GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
                              draw_group = function(self, data, ..., draw_quantiles = NULL) {
                                data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
                                grp <- data[1, "group"]
@@ -24,13 +26,59 @@
                                }
                              })
   
-  geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
+    geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
                                 draw_quantiles = NULL, trim = TRUE, scale = "area", na.rm = FALSE, 
                                 show.legend = NA, inherit.aes = TRUE) {
     layer(data = data, mapping = mapping, stat = stat, geom = GeomSplitViolin, 
           position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
           params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
+    }
   }
+  # Dot bar plot
+    stacked_snake_count_plot <- function(group_ext,group_int,data,n_bins=4,
+                                         position_nudge_width = .25/2,legend.position = "bottom",
+                                         aspect.ratio=.75,coord_flip=TRUE,xlab=""){
+      # Organize data and positioning
+      df <- data.frame(group_ext,group_int) %>%
+        arrange(group_ext,group_int)
+      
+      snake_bins <- function(n,n_bins){
+        do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
+          if(IsOdd(i)){bin <- 1:n_bins
+          } else {bin <- n_bins:1
+          }
+          y <- rep(i,n_bins)
+          data.frame(bin,y)
+        }))[1:n,]
+      }
+      
+      df <- cbind(df,
+                  do.call(rbind,lapply(1:length(unique(df$group_ext)),function(x) {
+                    snake_bins(n=nrow(df[df$group_ext==unique(df$group_ext)[x],]),n_bins=n_bins)
+                  })))
+      
+      df$position_nudge <- position_nudge_width*(df$bin-(n_bins+1)/2)-position_nudge_width/2
+      # Output plot
+      p <- ggplot() +
+        geom_dotplot(data=df,aes(x=group_ext,(y=y-0.5)*n_bins,fill=group_int),
+                     binaxis = "y", binwidth = n_bins,stackratio=0,
+                     method = "dotdensity", position_nudge(x = df$position_nudge))+
+        scale_y_continuous(expand=c(0,0))+
+        theme_light() +
+        theme(legend.position = "bottom",
+              aspect.ratio=aspect.ratio,
+              panel.border = element_blank(),
+              panel.grid = element_blank(),
+              axis.line.y = element_line()
+        )+
+        ylab("Count")+
+        xlab(xlab)
+      if(coord_flip){
+        p <- p + coord_flip() + theme(aspect.ratio=1/aspect.ratio)
+      }
+      p 
+    }
+  
   # Color palette
   {
     palette_weezer_blue <- c("#00a2e7","#dee5cd","#010c09","#083259","#b2915f","#d7b1b7","#00374b","#124e80", "#001212")
