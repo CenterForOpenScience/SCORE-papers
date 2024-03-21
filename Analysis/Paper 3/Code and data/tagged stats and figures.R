@@ -79,6 +79,10 @@
         
         p_field_least_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.min(df.fields$p_process_reproducible)]
         
+        n_claims_passed_outcome_repro <- "Missing outcome repro variable?"
+        
+        n_claims_passed_process_repro <- sum(pr_outcomes$process_reproducible=="Yes")
+        
         
     }
     
@@ -90,79 +94,79 @@
     }
   }
 }
-# 
-# # Run tag generation for testing. Note: comment out this section before deploying
-# if(TRUE){
-# 
-#   # Initial setup and libraries
-#   {
-#     #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
-# 
-#     library(shiny)
-#     library(bslib)
-#     library(dplyr)
-#     library(ggplot2)
-#     library(ggExtra)
-#     library(DT)
-#     library(tidyr)
-#     library(pbapply)
-#     library(googledrive)
-#     library(stringr)
-#     library(Hmisc)
-#     library(targets)
-#     library(googlesheets4)
-#     library(zcurve)
-#     library(scales)
-# 
-#     drive_auth(Sys.getenv("google_oauth_email"))
-#     #drive_deauth()
-#     # Common functions
-#     source(file="Analysis/common functions.R")
-#   }
-# 
-# 
-#   # Load data
-#     objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata")
-#     for(i in 1:length(objects_to_load)){
-#       assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-#       #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
-#     }
-# 
-# 
-#     # Pull paper to find what tags are in paper
-#     paper_text <- drive_read_string(file=googledrive::as_id("1yqMVMzZMmGMyPG4IiD_urFHmBfztFXv-om-Y2M0T7jQ"),
-#                                       type = "text/plain",encoding="UTF-8")  %>%
-#       strsplit(split = "(\r\n|\r|\n)") %>%
-#       .[[1]]
-#     paper_text <- paste0(paper_text,collapse="  ")
-# 
-#     # Pull paper to find what tags are calculated
-#       tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
-#       tags <- tags[tags!=""]
-#       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
-# 
-#     # Generate stats
-#       results_tagged_stats <- tagged_stats(iters = 20,
-#                                            repro_outcomes=repro_outcomes,
-#                                            pr_outcomes=pr_outcomes,
-#                                            orig_outcomes=orig_outcomes,
-#                                            paper_metadata=paper_metadata)
-# 
-#     # Generate list of tags
-#       values_text <- do.call(c,lapply(1:length(tags),function(x) {
-#         tag_to_find <- tags[x]
-#         if(tag_to_find %in% names(results_tagged_stats)){
-#           as.character(results_tagged_stats[[tag_to_find]])
-#         } else {
-#           "MISSING"
-#         }
-#       }))
-# 
-# 
-#   # Export
-#     sheet_write(data.frame(tags,values_text),
-#                 ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Paper 3")
-# 
-# 
-# 
-# }
+
+# Run tag generation for testing. Note: comment out this section before deploying
+if(TRUE){
+
+  # Initial setup and libraries
+  {
+    #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+
+    library(shiny)
+    library(bslib)
+    library(dplyr)
+    library(ggplot2)
+    library(ggExtra)
+    library(DT)
+    library(tidyr)
+    library(pbapply)
+    library(googledrive)
+    library(stringr)
+    library(Hmisc)
+    library(targets)
+    library(googlesheets4)
+    library(zcurve)
+    library(scales)
+
+    drive_auth(Sys.getenv("google_oauth_email"))
+    #drive_deauth()
+    # Common functions
+    source(file="Analysis/common functions.R")
+  }
+
+
+  # Load data
+    objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata")
+    for(i in 1:length(objects_to_load)){
+      assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+      #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+    }
+
+
+    # Pull paper to find what tags are in paper
+    paper_text <- drive_read_string(file=googledrive::as_id("1yqMVMzZMmGMyPG4IiD_urFHmBfztFXv-om-Y2M0T7jQ"),
+                                      type = "text/plain",encoding="UTF-8")  %>%
+      strsplit(split = "(\r\n|\r|\n)") %>%
+      .[[1]]
+    paper_text <- paste0(paper_text,collapse="  ")
+
+    # Pull paper to find what tags are calculated
+      tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+      tags <- tags[tags!=""]
+      tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
+
+    # Generate stats
+      results_tagged_stats <- tagged_stats(iters = 20,
+                                           repro_outcomes=repro_outcomes,
+                                           pr_outcomes=pr_outcomes,
+                                           orig_outcomes=orig_outcomes,
+                                           paper_metadata=paper_metadata)
+
+    # Generate list of tags
+      values_text <- do.call(c,lapply(1:length(tags),function(x) {
+        tag_to_find <- tags[x]
+        if(tag_to_find %in% names(results_tagged_stats)){
+          as.character(results_tagged_stats[[tag_to_find]])
+        } else {
+          "MISSING"
+        }
+      }))
+
+
+  # Export
+    sheet_write(data.frame(tags,values_text),
+                ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Paper 3")
+
+
+
+}

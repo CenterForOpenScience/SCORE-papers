@@ -35,7 +35,7 @@
     }
   }
   # Dot bar plot
-    stacked_snake_count_plot <- function(group_ext,group_int,data,n_bins=4,
+    stacked_snake_count_plot <- function(group_ext,group_int,n_bins=4,
                                          position_nudge_width = .25/2,legend.position = "bottom",
                                          aspect.ratio=.75,coord_flip=TRUE,xlab=""){
       # Organize data and positioning
@@ -58,15 +58,16 @@
                   })))
       
       df$position_nudge <- position_nudge_width*(df$bin-(n_bins+1)/2)-position_nudge_width/2
+      
       # Output plot
       p <- ggplot() +
         geom_dotplot(data=df,aes(x=group_ext,(y=y-0.5)*n_bins,fill=group_int),
                      binaxis = "y", binwidth = n_bins,stackratio=0,
-                     method = "dotdensity", position_nudge(x = df$position_nudge))+
+                     method = "dotdensity", position_nudge(x = df$position_nudge),color=NA)+
         scale_y_continuous(expand=c(0,0))+
         theme_light() +
-        theme(legend.position = "bottom",
-              aspect.ratio=aspect.ratio,
+        theme(legend.position = legend.position,
+              legend.title=element_blank(),
               panel.border = element_blank(),
               panel.grid = element_blank(),
               axis.line.y = element_line()
@@ -74,8 +75,15 @@
         ylab("Count")+
         xlab(xlab)
       if(coord_flip){
-        p <- p + coord_flip() + theme(aspect.ratio=1/aspect.ratio)
+        p <- p + coord_flip()
       }
+      if(!aspect.ratio==FALSE){
+        p <- p + theme(aspect.ratio = aspect.ratio)
+      }
+      if(coord_flip & !aspect.ratio==FALSE){
+        p <- p + theme(aspect.ratio=1/aspect.ratio)
+      }
+      
       p 
     }
   
@@ -88,7 +96,7 @@
     palette_weezer_make_believe <- c("#000000","#EAECEB","#C2C2C2","#A0A0A0","#313131")
     palette_weezer_red <- c("#ED1B34","#8A817C","#141311","#8B8D9C","#332E28")
     palette_weezer_raditude <- c("#EC2221","#FBFFFB","#FDF600","#CEB181","#4E1110")
-    palette_weezer_everything <- c("#E8A662","#F4F5F1","#463D47","#7F3009","#35180E","F6F3CF")
+    palette_weezer_everything <- c("#E8A662","#F4F5F1","#463D47","#7F3009","#35180E","#F6F3CF")
     palette_weezer_white <- c("#FDFDFD","#242424","#E3E3E3","#B6B6B6","#EEEDED")
     palette_weezer_pacific_daydream <- c("#1E3555","#5C6455","#FBE4BC","#1D1F1E","#69797B","#F8E6CF","#F8E6CF")
     palette_weezer_teal <- c("#1DBBBE","#D6A8CD","#F8F8F8","#182633","#90C5DF")
@@ -100,9 +108,8 @@
                               palette_weezer_red[1],
                               palette_weezer_green[1],
                               palette_weezer_teal[1],
-                              
-                              palette_weezer_pinkerton[1],
-                              palette_weezer_van_weezer[3]
+                              palette_weezer_van_weezer[3],
+                              palette_weezer_pinkerton[5]
     )
   }
   
