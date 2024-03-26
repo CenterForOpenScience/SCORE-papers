@@ -16,6 +16,53 @@
 
     }
     
+    # pr_outcomes
+    # binary data_shared
+    # categorical data_shared_type
+    # binary code_shared
+    # categorical code_shared_type
+    
+    # repro_outcomes
+    # binary outcome_reproduced
+    # categorical outcome_repro_result_type
+    # categorical outcome_repro_analyst_interp_type
+    
+    # paper_metadata
+    # make COS_pub_category the original 10 field designations
+    # categorical field, (the collapsed 6 field designation)
+    # is_covid (move this here; easier to deal with as paper metadata)
+    
+    # New key variables
+    {
+      pr_outcomes_modified <- pr_outcomes %>% 
+        mutate(
+          data_shared = ifelse(str_detect(OA_data_shared, "yes"), TRUE, FALSE),
+          data_shared_type = factor(OA_data_shared,
+                                    levels=c("available_online","no","yes_private","yes_public"),
+                                    labels=c("available online","not shared","shared by authors privately","shared by authors publicly")),
+          code_shared = ifelse(str_detect(OA_code_shared, "yes"), TRUE, FALSE),
+          code_shared_type = factor(OA_code_shared,
+                                    levels=c("available_online","no","yes_private","yes_public"),
+                                    labels=c("available online","not shared","shared by authors privately","shared by authors publicly")),
+        )
+      
+      pr %>% 
+        group_by(COS_pub_category) %>% 
+        count(data_shared) %>% 
+        mutate(tot = sum(n)) %>% 
+        ungroup() %>% 
+        mutate(prop = n/tot) %>% 
+        select(-n, -tot) %>% 
+        pivot_wider(names_from = data_shared, values_from = prop) %>% 
+        mutate(across(.cols = everything(), .fns = function(x) ifelse(is.na(x), 0, x))) %>% 
+        arrange(desc(no)) %>% 
+        mutate(idx = row_number()) %>% 
+        pivot_longer(cols = -c(COS_pub_category, idx), names_to = "data_shared", values_to = "prop") %>% 
+        mutate(
+          data_shared = as_factor(data_shared) %>% fct_relevel(., "no", "shared", "available_online"),
+        )
+    }
+    
     # Stats
     {
       # note: this isn't right

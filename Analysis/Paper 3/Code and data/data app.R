@@ -238,8 +238,6 @@ server <- function(input, output, session) {
     # Main Bar chart
     {
       p.bar.in.bar <- ggplot(data=cats,aes(x=field,fill=avail_collapsed)) + 
-        #geom_bar(position = "fill")+
-        #geom_bar_rounded(position = "fill")+
         geom_chicklet(data=cats_rects_chicklet,aes(x=field,y=proportion,fill=avail_collapsed),
                       linetype=0, position = position_stack(reverse = FALSE))+
         scale_y_continuous(expand=c(0,0)) +
@@ -257,15 +255,7 @@ server <- function(input, output, session) {
                                    palette_score_charts[1],
                                    palette_score_charts[2]
                                    ))+
-        # scale_fill_manual(values=c(palette_score_charts[5],
-        #                            palette_score_charts[1],
-        #                            palette_score_charts[2],
-        #                            "white",
-        #                            #palette_score_charts[6],
-      #                            "grey90"))+
         scale_y_continuous(expand=c(0,0),labels = scales::percent_format())+
-        # geom_rect(data=cats_rects,inherit.aes = FALSE,
-        #           aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail)) +
         statebins:::geom_rrect(data=cats_rects,inherit.aes = FALSE,
                                aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail),
                                radius=unit(3, "points")) +
@@ -299,44 +289,34 @@ server <- function(input, output, session) {
     # Snake stack plot
     {
       cats$avail_rev <- fct_rev(cats$avail)
-      group_ext <- cats$field
-      group_int <- cats$avail_rev
       n_bins <- 6
       position_nudge_width <- .25/2
       # Organize data and positioning
-      df <- data.frame(group_ext,group_int) %>%
-        arrange(group_ext,group_int)
+      cats <- cats %>%
+        arrange(field,avail_rev)
       
       snake_bins <- function(n,n_bins){
         do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
-          #if(IsOdd(i)){bin <- 1:n_bins
           if((i %% 2) == 1){bin <- 1:n_bins
-          } else {bin <- n_bins:1
-          }
+          } else {bin <- n_bins:1}
           y <- rep(i,n_bins)
           data.frame(bin,y)
         }))[1:n,]
       }
       
-      df <- cbind(df,
-                  do.call(rbind,lapply(1:length(unique(df$group_ext)),function(x) {
-                    snake_bins(n=nrow(df[df$group_ext==unique(df$group_ext)[x],]),n_bins=n_bins)
+      cats <- cbind(cats,
+                  do.call(rbind,lapply(1:length(unique(cats$field)),function(x) {
+                    snake_bins(n=nrow(cats[cats$field==unique(cats$field)[x],]),n_bins=n_bins)
                   })))
       
-      df$position_nudge <- position_nudge_width*(df$bin-(n_bins+1)/2)-position_nudge_width/2
-      df$x <- as.numeric(df$group_ext) + df$position_nudge
-      df$y_dot <- df$y*n_bins-n_bins/2
+      cats$position_nudge <- position_nudge_width*(cats$bin-(n_bins+1)/2)-position_nudge_width/2
+      cats$x <- as.numeric(cats$field) + cats$position_nudge
+      cats$y_dot <- cats$y*n_bins-n_bins/2
       
       # Output plot
-      #p.stacked.snake <- ggplot(data=df,aes(x=x,y=y_dot,color=group_int)) +
-      p.stacked.snake <- ggplot(data=df,aes(x=group_ext,color=group_int)) +
+      p.stacked.snake <- ggplot(data=cats,aes(x=field,color=avail_rev)) +
         geom_bar(linetype=0,fill="white")+
-        #geom_point(size=2.5)+
-        # geom_rect(data=df,aes(xmin=x-.05,xmax=x+.05,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=group_int),
-        #           linetype=0)+
-        # funkyheatmap::geom_rounded_rect(data=df,inherit.aes=FALSE,aes(xmin=x-.05,xmax=x+.05,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=group_int),
-        #                                 linetype=0,radius=0.3)+
-        funkyheatmap::geom_rounded_rect(data=df,inherit.aes=FALSE,aes(xmin=x,xmax=x+position_nudge_width,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=group_int),
+        funkyheatmap::geom_rounded_rect(data=cats,inherit.aes=FALSE,aes(xmin=x,xmax=x+position_nudge_width,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=avail_rev),
                                         linetype=0,radius=0.3)+
         theme_light() +
         scale_x_discrete()+
@@ -344,8 +324,6 @@ server <- function(input, output, session) {
               legend.title=element_blank(),
               panel.border = element_blank(),
               panel.grid = element_blank(),
-              #axis.line.y = element_line(),
-              #aspect.ratio = aspect.ratio,
               axis.title.x=element_blank(),
               axis.title.y=element_blank(),
               axis.text.y = element_blank(),
@@ -360,11 +338,6 @@ server <- function(input, output, session) {
     plot_grid(p.bar.in.bar,
               p.stacked.snake,
               align = c("h"),rel_widths = c(4,1))
-    
-    
-    
-    
-    
   })
 
 }
