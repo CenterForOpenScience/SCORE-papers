@@ -335,9 +335,13 @@ server <- function(input, output, session) {
                                        palette_score_charts[5])))+
         coord_flip()
     }
-    plot_grid(p.bar.in.bar,
-              p.stacked.snake,
-              align = c("h"),rel_widths = c(4,1))
+    
+    # Output
+    {
+      plot_grid(p.bar.in.bar,
+                p.stacked.snake,
+                align = c("h"),rel_widths = c(4,1))
+    }
   })
 
 }
