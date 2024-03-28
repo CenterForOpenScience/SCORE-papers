@@ -236,7 +236,7 @@ server <- function(input, output, session) {
                                 as.numeric(cats_rects$field)+.45)
     }
     # Main Bar chart
-    {
+    if(0==1){
       p.bar.in.bar <- ggplot(data=cats,aes(x=field,fill=avail_collapsed)) + 
         geom_chicklet(data=cats_rects_chicklet,aes(x=field,y=proportion,fill=avail_collapsed),
                       linetype=0, position = position_stack(reverse = FALSE))+
@@ -287,7 +287,7 @@ server <- function(input, output, session) {
     }
     
     # Snake stack plot
-    {
+    if(0==1){
       cats$avail_rev <- fct_rev(cats$avail)
       n_bins <- 6
       position_nudge_width <- .25/2
@@ -337,9 +337,49 @@ server <- function(input, output, session) {
     }
     
     # Output
-    {
+    if(0==1){
       plot_grid(p.bar.in.bar,
                 p.stacked.snake,
+                align = c("h"),rel_widths = c(4,1))
+    }
+    
+    # Test
+    {
+      palette_bars <- rev(c("grey90",palette_score_charts[1],
+                            palette_score_charts[2],
+                            palette_score_charts[5]))
+      
+      plot_grid(snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="bar chart",
+                                      palette_bars = palette_bars) + 
+                  funkyheatmap::geom_rounded_rect(data=cats_rects,inherit.aes = FALSE,
+                                                  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail),
+                                                  radius=unit(3, "points"),show.legend=FALSE) + 
+                  annotate("text",x=1,y=0.03,hjust=0,
+                           label="Both Data\nand Code",color="white")+
+                  annotate("text",x=1.25,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
+                             mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
+                           label="Data only",color="black",hjust=0)+
+                  annotate("text",x=.75,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
+                             mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
+                           label="Code only",color="black",hjust=0)+
+                  annotate("text",x=1,y=0.97,hjust=1,
+                           label="Neither Data\nnor Code",color="black")+
+                  geom_segment(aes(x=1-(cats_rects[cats_rects$field=="Political science" & cats_rects$avail=="Code",]$p_code_or_data)*.9,
+                                   xend=1,
+                                   y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data"),
+                                   yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05),
+                               color="grey50",linetype=3) +
+                  geom_segment(aes(x=1,
+                                   xend=1,
+                                   y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data")+ .05,
+                                   yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .1),
+                               color="grey50",linetype=3),
+                snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="snake bin chart",
+                                      palette_snakebins = palette_bars),
                 align = c("h"),rel_widths = c(4,1))
     }
   })

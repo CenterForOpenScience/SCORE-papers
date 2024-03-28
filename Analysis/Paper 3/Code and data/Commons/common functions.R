@@ -34,57 +34,132 @@
           params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
     }
   }
-  # Dot bar plot
-    stacked_snake_count_plot <- function(group_ext,group_int,n_bins=4,
-                                         position_nudge_width = .25/2,legend.position = "bottom",
-                                         aspect.ratio=.75,coord_flip=TRUE,xlab=""){
-      # Organize data and positioning
-      df <- data.frame(group_ext,group_int) %>%
-        arrange(group_ext,group_int)
-      
-      snake_bins <- function(n,n_bins){
-        do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
-          if(IsOdd(i)){bin <- 1:n_bins
-          } else {bin <- n_bins:1
-          }
-          y <- rep(i,n_bins)
-          data.frame(bin,y)
-        }))[1:n,]
+    
+    snake_bar_n_bin_chart <- function(data,varname_x, varname_group,
+                                palette_bars=NA, palette_snakebins=palette_bars,
+                                n_bins = 6,rounded=TRUE,output="combined chart"){
+      # Data setup
+      {
+        data_rects <- data %>%
+          group_by(.data[[varname_x]],.data[[varname_group]]) %>%
+          summarise(count=n())%>%
+          group_by(.data[[varname_x]]) %>%
+          mutate(proportion=count/sum(count))
       }
       
-      df <- cbind(df,
-                  do.call(rbind,lapply(1:length(unique(df$group_ext)),function(x) {
-                    snake_bins(n=nrow(df[df$group_ext==unique(df$group_ext)[x],]),n_bins=n_bins)
-                  })))
-      
-      df$position_nudge <- position_nudge_width*(df$bin-(n_bins+1)/2)-position_nudge_width/2
-      
-      # Output plot
-      p <- ggplot() +
-        geom_dotplot(data=df,aes(x=group_ext,(y=y-0.5)*n_bins,fill=group_int),
-                     binaxis = "y", binwidth = n_bins,stackratio=0,
-                     method = "dotdensity", position_nudge(x = df$position_nudge),color=NA)+
-        scale_y_continuous(expand=c(0,0))+
-        theme_light() +
-        theme(legend.position = legend.position,
-              legend.title=element_blank(),
-              panel.border = element_blank(),
-              panel.grid = element_blank(),
-              axis.line.y = element_line()
-        )+
-        ylab("Count")+
-        xlab(xlab)
-      if(coord_flip){
-        p <- p + coord_flip()
-      }
-      if(!aspect.ratio==FALSE){
-        p <- p + theme(aspect.ratio = aspect.ratio)
-      }
-      if(coord_flip & !aspect.ratio==FALSE){
-        p <- p + theme(aspect.ratio=1/aspect.ratio)
+      # Main bar chart
+      {
+        p.bar <- ggplot(data=data,aes(x=.data[[varname_x]],fill=.data[[varname_group]]))
+        if(rounded){
+          p.bar <- p.bar + 
+            geom_chicklet(data=data_rects,aes(x=.data[[varname_x]],y=proportion,fill=.data[[varname_group]]),
+                          linetype=0, position = position_stack(reverse = FALSE))
+        } else {
+          p.bar <- p.bar + geom_bar(position="fill")
+        }
+        p.bar <- p.bar +
+          theme_light() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.line.y = element_line(),
+                axis.title = element_blank()
+          ) +
+          scale_y_continuous(expand=expansion(add = c(0, .05)),
+                             labels = scales::percent_format())+
+          guides(fill = guide_legend(reverse=TRUE)) +
+          coord_flip()
+        if (!anyNA(palette_bars)){
+          p.bar <- p.bar + scale_fill_manual(values = rev(palette_bars))
+        }
       }
       
-      p 
+      # Snake stack plot
+      {
+        #position_nudge_width <- .25/2
+        position_nudge_width <- .9/n_bins
+        # Organize data and positioning
+        data <- data %>%
+          arrange(.data[[varname_x]],fct_rev(data[[varname_group]]))
+        
+        snake_bins <- function(n,n_bins){
+          do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
+            if((i %% 2) == 1){bin <- 1:n_bins
+            } else {bin <- n_bins:1}
+            y <- rep(i,n_bins)
+            data.frame(bin,y)
+          }))[1:n,]
+        }
+        
+        data <- cbind(data,
+                      do.call(rbind,lapply(1:length(unique(data[[varname_x]])),function(x) {
+                        snake_bins(n=nrow(data[data[[varname_x]]==unique(data[[varname_x]])[x],]),n_bins=n_bins)
+                      })))
+        
+        data$position_nudge <- position_nudge_width*(data$bin-(n_bins+1)/2)-position_nudge_width/2
+        data$x <- as.numeric(data[[varname_x]]) + data$position_nudge
+        data$y_dot <- data$y*n_bins-n_bins/2
+        
+        n_labels <- data %>% group_by(.data[[varname_x]]) %>%
+          mutate(count=n(),
+                 count_up = ceiling(count/n_bins)*n_bins,
+                 axis_labels = paste0(" n=",count))
+        
+        data$axis_labels <- factor(data[[varname_x]],
+                                   levels = n_labels[[varname_x]],
+                                   labels = n_labels$axis_labels)
+        
+      
+        # Plot
+        p.stacked.snake <- ggplot(data=data,aes(x=axis_labels,color=.data[[varname_group]])) + 
+        #p.stacked.snake <- ggplot(data=data,aes(x=.data[[varname_x]],color=.data[[varname_group]])) + 
+          geom_bar(linetype=0,fill="white")
+        if(rounded){
+          p.stacked.snake <- p.stacked.snake + 
+            funkyheatmap::geom_rounded_rect(data=data,inherit.aes=FALSE,
+                                          aes(xmin=x+.01,xmax=x+position_nudge_width-.01,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=.data[[varname_group]]),
+                                          linetype=0,radius=0.3,show.legend=FALSE)
+        } else {
+          p.stacked.snake <- p.stacked.snake + 
+            geom_rect(data=data,inherit.aes=FALSE,
+                       aes(xmin=x+.01,xmax=x+position_nudge_width-.01,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=.data[[varname_group]]),
+                      linetype=0,,show.legend=FALSE)
+        }
+        p.stacked.snake <- p.stacked.snake + 
+          theme_light() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title.x=element_blank(),
+                axis.title.y=element_blank(),
+                #axis.text.y = element_blank(),
+                axis.text.y = element_text(angle = 90, hjust = 0.5),
+                axis.line = element_blank(),
+                axis.ticks.y = element_blank()
+          )+
+          coord_flip()
+        if (!anyNA(palette_snakebins)){
+          p.stacked.snake <- p.stacked.snake + scale_fill_manual(values = rev(palette_snakebins))
+        }
+        
+      }
+      
+      # Output
+      {
+        if (output=="combined chart"){
+          plot_grid(p.bar,
+                    p.stacked.snake,
+                    align = c("h"),rel_widths = c(4,1))
+        } else if (output=="snake bin chart"){
+          p.stacked.snake
+        } else if (output=="bar chart"){
+          p.bar
+        } else if (output=="charts as objects"){
+          list("bar chart"=p.bar,"snake bin chart"=p.stacked.snake)
+        }
+      }
     }
   
   # Color palette

@@ -379,6 +379,34 @@ if (FALSE){
 # }
 
 # Snake bin chart
-
-  snake_bar_n_bin_chart(cats,"pub_year","avail",rounded = TRUE)
-  #snake_bar_n_bin_chart(cats,"field","avail",output="snake bin chart",rounded = FALSE)
+  cats$pub_year_factor <- factor(cats$pub_year)
+  # snake_bar_n_bin_chart(cats,"pub_year_factor","avail",rounded = TRUE)
+  # 
+  # test <- snake_bar_n_bin_chart(cats,"pub_year_factor","avail",rounded = TRUE,output="charts as objects")
+  # 
+  # aplot::ylim2(test$`bar chart`)
+  # aplot::ylim2(test$`snake bin chart`)
+  # #snake_bar_n_bin_chart(cats,"field","avail",output="snake bin chart",rounded = FALSE)
+  # 
+  # labels <- cats %>% group_by(pub_year_factor) %>%
+  #   mutate(count=n(),
+  #          count_up = ceiling(count/6)*6) %>%
+  #   select(pub_year_factor,count,count_up)
+  # 
+  # test$`snake bin chart` + 
+  #   annotate("text",x=labels$pub_year_factor,y=0,hjust=1,
+  #            label=paste0("n=",labels$count))
+  
+  palette_bars <- rev(c("grey90",palette_score_charts[1],
+                        palette_score_charts[2],
+                        palette_score_charts[5]))
+  
+  plot_grid(snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="bar chart",
+                                  palette_bars = palette_bars) + 
+              funkyheatmap::geom_rounded_rect(data=cats_rects,inherit.aes = FALSE,
+                                              aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail),
+                                              radius=unit(3, "points"),show.legend=FALSE),
+            snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="snake bin chart",
+                                  palette_snakebins = palette_bars),
+            align = c("h"),rel_widths = c(4,1))
+  

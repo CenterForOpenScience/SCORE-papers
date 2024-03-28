@@ -59,15 +59,15 @@
         }
         p.bar <- p.bar +
           theme_light() +
-          theme(#legend.position = "none",
-            legend.position = "bottom",
+          theme(legend.position = "none",
                 legend.title=element_blank(),
                 panel.border = element_blank(),
                 panel.grid = element_blank(),
                 axis.line.y = element_line(),
                 axis.title = element_blank()
           ) +
-          scale_y_continuous(expand=c(0,0),labels = scales::percent_format())+
+          scale_y_continuous(expand=expansion(add = c(0, .05)),
+                             labels = scales::percent_format())+
           guides(fill = guide_legend(reverse=TRUE)) +
           coord_flip()
         if (!anyNA(palette_bars)){
@@ -100,31 +100,42 @@
         data$position_nudge <- position_nudge_width*(data$bin-(n_bins+1)/2)-position_nudge_width/2
         data$x <- as.numeric(data[[varname_x]]) + data$position_nudge
         data$y_dot <- data$y*n_bins-n_bins/2
+        
+        n_labels <- data %>% group_by(.data[[varname_x]]) %>%
+          mutate(count=n(),
+                 count_up = ceiling(count/n_bins)*n_bins,
+                 axis_labels = paste0(" n=",count))
+        
+        data$axis_labels <- factor(data[[varname_x]],
+                                   levels = n_labels[[varname_x]],
+                                   labels = n_labels$axis_labels)
+        
       
         # Plot
-        p.stacked.snake <- ggplot(data=data,aes(x=.data[[varname_x]],color=.data[[varname_group]])) + 
+        p.stacked.snake <- ggplot(data=data,aes(x=axis_labels,color=.data[[varname_group]])) + 
+        #p.stacked.snake <- ggplot(data=data,aes(x=.data[[varname_x]],color=.data[[varname_group]])) + 
           geom_bar(linetype=0,fill="white")
         if(rounded){
           p.stacked.snake <- p.stacked.snake + 
             funkyheatmap::geom_rounded_rect(data=data,inherit.aes=FALSE,
                                           aes(xmin=x+.01,xmax=x+position_nudge_width-.01,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=.data[[varname_group]]),
-                                          linetype=0,radius=0.3)
+                                          linetype=0,radius=0.3,show.legend=FALSE)
         } else {
           p.stacked.snake <- p.stacked.snake + 
             geom_rect(data=data,inherit.aes=FALSE,
                        aes(xmin=x+.01,xmax=x+position_nudge_width-.01,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=.data[[varname_group]]),
-                      linetype=0)
+                      linetype=0,,show.legend=FALSE)
         }
         p.stacked.snake <- p.stacked.snake + 
           theme_light() +
-          scale_x_discrete()+
           theme(legend.position = "none",
                 legend.title=element_blank(),
                 panel.border = element_blank(),
                 panel.grid = element_blank(),
                 axis.title.x=element_blank(),
                 axis.title.y=element_blank(),
-                axis.text.y = element_blank(),
+                #axis.text.y = element_blank(),
+                axis.text.y = element_text(angle = 90, hjust = 0.5),
                 axis.line = element_blank(),
                 axis.ticks.y = element_blank()
           )+
@@ -132,6 +143,7 @@
         if (!anyNA(palette_snakebins)){
           p.stacked.snake <- p.stacked.snake + scale_fill_manual(values = rev(palette_snakebins))
         }
+        
       }
       
       # Output
