@@ -409,3 +409,14 @@ load_orig_statistics_output_p2 <- function(
   
   return(orig_statistics_output_p2)
 }
+
+load_complex_bushel <- function(complex_bushel_gsheet,
+                                complex_bushel_mod_date) {
+  
+  read_google_sheet(complex_bushel_gsheet, 
+                                      complex_bushel_mod_date) %>%
+    mutate(unique_claim_id = str_c(paper_id, "_", claim_id)) %>%
+    select(unique_claim_id, 
+           bushel_complex = complex)
+  
+}

@@ -158,7 +158,17 @@ list(
              cue = tar_cue("always")),
   tar_target(tagtable_covid_p1,
              read_google_tsv(tagtable_covid_p1_file,
-                             tagtable_covid_p1_moddate))
+                             tagtable_covid_p1_moddate)),
+  
+    # stitched_claims.tsv
+  tar_target(stitched_claims_file,
+             "1v_ci1nEomtT1ZJKaOeJXqauCsmQJG40b"),
+  tar_target(stitched_claims_moddate,
+             get_google_mod_date(stitched_claims_file),
+             cue = tar_cue("always")),
+  tar_target(stitched_claims,
+             read_google_tsv(stitched_claims_file,
+                             stitched_claims_moddate))
 )
 ```
 
@@ -272,7 +282,17 @@ list(
              load_orig_vars_qa(orig_vars_qa_gsheet,
                                orig_vars_qa_mod_date,
                                valid_ids),
-             cue = tar_cue("always"))
+             cue = tar_cue("always")),
+  
+  # Complex Bushel
+  tar_target(complex_bushel_gsheet,
+             "1hlcidipFCVV4WlGyCT6cMDFjyQsGA8CCoGUFASuQAhY"),
+  tar_target(complex_bushel_mod_date,
+             get_google_mod_date(complex_bushel_gsheet),
+             cue = tar_cue("always")),
+  tar_target(complex_bushel,
+             load_complex_bushel(complex_bushel_gsheet, 
+                                 complex_bushel_mod_date))
 )
 ```
 
@@ -356,6 +376,7 @@ list(
   tar_target(rr_attempts_minted,
              load_rr_attempts_minted(rr_attempts_minted_file,
                                      rr_attempts_minted_moddate))
+
 )
 
 ```
@@ -451,7 +472,9 @@ Paper metadata.
 list(
   tar_target(paper_metadata,
              merge_paper_metadata(all_metadata_filled,
-                                  publications))
+                                 publications,
+                                 covid_metadata,
+                                 status))
 )
 ```
 
@@ -468,7 +491,8 @@ list(
                          tagtable_covid_p1,
                          orig_statistics_output_p2)),
   tar_target(orig_outcomes,
-             create_ov_analytic(orig_dataset))
+             create_ov_analytic(orig_dataset,
+                                complex_bushel))
 )
 ```
 
@@ -486,8 +510,10 @@ list(
   # Create replication analytic dataset
   tar_target(repli_outcomes,
              create_repli_analytic(repli_export,
-                                  rr_attempts_minted,
-                                  rr_statistics_output_p2)),
+                                   rr_attempts_minted,
+                                   rr_statistics_output_p2,
+                                   status,
+                                   stitched_claims)),
   
   # Full reproduction dataset
   tar_target(repro_export,
@@ -526,7 +552,8 @@ list(
                            tagtable_covid_p1)),
            
   tar_target(pr_qc,
-             update_pr(pr_data_form)),
+             update_pr(pr_data_form,
+                       pr_input_changelog)),
   
   tar_target(pr_outcomes,
              create_pr_analytic(pr_qc, oa_outreach))

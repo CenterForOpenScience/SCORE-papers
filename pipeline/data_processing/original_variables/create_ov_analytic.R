@@ -1,6 +1,7 @@
 # Create Original Variable Analytic Dataset
 
-create_ov_analytic <- function(orig_dataset) {
+create_ov_analytic <- function(orig_dataset,
+                               complex_bushel) {
 
   orig_dataset %>%
     mutate(claim_id = unique_claim_id) %>%
@@ -40,6 +41,10 @@ create_ov_analytic <- function(orig_dataset) {
       orig_power_for_50_effect = original_power_50_original_effect,
       orig_power_for_75_effect = original_power_75_original_effect
     ) %>%
+    # Indicator for if the evidence for a bushel claim deviates from the 
+    # prototypical SCORE evidence format (a single, statistically significant 
+    # test result)
+    left_join(complex_bushel, by = "unique_claim_id") %>%
     # Kill unneeded variables
     select(-c(unique_claim_id,
               original_data_source,

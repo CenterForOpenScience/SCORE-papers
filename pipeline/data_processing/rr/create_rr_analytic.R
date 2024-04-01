@@ -1,7 +1,31 @@
 # Create Replications Analytic Dataset
 create_repli_analytic <- function(repli_export,
                                   rr_attempts_minted,
-                                  rr_statistics_output_p2) {
+                                  rr_statistics_output_p2,
+                                  status,
+                                  stitched_claims) {
+  
+  # Determine what delivery each RR was from
+  type_p1 <- status %>%
+    select(paper_id, p1_delivery) %>%
+    filter(p1_delivery)
+  
+  type_p2 <- status %>%
+    select(paper_id, p2_delivery) %>%
+    filter(p2_delivery)
+  
+  type_bushel <- repli_export %>%
+    filter(rr_type_internal %in% c("Direct Replication",
+                                   "Data Analytic Replication")) %>%
+    group_by(rr_id) %>%
+    mutate(n = length(unique(claim_id))) %>%
+    filter(n > 1)
+  
+  # Determine if a bushel claim has an equivalent single-trace claim
+  single_equiv <- stitched_claims %>%
+    select(paper_id, p1_equivalent, claim4_id) %>%
+    filter(p1_equivalent) %>%
+    mutate(claim_id = str_c(paper_id, "_", claim4_id))
   
   # Establish which version is the "version of record" for replications
   # Previously "repli_primary"
@@ -65,6 +89,9 @@ create_repli_analytic <- function(repli_export,
                                "non_ml" ~ FALSE,
                                .default = TRUE),
       manylabs_type = case_match(rr_is_manylabs,
+                                 "ml_aggregation" ~ "aggregation",
+                                 "ml_count" ~ "count",
+                                 "ml_instance_primary" ~ "instance_primary",
                                  "non_ml" ~ NA,
                                  .default = rr_is_manylabs),
       repli_version_of_record = case_when(
@@ -90,6 +117,16 @@ create_repli_analytic <- function(repli_export,
         rr_pearsons_r_defined,
         "yes" ~ TRUE,
         "no" ~ FALSE
+      ),
+      type_internal = case_when(
+        is_covid == TRUE ~ "covid",
+        rr_id %in% type_bushel$rr_id ~ "bushel",
+        paper_id %in% type_p1$paper_id ~ "p1",
+        paper_id %in% type_p2$paper_id ~ "p2"
+      ),
+      single_trace_equivalent = case_when(
+        type_internal == "bushel" & claim_id %in% single_equiv$claim_id ~ TRUE,
+        .default = FALSE
       ),
       across(all_of(factors), as.factor)) %>%
     select(-c(rr_type,
@@ -120,7 +157,7 @@ create_repli_analytic <- function(repli_export,
       repli_pattern_criteria = rr_repl_pattern_criteria_reported,
       repli_pattern_description = rr_repl_pattern_description_reported,
       repli_pattern_criteria_met = rr_repl_pattern_replicated_reported,
-      repli_pattern_direction = rr_repl_effect_direction_reported,
+      repli_effect_direction = rr_repl_effect_direction_reported,
       repli_interpret_supported = rr_repl_subjective_replicated_reported,
       repli_interpret_support_notes = rr_repl_subjective_description_reported,
       repli_total_model_params = rr_total_model_parameters,
