@@ -405,7 +405,31 @@ if (FALSE){
                                   palette_bars = palette_bars) + 
               funkyheatmap::geom_rounded_rect(data=cats_rects,inherit.aes = FALSE,
                                               aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail),
-                                              radius=unit(3, "points"),show.legend=FALSE),
+                                              radius=unit(3, "points"),show.legend=FALSE) + 
+              annotate("text",x=1,y=0.03,hjust=0,
+                       label="Both Data\nand Code",color="white")+
+              annotate("text",x=1.25,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
+                         mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
+                       label="Data only",color="black",hjust=0)+
+              annotate("text",x=.75,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
+                         mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
+                       label="Code only",color="black",hjust=0)+
+              annotate("text",x=1,y=0.97,hjust=1,
+                       label="Neither Data\nnor Code",color="black")+
+              geom_segment(aes(x=1-(cats_rects[cats_rects$field=="Political science" & cats_rects$avail=="Code",]$p_code_or_data)*.9,
+                               xend=1,
+                               y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                 mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data"),
+                               yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                 mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05),
+                           color="grey50",linetype=3) +
+              geom_segment(aes(x=1,
+                               xend=1,
+                               y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                 mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data")+ .05,
+                               yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
+                                 mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .1),
+                           color="grey50",linetype=3),
             snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="snake bin chart",
                                   palette_snakebins = palette_bars),
             align = c("h"),rel_widths = c(4,1))
