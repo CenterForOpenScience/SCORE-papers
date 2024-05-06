@@ -10,15 +10,15 @@ create_id_list <- function(status,
                            tagtable_covid_p1,
                            finalized_claim4_table,
                            rr_projects) {
-  
+
   valid_papers <- rbind(select(status, paper_id),
                         select(tagtable_covid_p1, paper_id))
-  
+
   bushel_claims <- finalized_claim4_table %>%
     select(paper_id,
            claim_id,
            p1_claim)
-  
+
   single_trace_claims <- status %>%
     filter(p1_delivery | p2_delivery) %>%
     mutate(claim_id = "single-trace",
@@ -26,7 +26,7 @@ create_id_list <- function(status,
     select(paper_id,
            claim_id,
            p1_claim)
-  
+
   covid <- tagtable_covid_p1 %>%
     filter(external) %>%
     mutate(claim_id = "single-trace",
@@ -34,17 +34,17 @@ create_id_list <- function(status,
     select(paper_id,
            claim_id,
            p1_claim)
-  
+
   valid_claims <- rbind(bushel_claims, single_trace_claims, covid)
 
-  
+
   # Generates a list of valid rr_ids
   valid_rr <- rr_projects %>%
     select(paper_id,
            rr_id,
            project_guid) %>%
     distinct(paper_id, rr_id, .keep_all = TRUE)
-  
+
   list(valid_papers,
        valid_claims,
        valid_rr)
@@ -79,33 +79,6 @@ get_google_mod_date <- function(file_id) {
     pluck("modifiedTime")
   
 }
-
-# Write File Helpers ----
-# Generic functions to write files and return file names as expect by targets
-
-# # Write Google sheet
-# write_target_gsheet <- function(data, file_id){
-#   
-#   write_sheet(data,
-#               ss = file_id,
-#               sheet = 1)
-#   
-#   file_id %>%
-#     googledrive::as_id() %>%
-#     drive_link()
-#   
-# }
-# 
-# # Write TSV for targets
-# write_target_tsv <- function(dataset, file_path) {
-#   
-#   write_tsv(x = dataset,
-#             file = file_path,
-#             quote = "needed")
-#   
-#   return(file_path)
-#   
-# }
 
 # Read File Helper ----
 # Read CSV files from Google Drive
@@ -150,7 +123,8 @@ read_google_sheet <- function(file_id, mod_date) {
   }
   
   file_id %>%
-    read_sheet()
+    read_sheet() %>%
+    mutate(across(where(is.list), as.character))
   
 }
 

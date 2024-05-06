@@ -104,8 +104,21 @@ list(
              read_google_csv(publications_file,
                              publications_moddate)),
   
+  # p2_id_key.csv
+  # Links cannonical paper ID to the IDs used by other teams
+  # Does not include COVID papers
+  tar_target(p2_id_key_file,
+             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
+  tar_target(p2_id_key_moddate,
+             get_google_mod_date(p2_id_key_file),
+             cue = tar_cue("always")),
+  tar_target(p2_id_key,
+             read_google_csv(p2_id_key_file,
+                             p2_id_key_moddate)),
+  
   # status.csv
   # Canonical source for subsamples of the data
+  # Does not contain COVID papers
   tar_target(status_file,
              "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
   tar_target(status_moddate,
@@ -126,7 +139,7 @@ list(
   # https://drive.google.com/drive/folders/1DowEarJ3t167Jxqjtm5o81PCG3qp2Kz3
   
   # finalized_claim4_table.tsv
-  
+  # REDUNDANT WITH STITCHED CLAIMS - REMOVE
   tar_target(finalized_claim4_file,
              "17hohLFjMb0moxYpcFRb9-26Ei1QLFUgq"),
   tar_target(finalized_claim4_moddate,
@@ -137,7 +150,7 @@ list(
                              finalized_claim4_moddate)),
   
   # tagtable_covid_p1.tsv
-  # Claims extracted from phase 1 COVID papers
+  # Claims extracted from phase 1 COVID papers with canonical paper IDs
   tar_target(tagtable_covid_p1_file,
              "1lc2P9N2RPXR2YZB6_Zh1E8eXNiRdm50t"),
   tar_target(tagtable_covid_p1_moddate,
@@ -148,6 +161,7 @@ list(
                              tagtable_covid_p1_moddate)),
   
   # stitched_claims.tsv
+  # All bushel claims with canonical paper IDs
   tar_target(stitched_claims_file,
              "1v_ci1nEomtT1ZJKaOeJXqauCsmQJG40b"),
   tar_target(stitched_claims_moddate,
@@ -161,8 +175,7 @@ list(
   # https://osf.io/um7kc/
   
   # covid_ta2.csv
-  # Claims extracted from phase 1 COVID papers, but with paper IDs for TA2
-  # Used for matching up paper IDs with the IDs given to TA2
+  # Claims extracted from phase 1 COVID papers with paper IDs for TA2
   tar_target(covid_ta2_osf,
              "yr3w8"),
   tar_target(covid_ta2_mod_date, 
@@ -170,13 +183,37 @@ list(
              cue = tar_cue("always")), 
   tar_target(covid_ta2,
              load_osf_csv(covid_ta2_osf,
-                          covid_ta2_mod_date))
+                          covid_ta2_mod_date)),
+  
+  # SCORE_csv.csv
+  # Phase 1 Extracted Claims
+  tar_target(SCORE_csv_osf,
+             "9qt6d"),
+  tar_target(SCORE_csv_mod_date, 
+             get_osf_mod_date(SCORE_csv_osf),
+             cue = tar_cue("always")), 
+  tar_target(SCORE_csv,
+             load_osf_csv(SCORE_csv_osf,
+                          SCORE_csv_mod_date)),
+  
+  # SCORE_CVD2.csv
+  # Phase 2 extracted claims with paper IDs for TA2
+  tar_target(SCORE_CVD2_osf,
+             "du5mt"),
+  tar_target(SCORE_CVD2_mod_date, 
+             get_osf_mod_date(SCORE_CVD2_osf),
+             cue = tar_cue("always")), 
+  tar_target(SCORE_CVD2,
+             load_osf_csv(SCORE_CVD2_osf,
+                          SCORE_CVD2_mod_date))
 )
 ```
 
-### Quality Control Helpers
+### Helpers
 
 The `valid_ids` object is used to check that files being loaded in the following sections only use valid IDs. Also load in `rr_projects.csv` here for convenience since it is used to generate the list of valid IDs. 
+
+The `id_key` object is used to match up the canonical paper IDs with the IDs assigned to papers for TA2 and TA3. 
 
 ```{targets helpers}
 list(
@@ -198,6 +235,16 @@ list(
                             tagtable_covid_p1,
                             finalized_claim4_table,
                             rr_projects))
+  # 
+  # tar_target(id_key,
+  #            create_id_key(covid_ta2,
+  #                         tagtable_covid_p1,
+  #                         status,
+  #                         p2_id_key,
+  #                         SCORE_CVD2,
+  #                         stitched_claims,
+  #                         replication_qa,
+  #                         reproduction_qa))
 )
 ```
 
@@ -343,16 +390,7 @@ list(
   tar_target(p2_repli_vf,
              read_google_csv(p2_repli_vf_file,
                              p2_repli_vf_moddate)),
-  
-  # p2_repro_vf.csv
-  tar_target(p2_repro_vf_file,
-             "1_UJ_JbcoOHO-xRmDeTRJD2Apdzvqz2MX"),
-  tar_target(p2_repro_vf_moddate,
-             get_google_mod_date(p2_repro_vf_file),
-             cue = tar_cue("always")),
-  tar_target(p2_repro_vf,
-             read_google_csv(p2_repro_vf_file,
-                             p2_repro_vf_moddate)),
+
   
   # outcomes/ ----
   # rr_outcomes_dataset_p1.tsv
@@ -367,6 +405,7 @@ list(
   
   # project_minting/ ----
   # rr_attempts_minted.csv
+  # Status and tracking for rr projects
   tar_target(rr_attempts_minted_file,
              "1aHuTwRVeqADWVC4Lxq5n3B4ebbSa9Mqc"),
   tar_target(rr_attempts_minted_moddate,
@@ -391,16 +430,23 @@ list(
   # File: SCORE-P2-113: Variable form - reproductions (Responses)
   tar_target(reproduction_qa_gsheet,
              "1vCVHLymiT-IcVGvWH_a3cJ4dfhjrf8lvmi4qe24LuZs"),
+  tar_target(reproduction_qa_moddate,
+             get_google_mod_date(reproduction_qa_gsheet),
+             cue = tar_cue("always")),
   tar_target(reproduction_qa,
-             load_reproduction_qa(reproduction_qa_gsheet,
-                                  p2_repro_vf),
+             read_google_sheet(reproduction_qa_gsheet,
+                               reproduction_qa_moddate),
              cue = tar_cue("always")),
   
   # File: SCORE-P2-097: Prereg check-in form (Reproduction) (Responses)
   tar_target(prereg_checkin_repro_gsheet,
              "11UCF2cuoBwLfJrQZC7AoWqG7EjCBoxV_GC-aFMsy6u4"),
+  tar_target(prereg_checkin_repro_moddate,
+             get_google_mod_date(prereg_checkin_repro_gsheet),
+             cue = tar_cue("always")),
   tar_target(prereg_checkin_repro,
-             load_repro_checkin(prereg_checkin_repro_gsheet),
+             read_google_sheet(prereg_checkin_repro_gsheet,
+                               prereg_checkin_repro_moddate),
              cue = tar_cue("always")),
   
   # SCORE-Phase 1 RR and original article analyses (https://osf.io/3fsbm/) ----
@@ -502,25 +548,17 @@ list(
                                    status,
                                    stitched_claims)),
   
-  # Full reproduction dataset
-  tar_target(repro_export,
-             export_repro(reproduction_qa,
-                         p2_repro_input_changelog)),
-  
   # rr confrontations reproduction claims
   tar_target(rr_confrontations_repro_claim,
              process_repro_claims(prereg_checkin_repro)),
   
-  # Reproduction summary variables
-  tar_target(repro_supplementary,
-             calculate_repro_summary(orig_dataset,
-                                    repro_export,
-                                    rr_confrontations_repro_claim)),
-  
-  # Repro outcomes dataset
+  # Full reproduction dataset
   tar_target(repro_outcomes,
-             create_repro_analytic(repro_export,
-                                   repro_supplementary))
+             create_repro_analytic(reproduction_qa,
+                                   p2_repro_input_changelog,
+                                   orig_dataset,
+                                   rr_confrontations_repro_claim))
+  
 )
 ```
 
