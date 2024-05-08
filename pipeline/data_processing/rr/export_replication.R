@@ -89,6 +89,8 @@ update_repli_input <- function(rr_outcomes_dataset_p1,
                 "rr_stat_version",
                 "rr_statistic_value_reported")
   
+  bool_list <- c("rr_repl_effect_direction_reported")
+  
   for (i in 1:nrow(changelog)) {
     
     col_name <- changelog[i, ]$col_name
@@ -97,9 +99,13 @@ update_repli_input <- function(rr_outcomes_dataset_p1,
       filter(unique_report_id == changelog[i, ]$unique_report_id) %>%
       pull(max_version)
     
-    change_to <- ifelse(col_name %in% num_list,
-                        as.numeric(changelog[i, ]$change_to),
-                        changelog[i, ]$change_to)
+    if (col_name %in% num_list) {
+      change_to <- as.numeric(changelog[i, ]$change_to)
+    } else if (col_name %in% bool_list) {
+      change_to <- as.logical(changelog[i, ]$change_to)
+    } else {
+      change_to <- changelog[i, ]$change_to
+    }
     
     change_tbl <- tibble(unique_report_id = changelog[i, ]$unique_report_id,
                          rr_stat_version = version,
