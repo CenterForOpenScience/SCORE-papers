@@ -89,7 +89,11 @@ update_repli_input <- function(rr_outcomes_dataset_p1,
                 "rr_stat_version",
                 "rr_statistic_value_reported")
   
-  bool_list <- c("rr_repl_effect_direction_reported")
+  bool_list <- c("rr_repl_effect_direction_reported",
+                 "rr_expected_sample_reached_reported",
+                 "rr_repl_pattern_description_reported",
+                 "rr_repl_exact_replicated_reported",
+                 "is_covid")
   
   for (i in 1:nrow(changelog)) {
     
@@ -135,7 +139,7 @@ export_repli <- function(rr_outcomes_dataset_p1,
                                          rr_reporting_checkin,
                                          repli_input_changelog)
   
-  test <- repli_data_entry %>% 
+  repli_data_entry %>% 
     # Drop P1 coding in favor of P2 where duplicates exist
     arrange(desc(rr_input_source)) %>%
     distinct(rr_id,
