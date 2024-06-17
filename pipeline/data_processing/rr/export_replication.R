@@ -5,7 +5,8 @@
 # and creates a merged table.
 merge_repli_input <- function(rr_outcomes_dataset_p1,
                               replication_qa,
-                              rr_reporting_checkin) {
+                              rr_reporting_checkin,
+                              replication_cases) {
   
   # Bring in P1 replication outcomes 
   p1_rr <- rr_outcomes_dataset_p1 %>%
@@ -22,6 +23,16 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
     filter(rr_type %in% c("Direct Replication", 
                           "Data Analytic Replication",
                           "Hybrid"))
+  
+  # Bring in extra many labs replication cases
+  repli_cases <- replication_cases %>%
+    mutate(rr_stat_version = 1) %>%
+    select(-c(
+      # These are calculated automatically later, not needed here
+      rr_repl_exact_replicated_reference,
+      sample_preference,
+      ml_preference
+      ))
   
   # Analysis links for P2 projects come from report check-ins
   checkin <- select(rr_reporting_checkin,
@@ -42,7 +53,30 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
               multiple = "all",
               relationship = "many-to-many")
   
-  rbind(p1_rr, p2_repli)
+  rbind(p1_rr, p2_repli, repli_cases) %>%
+    mutate(rr_is_manylabs = case_when(
+      rr_id %in% c("92g",
+                   "24716",
+                   "944y",
+                   "10g2",
+                   "9977",
+                   "128g6",
+                   "7g66",
+                   "2kgg2",
+                   "z51636O9",
+                   "651m6_45_6",
+                   "5g9",
+                   "6ow46",
+                   "9kzy",
+                   "24316",
+                   "89z7",
+                   "288g2",
+                   "6738",
+                   "6m396",
+                   "276",
+                   "2y486") ~ "ml_count",
+      .default = rr_is_manylabs
+    ))
   
 }
 
@@ -51,11 +85,13 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
 update_repli_input <- function(rr_outcomes_dataset_p1,
                                replication_qa,
                                rr_reporting_checkin,
+                               replication_cases,
                                repli_input_changelog) {
   
   rr_replication_outcomes <- merge_repli_input(rr_outcomes_dataset_p1,
                                                replication_qa,
-                                               rr_reporting_checkin)
+                                               rr_reporting_checkin,
+                                               replication_cases)
   
   # We only want to work with the highest version for each claim
   changelog <- repli_input_changelog %>% 
@@ -132,11 +168,13 @@ update_repli_input <- function(rr_outcomes_dataset_p1,
 export_repli <- function(rr_outcomes_dataset_p1,
                          replication_qa,
                          rr_reporting_checkin,
+                         replication_cases,
                          repli_input_changelog) {
   
   repli_data_entry <- update_repli_input(rr_outcomes_dataset_p1,
                                          replication_qa,
                                          rr_reporting_checkin,
+                                         replication_cases,
                                          repli_input_changelog)
   
   repli_data_entry %>% 

@@ -13,6 +13,7 @@ library(targets)
 library(readr)
 library(googledrive)
 library(googlesheets4)
+library(hashids)
 # Silly workaround to get renv to store these packages
 library(usethis)
 library(visNetwork)
@@ -229,12 +230,24 @@ list(
   tar_target(rr_projects,
              read_google_csv(rr_projects_file,
                              rr_projects_moddate)),
+  
+  # Replication Cases - RR Projects
+  tar_target(repli_cases_projects_gsheet,
+             "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
+  tar_target(repli_cases_projects_moddate,
+             get_google_mod_date(repli_cases_projects_gsheet),
+             cue = tar_cue("always")),
+  tar_target(repli_cases_projects,
+             read_google_sheet(repli_cases_projects_gsheet,
+                               repli_cases_projects_moddate,
+                               sheet = "rr_projects")),
 
   tar_target(valid_ids,
              create_id_list(status,
                             tagtable_covid_p1,
                             finalized_claim4_table,
-                            rr_projects))
+                            rr_projects,
+                            repli_cases_projects))
   # 
   # tar_target(id_key,
   #            create_id_key(covid_ta2,
@@ -460,7 +473,19 @@ list(
     rr_statistics_output_p2,
     load_rr_statistics_output_p2(rr_statistics_output_p2_osf,
                                  rr_statistics_output_p2_mod_date)
-  )
+  ),
+  
+  # SCORE Replication cases ----
+  # https://docs.google.com/spreadsheets/d/1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg/edit#gid=0
+  tar_target(replication_cases_gsheet,
+             "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
+  tar_target(replication_cases_moddate,
+             get_google_mod_date(replication_cases_gsheet),
+             cue = tar_cue("always")),
+  tar_target(replication_cases,
+             read_google_sheet(replication_cases_gsheet,
+                               replication_cases_moddate,
+                               sheet = "repli_export"))
   
 )
 
@@ -538,6 +563,7 @@ list(
              export_repli(rr_outcomes_dataset_p1,
                           replication_qa,
                           rr_reporting_checkin,
+                          replication_cases,
                           repli_input_changelog)),
   
   # Create replication analytic dataset
