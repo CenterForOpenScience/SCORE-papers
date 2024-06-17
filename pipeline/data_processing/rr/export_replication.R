@@ -56,15 +56,12 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
   rbind(p1_rr, p2_repli, repli_cases) %>%
     mutate(rr_is_manylabs = case_when(
       rr_id %in% c("92g",
-                   "24716",
                    "944y",
                    "10g2",
                    "9977",
                    "128g6",
                    "7g66",
                    "2kgg2",
-                   "z51636O9",
-                   "651m6_45_6",
                    "5g9",
                    "6ow46",
                    "9kzy",
@@ -75,6 +72,10 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
                    "6m396",
                    "276",
                    "2y486") ~ "ml_count",
+      unique_report_id %in% c("z51636O9",
+                              "651m6_45_6",
+                              "92g1zRv",
+                              "24716_49_1") ~ "ml_count",
       .default = rr_is_manylabs
     ))
   
