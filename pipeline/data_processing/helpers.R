@@ -132,7 +132,7 @@ read_google_sheet <- function(file_id,
   # This triggers tar_make() to load data if the modification date has
   # changed since last run
   if (!is.Date(as.Date(mod_date))) {
-    stop(simpleError("File modification date invalid."))
+    stop("File modification date invalid.")
   }
   
   file_id %>%
@@ -149,7 +149,7 @@ load_osf_csv <- function(osf_id,
   # This triggers tar_make() to load data if the modification date has
   # changed since last run
   if(!is.Date(as.Date(osf_mod_date))){
-    stop(simpleError("File modification date invalid."))
+    stop("File modification date invalid.")
   }
   
   osf_csv_file <- osf_id %>%
@@ -177,7 +177,7 @@ load_osf_tsv <- function(osf_id,
   # This triggers tar_make() to load data if the modification date has
   # changed since last run
   if(!is.Date(as.Date(osf_mod_date))){
-    stop(simpleError("File modification date invalid."))
+    stop("File modification date invalid.")
   }
   
   osf_tsv_file <- osf_id %>%

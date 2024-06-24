@@ -13,29 +13,31 @@ transform_repro_input <- function(reproduction_qa) {
                                original_index,
                                "_1"),
       rr_stat_version = 1,
-      claim_id = str_c(str_extract(asana_ticket_name,
-                                   "(?<=_)[:alnum:]*(?=[:blank:])"),
+      paper_id = str_extract(asana_ticket_name,
+                             "(?<=_)[:alnum:]*(?=[:blank:])"),
+      claim_id = str_c(paper_id,
                        "_",
                        c4_claim_id)
     ) %>%
-    select("claim_id",
-           "rr_id",
-           "rr_primary_criteria_available",
-           "rr_type_internal",
-           "orig_analytic_sample_size_value_criterion_reported",
-           "rr_analytic_sample_size_value_reported",
-           "rr_p_value_value_reported",
-           "rr_coefficient_value_reported",
-           "rr_statistic_type_reported",
-           "rr_statistic_value_reported",
-           "rr_effect_size_type_reported",
-           "rr_effect_size_value_reported",
-           "rr_repro_pattern_criteria_reported",
-           "rr_repro_success_reported",
-           "rr_repro_pattern_description_reported",
-           "rr_repro_analyst_success_reported",
-           "unique_report_id",
-           "rr_stat_version")
+    select(paper_id,
+           claim_id,
+           rr_id,
+           rr_primary_criteria_available,
+           rr_type_internal,
+           orig_analytic_sample_size_value_criterion_reported,
+           rr_analytic_sample_size_value_reported,
+           rr_p_value_value_reported,
+           rr_coefficient_value_reported,
+           rr_statistic_type_reported,
+           rr_statistic_value_reported,
+           rr_effect_size_type_reported,
+           rr_effect_size_value_reported,
+           rr_repro_pattern_criteria_reported,
+           rr_repro_success_reported,
+           rr_repro_pattern_description_reported,
+           rr_repro_analyst_success_reported,
+           unique_report_id,
+           rr_stat_version)
 
 }
 
@@ -44,68 +46,10 @@ transform_repro_input <- function(reproduction_qa) {
 update_repro <- function(repro_data_entry,
                          p2_repro_input_changelog) {
 
-  # Create a list of changes that need to be made for each row
-  changelog <- p2_repro_input_changelog %>%
-    select(-c(change_from,
-              date_implemented,
-              reported_by,
-              rationale)) %>%
-    # We only want to work with the highest version for each column changed
-    arrange(unique_report_id,
-            col_name,
-            desc(rr_stat_version)) %>%
-    distinct(unique_report_id,
-             col_name,
-             .keep_all = TRUE) %>%
-    # Changes for each report ID get condensed into subtables to update the
-    # respective rows in the main dataset
-    mutate(rr_stat_version = max(rr_stat_version),
-           .by = unique_report_id) %>%
-    nest(data = c(unique_report_id,
-                  rr_stat_version,
-                  col_name,
-                  change_to),
-         .by = unique_report_id
-         ) %>%
-    mutate(
-      data = map(data,
-                 pivot_wider,
-                 names_from = col_name,
-                 values_from = change_to),
-      # For each subtable of data to be updated, make sure columns that are
-      # supposed to be numeric in the final data are numeric here
-      data = map(
-        data,
-        \(x) mutate(
-          x,
-          across(
-            any_of(
-              c("orig_analytic_sample_size_value_criterion_reported",
-                "rr_analytic_sample_size_value_reported",
-                "rr_p_value_value_reported",
-                "rr_coefficient_value_reported",
-                "rr_statistic_value_reported",
-                "rr_effect_size_value_reported")
-            ),
-            as.numeric
-          )
-        )
-      )
-    ) %>%
-    select(-c(unique_report_id)) %>%
-    flatten()
-
-  # Apply all updates to the dataset
-  for (i in 1:length(changelog)) {
-
-    repro_data_entry <- repro_data_entry %>%
-      rows_update(changelog[[i]], by = "unique_report_id")
-
-  }
-
   # Some duplicates are in the changelog, so we will drop them after applying
   # changes
   repro_data_entry %>%
+    apply_changelog(p2_repro_input_changelog, "unique_report_id") %>%
     distinct(rr_id,
              claim_id,
              .keep_all = TRUE)
@@ -329,6 +273,7 @@ create_repro_analytic <- function(reproduction_qa,
              str_to_lower)
     ) %>%
     select(
+      paper_id,
       rr_id,
       claim_id,
       report_id = unique_report_id,
