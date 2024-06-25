@@ -578,10 +578,13 @@ list(
   tar_target(rr_confrontations_repro_claim,
              process_repro_claims(prereg_checkin_repro)),
   
+  tar_target(repro_export,
+             create_repro_export(reproduction_qa,
+                                 p2_repro_input_changelog)),
+  
   # Full reproduction dataset
   tar_target(repro_outcomes,
-             create_repro_analytic(reproduction_qa,
-                                   p2_repro_input_changelog,
+             create_repro_analytic(repro_export,
                                    orig_dataset,
                                    rr_confrontations_repro_claim))
   

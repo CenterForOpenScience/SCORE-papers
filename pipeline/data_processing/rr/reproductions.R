@@ -244,14 +244,19 @@ calculate_repro_summary <- function(repro_export,
 
 }
 
-create_repro_analytic <- function(reproduction_qa,
-                                  p2_repro_input_changelog,
+create_repro_export <- function(reproduction_qa,
+                                p2_repro_input_changelog) {
+  
+  reproduction_qa %>%
+    transform_repro_input() %>%
+    update_repro(p2_repro_input_changelog)
+  
+}
+
+create_repro_analytic <- function(repro_export,
                                   orig_dataset,
                                   rr_confrontations_repro_claim){
 
-  repro_export <- reproduction_qa %>%
-    transform_repro_input() %>%
-    update_repro(p2_repro_input_changelog)
 
   repro_supplementary <- calculate_repro_summary(repro_export,
                                                  orig_dataset,
