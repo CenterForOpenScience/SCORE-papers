@@ -98,7 +98,7 @@ read_google_csv <- function(file_id,
   
   file_id %>%
     googledrive::as_id() %>%
-    drive_read_string() %>%
+    drive_read_string(encoding = "UTF-8") %>%
     read_csv(show_col_types = FALSE,
              na = na,
              col_types = col_types)
@@ -118,7 +118,7 @@ read_google_tsv <- function(file_id,
   
   file_id %>%
     googledrive::as_id() %>%
-    drive_read_string() %>%
+    drive_read_string(encoding = "UTF-8") %>%
     read_tsv(show_col_types = FALSE,
              na = na,
              col_types = col_types)
@@ -235,7 +235,7 @@ apply_changelog <- function(dat, changes, id) {
     # We only want to work with the highest version for each column changed
     arrange(get({{ id }}),
             col_name,
-            desc(id)) %>%
+            desc(across(ends_with("version")))) %>%
     distinct(pick({{ id }}),
              col_name,
              .keep_all = TRUE) %>%
