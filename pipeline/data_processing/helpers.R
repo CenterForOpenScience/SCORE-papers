@@ -6,6 +6,14 @@
 # QC Check Helpers ----
 # Create list of valid IDs
 # Generates a list which holds valid paper IDs, claim IDs, and report IDs
+extend_rr_projects <- function(rr_projects_raw,
+                               repli_cases_projects) {
+  
+  rr_projects_raw %>%
+    rbind(repli_cases_projects)
+  
+}
+
 create_id_list <- function(status,
                            tagtable_covid_p1,
                            finalized_claim4_table,
@@ -41,7 +49,6 @@ create_id_list <- function(status,
 
   # Generates a list of valid rr_ids
   valid_rr <- rr_projects %>%
-    rbind(repli_cases_projects) %>%
     select(paper_id,
            rr_id,
            project_guid) %>%

@@ -227,11 +227,11 @@ list(
   tar_target(rr_projects_moddate,
              get_google_mod_date(rr_projects_file),
              cue = tar_cue("always")),
-  tar_target(rr_projects,
+  tar_target(rr_projects_raw,
              read_google_csv(rr_projects_file,
                              rr_projects_moddate)),
   
-  # Replication Cases - RR Projects
+    # Replication Cases - RR Projects
   tar_target(repli_cases_projects_gsheet,
              "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
   tar_target(repli_cases_projects_moddate,
@@ -241,13 +241,16 @@ list(
              read_google_sheet(repli_cases_projects_gsheet,
                                repli_cases_projects_moddate,
                                sheet = "rr_projects")),
+  
+  tar_target(rr_projects,
+             extend_rr_projects(rr_projects_raw,
+                                repli_cases_projects)),
 
   tar_target(valid_ids,
              create_id_list(status,
                             tagtable_covid_p1,
                             finalized_claim4_table,
-                            rr_projects,
-                            repli_cases_projects))
+                            rr_projects))
   # 
   # tar_target(id_key,
   #            create_id_key(covid_ta2,
