@@ -276,10 +276,35 @@ list(
   tar_target(orig_statistics_p1_moddate,
              get_google_mod_date(orig_statistics_p1_file),
              cue = tar_cue("always")),
-  tar_target(orig_statistics_dataset_p1,
-             load_orig_statistics_p1(orig_statistics_p1_file,
-                                     valid_ids,
-                                     orig_statistics_p1_moddate)),
+  tar_target(
+    orig_statistics_dataset_p1,
+    read_google_tsv(
+      orig_statistics_p1_file,
+      orig_statistics_p1_moddate,
+      col_types = list(
+        # All load in by default as character, so manually set to double
+        original_statistic_value_reported = col_double(),
+        original_statistic_df1_reported = col_double(),
+        original_statistic_df2_reported = col_double(),
+        # There is a weird data corruption in this field, but it gets fixed
+        # in the changelog:
+        original_coefficient_value_reported = col_double(),
+        original_coefficient_se_reported = col_double(),
+        original_effect_size_value_reported = col_double(),
+        original_analytic_sample_size_value_reference = col_double(),
+        original_statistic_value_reference = col_double(),
+        original_statistic_df1_reference = col_double(),
+        original_statistic_df2_reference = col_double(),
+        original_coefficient_se_reference = col_double(),
+        original_p_value_value_reference = col_double(),
+        original_effect_size_value_reference = col_double(),
+        rr_threshold_analytic_sample_size = col_double(),
+        rr_stage1_analytic_sample_size = col_double(),
+        rr_stage2_analytic_sample_size = col_double(),
+        original_total_model_parameters = col_double()
+      )
+    )
+  ),
   
   # orig_statistics_manual_dataset.tsv
   tar_target(orig_statistics_manual_file,
@@ -288,9 +313,16 @@ list(
              get_google_mod_date(orig_statistics_manual_file),
              cue = tar_cue("always")),
   tar_target(orig_statistics_manual_data_entry,
-             load_orig_statistics_manual(orig_statistics_manual_file,
-                                         valid_ids,
-                                         orig_statistics_manual_moddate)),
+             read_google_tsv(
+               orig_statistics_manual_file,
+               orig_statistics_manual_moddate,
+               col_types = list(
+                 # originally: logical
+                 original_statistic_type_reported = col_character(),
+                 original_statistic_type_reference = col_character()
+                )
+              )
+            ),
   
   # original_inftest_dataset.tsv
   tar_target(original_inftest_file,
@@ -299,9 +331,8 @@ list(
              get_google_mod_date(original_inftest_file),
              cue = tar_cue("always")),
   tar_target(original_inftest_dataset,
-             load_original_inftest_dataset(original_inftest_file,
-                                           valid_ids,
-                                           original_inftest_moddate)),
+             read_google_tsv(original_inftest_file,
+                             original_inftest_moddate)),
   
   # changes/
   # orig_input_changelog (Google Sheet)
@@ -323,8 +354,9 @@ list(
              cue = tar_cue("always")), 
   tar_target(
     orig_statistics_output_p2,
-    load_orig_statistics_output_p2(orig_statistics_output_p2_osf,
-                                   orig_statistics_output_p2_mod_date)
+    load_osf_tsv(orig_statistics_output_p2_osf,
+                                          orig_statistics_output_p2_mod_date,
+                                          quote = "\\\"")
   ),
   
   # SCORE Google Drive ----
@@ -337,10 +369,8 @@ list(
              get_google_mod_date(orig_vars_qa_gsheet),
              cue = tar_cue("always")), 
   tar_target(orig_vars_qa,
-             load_orig_vars_qa(orig_vars_qa_gsheet,
-                               orig_vars_qa_mod_date,
-                               valid_ids),
-             cue = tar_cue("always")),
+             read_google_sheet(orig_vars_qa_gsheet,
+                               orig_vars_qa_mod_date)),
   
   # Complex Bushel
   tar_target(complex_bushel_gsheet,
@@ -349,8 +379,8 @@ list(
              get_google_mod_date(complex_bushel_gsheet),
              cue = tar_cue("always")),
   tar_target(complex_bushel,
-             load_complex_bushel(complex_bushel_gsheet, 
-                                 complex_bushel_mod_date))
+             read_google_sheet(complex_bushel_gsheet,
+                               complex_bushel_mod_date))
 )
 ```
 
@@ -541,13 +571,13 @@ Original variables data. QC'ed and merged.
 ```{targets processed-ov}
 list(
   tar_target(orig_dataset,
-             export_orig(orig_input_changelog,
-                         orig_statistics_dataset_p1,
-                         original_inftest_dataset,
-                         orig_statistics_manual_data_entry,
-                         orig_vars_qa,
-                         tagtable_covid_p1,
-                         orig_statistics_output_p2)),
+             export_orig(orig_statistics_output_p2,
+                             orig_statistics_dataset_p1,
+                             original_inftest_dataset,
+                             orig_statistics_manual_data_entry,
+                             orig_vars_qa,
+                             tagtable_covid_p1,
+                             orig_input_changelog)),
   tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset,
                                 complex_bushel))
