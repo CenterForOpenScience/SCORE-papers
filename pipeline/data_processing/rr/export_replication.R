@@ -129,6 +129,7 @@ update_repli_input <- function(rr_outcomes_dataset_p1,
   bool_list <- c("rr_repl_effect_direction_reported",
                  "rr_expected_sample_reached_reported",
                  "rr_repl_pattern_description_reported",
+                 "rr_repl_pattern_replicated_reported",
                  "rr_repl_exact_replicated_reported",
                  "is_covid")
   
