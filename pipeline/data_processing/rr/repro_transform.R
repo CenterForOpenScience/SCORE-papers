@@ -1,8 +1,8 @@
-# Functions for creating the reproduction analytic dataset
+# Tranform raw reproduction datasets
 
-# Transform reproduction dataset to standardized form
+# Transform reproduction raw data entry
 transform_repro_input <- function(reproduction_qa) {
-
+  
   reproduction_qa %>%
     mutate(
       # Original row index is used to create unique record id later
@@ -38,28 +38,14 @@ transform_repro_input <- function(reproduction_qa) {
            rr_repro_analyst_success_reported,
            unique_report_id,
            rr_stat_version)
-
+  
 }
 
-# Apply change log updates
-# Applies fixes identified after initial data entry to the reproduction dataset
-update_repro <- function(repro_data_entry,
-                         p2_repro_input_changelog) {
-
-  # Some duplicates are in the changelog, so we will drop them after applying
-  # changes
-  repro_data_entry %>%
-    apply_changelog(p2_repro_input_changelog, "unique_report_id") %>%
-    distinct(rr_id,
-             claim_id,
-             .keep_all = TRUE)
-
-}
-
-calculate_repro_summary <- function(repro_export,
-                                    orig_dataset,
-                                    rr_confrontations_repro_claim){
-
+# Calculate the summary of reproduction outcomes
+transform_repro_outcomes <- function(repro_export,
+                                     orig_dataset,
+                                     rr_confrontations_repro_claim) {
+  
   # Identify cases with secondary criteria ----
   repro_secondary <- rr_confrontations_repro_claim %>%
     mutate(
@@ -67,7 +53,7 @@ calculate_repro_summary <- function(repro_export,
       repro_secondary_criteria = confrontation_repro_secondary_criteria_num > 0
     ) %>%
     select(claim_id, rr_id, repro_secondary_criteria)
-
+  
   # Key original variables ----
   # Don't need sample size; instead use the version from repro_export
   orig_variables <- orig_dataset %>%
@@ -78,7 +64,7 @@ calculate_repro_summary <- function(repro_export,
            orig_ptype = original_p_value_type_reported,
            orig_pvalue = original_p_value_value_reported,
            orig_es = original_effect_size_value_reported)
-
+  
   # Calculate lower and upper bounds ----
   outcomes_thresholds <- repro_export %>%
     left_join(select(orig_variables, -paper_id),
@@ -150,7 +136,7 @@ calculate_repro_summary <- function(repro_export,
                      rr_es)
     ) %>%
     select(-contains("digits"))
-
+  
   # Evaluate the outcomes of each measure ----
   # Evaluate if the outcome of each measure is precise, approximate, not, or
   # non-outcome when data is unavailable, then create a summary measure
@@ -241,77 +227,97 @@ calculate_repro_summary <- function(repro_export,
            repro_outcome_effect = outcome_es,
            repro_outcome_overall = outcome_overall,
            repro_secondary_criteria)
-
-}
-
-create_repro_export <- function(reproduction_qa,
-                                p2_repro_input_changelog) {
-  
-  reproduction_qa %>%
-    transform_repro_input() %>%
-    update_repro(p2_repro_input_changelog)
   
 }
 
-create_repro_analytic <- function(repro_export,
-                                  orig_dataset,
-                                  rr_confrontations_repro_claim){
-
-
-  repro_supplementary <- calculate_repro_summary(repro_export,
-                                                 orig_dataset,
-                                                 rr_confrontations_repro_claim)
-
-  repro_export %>%
-    left_join(repro_supplementary, by = "unique_report_id") %>%
+# Process data from prereg checkin
+transform_repro_claims <- function(prereg_checkin_repro) {
+  
+  criteria_cols <- c("criteria_name",
+                     "original_value",
+                     "precise_reproduction",
+                     "approx_reproduction",
+                     "non_reproduction")
+  
+  repro_checkin <- prereg_checkin_repro %>%
+    filter(is.na(confrontation_status)) %>%
     mutate(
-      repro_outcome_overall = case_when(
-        repro_outcome_overall == "precise" &
-          rr_type_internal == "Push Button Reproduction" ~ "push button",
-        .default = repro_outcome_overall
-      ),
-      # Not strictly necessary - left for consistency with old version
-      across(c(rr_statistic_type_reported,
-               rr_effect_size_type_reported,
-               rr_repro_success_reported,
-               rr_repro_analyst_success_reported),
-             str_to_lower)
+      pdf_filename = str_extract(asana_ticket_name, ".+?(?= - )"),
+      paper_id = str_extract(pdf_filename, "([^_]*)$"),
+      rr_id = str_extract(asana_ticket_name, "([^(?= - )]*)$")
+    ) 
+  
+  primary_df <- repro_checkin %>%
+    # Information is formatted like a table within a text box for 
+    # confrontation_repro_primary_criteria. Split it out into appropriate rows 
+    # and columns
+    mutate(
+      primary_criteria = str_split(confrontation_repro_primary_criteria, "\\n")
     ) %>%
-    select(
-      paper_id,
-      rr_id,
-      claim_id,
-      report_id = unique_report_id,
-      repro_type = rr_type_internal,
-      orig_sample_criterion = orig_analytic_sample_size_value_criterion_reported,
-      repro_sample_size_value = rr_analytic_sample_size_value_reported,
-      repro_p_value = rr_p_value_value_reported,
-      repro_coef_value = rr_coefficient_value_reported,
-      repro_stat_type = rr_statistic_type_reported,
-      repro_stat_value = rr_statistic_value_reported,
-      repro_effect_size_type = rr_effect_size_type_reported,
-      repro_effect_size_value = rr_effect_size_value_reported,
-      repro_pattern_criteria = rr_repro_pattern_criteria_reported,
-      repro_pattern_criteria_met = rr_repro_success_reported,
-      repro_pattern_description = rr_repro_pattern_description_reported,
-      repro_interpret_supported = rr_repro_analyst_success_reported,
-      repro_lb_sample,
-      repro_ub_sample,
-      repro_outcome_sample,
-      repro_lb_coef,
-      repro_ub_coef,
-      repro_outcome_coef,
-      repro_lb_stat,
-      repro_ub_stat,
-      repro_outcome_stat,
-      repro_lb_p,
-      repro_ub_p,
-      repro_outcome_p,
-      repro_lower_effect,
-      repro_upper_effect,
-      repro_outcome_effect,
-      repro_outcome_overall,
-      repro_secondary_criteria
-    )
-
+    unnest(primary_criteria) %>%
+    separate_wider_delim(primary_criteria,
+                         delim = regex("\\t"),
+                         names = c("criteria_name",
+                                   "original_value",
+                                   "precise_reproduction",
+                                   "approx_reproduction",
+                                   "non_reproduction")) %>%
+    mutate(
+      across(all_of(criteria_cols), str_trim),
+      criteria_type = case_match(
+        criteria_name,
+        "Sample size" ~ "sample_size",
+        "Focal variable coefficient" ~ "coefficient",
+        "Effect size of focal variable" ~ "effect_size",
+        "Focal variable P-value" ~ "p_value",
+        "Focal variable p-value" ~ "p_value",
+        "Focal test statistic" ~ "test_statistic",
+        .default = "undefined"
+      ),
+      across(all_of(criteria_cols), na_if, "NA"),
+      across(all_of(criteria_cols), na_if, "nan"),
+      across(all_of(criteria_cols), na_if, "N/A"),
+      across(all_of(criteria_cols), na_if, "n/a"),
+      across(all_of(criteria_cols), na_if, "N/a"),
+      across(all_of(criteria_cols), na_if, "na"),
+      primary_criteria_check = if_else(
+        str_detect(confrontation_primary_criteria_available,
+                   criteria_type),
+        !is.na(original_value) & 
+          !is.na(precise_reproduction) & 
+          !is.na(non_reproduction),
+        is.na(original_value) & 
+          is.na(precise_reproduction) & 
+          is.na(non_reproduction))
+    ) %>%
+    # bespoke hotfix for Travers (claim id: zqwm_single-trace, RRID: 2w7w2) 
+    # because there are no primary criteria
+    rows_update(tibble(rr_id = "2w7w2",
+                       confrontation_claim4_id = "single-trace",
+                       criteria_type = "sample_size",
+                       primary_criteria_check = TRUE),
+                by = c("rr_id",
+                       "confrontation_claim4_id",
+                       "criteria_type")) %>%
+    group_by(across(-c(all_of(criteria_cols), criteria_type))) %>%
+    nest() %>%
+    select(-c(data)) %>%
+    ungroup() %>%
+    select(rr_id,
+           confrontation_claim4_id,
+           primary_criteria_check)
+  
+  repro_checkin %>%
+    select(paper_id, 
+           rr_id, 
+           confrontation_claim4_id, 
+           confrontation_data_source_url,
+           confrontation_data_source_description, 
+           confrontation_p_value_type_reported,
+           confrontation_repro_analyst_criteria,
+           confrontation_primary_criteria_available,
+           confrontation_repro_secondary_criteria_num,
+           confrontation_status) %>%
+    left_join(primary_df, join_by(rr_id, confrontation_claim4_id))
+  
 }
