@@ -75,26 +75,73 @@ create_ov_analytic <- function(orig_dataset,
   bushel <- transform_complex_bushel(complex_bushel)
 
   orig_dataset %>%
-    mutate(claim_id = unique_claim_id) %>%
+    mutate(claim_id = unique_claim_id,
+           # Coalesce reported into reference
+           orig_sample_size_value = coalesce(
+             original_analytic_sample_size_value_reported,
+             original_analytic_sample_size_value_reference
+           ),
+           orig_stat_type = coalesce(
+             original_statistic_type_reported,
+             original_statistic_type_reference
+           ),
+           orig_stat_dof_1 = coalesce(
+             original_statistic_df1_reported,
+             original_statistic_df1_reference
+           ),
+           orig_stat_dof_2 = coalesce(
+             original_statistic_df2_reported,
+             original_statistic_df2_reference
+           ),
+           orig_stat_value = coalesce(
+             original_statistic_value_reported,
+             original_statistic_value_reference
+           ),
+           orig_stat_interaction = coalesce(
+             original_statistic_effect_type_reported,
+             original_statistic_effect_type_reference
+           ),
+           orig_effect_size_text = coalesce(
+             original_effect_size_fulltext_reported,
+             original_effect_size_fulltext_reference
+           ),
+           orig_effect_size_type_repro = coalesce(
+             original_effect_size_type_reported,
+             original_effect_size_type_reference
+           ),
+           orig_effect_size_value_repro = coalesce(
+             original_effect_size_value_reported,
+             original_effect_size_value_reference
+           ),
+           orig_coef_type = coalesce(
+             original_coefficient_type_reported,
+             original_coefficient_type_reference
+           ),
+           orig_coef_value = coalesce(
+             original_coefficient_value_reported,
+             original_coefficient_value_reference
+           ),
+           orig_coef_se = coalesce(
+             original_coefficient_se_reported,
+             original_coefficient_se_reference
+           ),
+           orig_p_value_type = coalesce(
+             original_p_value_type_reported,
+             original_p_value_type_reference
+           ),
+           orig_p_value = coalesce(
+             original_p_value_value_reported,
+             original_p_value_value_reference
+           ),
+           orig_p_value_tails = coalesce(
+             original_p_value_tails_reported,
+             original_p_value_tails_reference
+           )
+           ) %>%
     rename(
-      orig_analysis_type = original_statistic_analysis_type,
       orig_sample_size_units = original_analytic_sample_size_units_reported,
-      orig_sample_size_value = original_analytic_sample_size_value_reported,
-      orig_stat_type = original_statistic_type_reported,
-      orig_stat_dof_1 = original_statistic_df1_reported,
-      orig_stat_dof_2 = original_statistic_df2_reported,
-      orig_stat_value = original_statistic_value_reported,
-      orig_stat_interaction = original_statistic_effect_type_reported,
-      orig_effect_size_text = original_effect_size_fulltext_reported,
-      orig_effect_size_type_repro = original_effect_size_type_reported,
-      orig_effect_size_value_repro = original_effect_size_value_reported,
-      orig_coef_type = original_coefficient_type_reported,
-      orig_coef_value = original_coefficient_value_reported,
-      orig_coef_se = original_coefficient_se_reported,
+      orig_analysis_type = original_statistic_analysis_type,
       orig_total_model_params = original_total_model_parameters,
-      orig_p_value_type = original_p_value_type_reported,
-      orig_p_value = original_p_value_value_reported,
-      orig_p_value_tails = original_p_value_tails_reported,
       orig_sample_size_50_for_100 = rr_threshold_analytic_sample_size,
       orig_sample_size_90_for_75 = rr_stage1_analytic_sample_size,
       orig_sample_size_90_for_50 = rr_stage2_analytic_sample_size,
@@ -127,24 +174,39 @@ create_ov_analytic <- function(orig_dataset,
               original_analytic_subsample_n1,
               original_analytic_subsample_n2,
               original_statistic_fulltext_reported,
+              original_statistic_fulltext_reference,
               original_poweranalysis_link,
               original_samplesize_calculation_contributor,
               original_analytic_sample_size_value_reference,
-              original_statistic_fulltext_reference,
+              original_analytic_sample_size_value_reported,
               original_statistic_type_reference,
+              original_statistic_type_reported,
               original_statistic_df1_reference,
+              original_statistic_df1_reported,
               original_statistic_df2_reference,
+              original_statistic_df2_reported,
               original_statistic_value_reference,
+              original_statistic_value_reported,
               original_statistic_effect_type_reference,
+              original_statistic_effect_type_reported,
               original_effect_size_fulltext_reference,
+              original_effect_size_fulltext_reported,
               original_effect_size_type_reference,
+              original_effect_size_type_reported,
               original_effect_size_value_reference,
+              original_effect_size_value_reported,
               original_coefficient_type_reference,
+              original_coefficient_type_reported,
               original_coefficient_value_reference,
+              original_coefficient_value_reported,
               original_coefficient_se_reference,
+              original_coefficient_se_reported,
               original_p_value_type_reference,
+              original_p_value_type_reported,
               original_p_value_value_reference,
+              original_p_value_value_reported,
               original_p_value_tails_reference,
+              original_p_value_tails_reported,
               original_cos_notes,
               is_covid,
               original_materials_link,
