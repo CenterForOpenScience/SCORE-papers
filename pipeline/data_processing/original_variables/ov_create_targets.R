@@ -136,7 +136,11 @@ create_ov_analytic <- function(orig_dataset,
            orig_p_value_tails = coalesce(
              original_p_value_tails_reported,
              original_p_value_tails_reference
-           )
+           ),
+           orig_stat_type = case_match(orig_stat_type,
+                                       c("f", "Fvalue") ~ "F",
+                                       "chi-squared" ~ "chi_squared",
+                                       .default = orig_stat_type)
            ) %>%
     rename(
       orig_sample_size_units = original_analytic_sample_size_units_reported,
