@@ -283,3 +283,84 @@ apply_changelog <- function(dat, changes, id) {
   return(dat)
   
 }
+
+# Effect Size Functions
+# F, weird Edge Case, df1 > 1
+convert_cf <- function(Fvalue, df1, df2) {
+  
+  F_to_f(Fvalue, df1, df2, alternative = "two.sided") %>% 
+    as_tibble() %>% 
+    mutate(across(-c(CI), ~ .x*2)) %>% # f to d
+    mutate(across(-c(CI), d_to_r)) %>% # d to r
+    rename(r = Cohens_f_partial)
+  
+}
+
+# Chi
+convert_chi <- function(chi_sq, n) {
+  
+  r <- chisq_to_cramers_v(chi_sq, 
+                          n,
+                          nrow = 2,
+                          ncol = 2,
+                          adjust = F) %>%
+    pull(Cramers_v)
+  se_r <- sqrt((1 - r^2)/(n - 2))
+  ci_low <- r - 1.96*se_r
+  ci_high <- r + 1.96*se_r
+  
+  tibble(r = r, CI = NA, CI_low = ci_low, CI_high = ci_high)
+  
+}
+
+# Run conversions
+convert_to_cosr <- function(data, key_id) {
+  
+  # All will be changed to correspond to outcomes variables
+  stat_type <- names(select(data, contains("stat_type")))
+  stat_value <- names(select(data, contains("stat_value")))
+  sample_size <- names(select(data, contains("sample_size_value")))
+  df1 <- names(select(data, contains("dof_1")))
+  df2 <- names(select(data, contains("dof_2")))
+  
+  t_table <- data %>%
+    filter(!!as.name(stat_type) == "t") %>%
+    mutate(convert_r = t_to_r(get({{ stat_value }}),
+                              get({{ df1 }})))
+  
+  z_table <- data %>% 
+    filter(!!as.name(stat_type) == "z") %>%
+    mutate(convert_r = z_to_r(get({{ stat_value }}),
+                              get({{ sample_size }})))
+  
+  chi_table <- data %>%
+    filter(!!as.name(stat_type) == "chi_squared") %>%
+    mutate(convert_r = convert_chi(get({{ stat_value }}),
+                                   get({{ sample_size }})))
+  
+  
+  F_table <- data %>%
+    filter(!!as.name(stat_type) == "F" & !!as.name(df1) == 1) %>%
+    rowwise() %>%
+    mutate(convert_r = F_to_r(get({{ stat_value }}),
+                              get({{ df1 }}),
+                              get({{ df2 }})))
+  
+  cf_table <- data %>%
+    filter(!!as.name(stat_type) == "F" & !!as.name(df1) > 1) %>%
+    rowwise() %>%
+    mutate(convert_r = convert_cf(get({{ stat_value }}),
+                                  get({{ df1 }}),
+                                  get({{ df2 }})))
+  
+  rbind(t_table, F_table, cf_table, z_table, chi_table) %>%
+    unnest(convert_r) %>%
+    rename(cos_r = r,
+           cos_r_lb = CI_low,
+           cos_r_ub = CI_high) %>%
+    select({{key_id}},
+           cos_r,
+           cos_r_lb,
+           cos_r_ub)
+  
+}

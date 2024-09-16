@@ -3,7 +3,8 @@ create_repli_analytic <- function(repli_export,
                                   rr_attempts_minted,
                                   rr_statistics_output_p2,
                                   status,
-                                  stitched_claims) {
+                                  stitched_claims,
+                                  effectsize_outcome) {
   
   # Determine what delivery each RR was from
   type_p1 <- status %>%
@@ -61,7 +62,7 @@ create_repli_analytic <- function(repli_export,
                "power_for_effect_size",
                "manylabs_type")
   
-  repli_export %>%
+  repli <- repli_export %>%
     filter(rr_type_internal %in% c("Direct Replication",
                                    "Data Analytic Replication")) %>%
     select(-c(sample_preference, 
@@ -128,7 +129,16 @@ create_repli_analytic <- function(repli_export,
         type_internal == "bushel" & claim_id %in% single_equiv$claim_id ~ TRUE,
         .default = FALSE
       ),
-      across(all_of(factors), as.factor)) %>%
+      across(all_of(factors), as.factor),
+      rr_statistic_type_reported = case_match(
+        rr_statistic_type_reported,
+        "chi-squared" ~ "chi_squared",
+        .default = rr_statistic_type_reported),
+      repli_stat_dof_1 = coalesce(repli_effective_df1, 
+                                  rr_statistic_df1_reported),
+      repli_sample_size_value = coalesce(repli_effective_sample_size,
+                                         rr_analytic_sample_size_value_reported)
+      ) %>%
     select(-c(rr_type,
               rr_analytic_sample_stage,
               rr_is_manylabs)) %>%
@@ -138,13 +148,11 @@ create_repli_analytic <- function(repli_export,
     # Name changes -----
     rename(
       repli_sample_size_units = rr_analytic_sample_size_units_reported,
-      repli_sample_size_value = rr_analytic_sample_size_value_reported,
       repli_sample_structure = rr_analytic_sample_cells_reported,
       repli_analysis_type = rr_statistic_analysis_type_reported,
       repli_stat_interaction = rr_statistic_interaction_reported,
       repli_stat_type = rr_statistic_type_reported,
       repli_stat_value = rr_statistic_value_reported,
-      repli_stat_dof_1 = rr_statistic_df1_reported,
       repli_stat_dof_2 = rr_statistic_df2_reported,
       repli_coef_type = rr_coefficient_type_reported,
       repli_coef_value = rr_coefficient_value_reported,
@@ -199,6 +207,23 @@ create_repli_analytic <- function(repli_export,
               # These two, previously repli_pearsons_r_ub and 
               # repli_pearsons_r_lb, appear not to actually be used
               pi_ub_pearson,
-              pi_lb_pearson))
+              pi_lb_pearson,
+              rr_statistic_df1_reported,
+              repli_effective_df1,
+              rr_analytic_sample_size_value_reported,
+              repli_effective_sample_size))
+  
+  manual <- effectsize_outcome %>%
+    rename(report_id = `...1`,
+           cos_r = r,
+           cos_r_lb = r_lb,
+           cos_r_ub = r_ub) %>%
+    filter(report_id %in% repli$report_id)
+  
+  effect_sizes <- convert_to_cosr(repli, "report_id")
+  
+  repli %>%
+    left_join(effect_sizes, by = "report_id") %>%
+    rows_update(manual, by = "report_id")
   
 }

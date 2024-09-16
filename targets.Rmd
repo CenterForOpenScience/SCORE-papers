@@ -51,7 +51,8 @@ tar_option_set(
                "here",
                "googlesheets4",
                "googledrive",
-               "osfr") 
+               "osfr",
+               "effectsize") 
 )
 
 # All functions used are found in the folder named "pipeline"
@@ -415,7 +416,32 @@ list(
   tar_target(prereg_checkin_repro,
              read_google_sheet(prereg_checkin_repro_gsheet,
                                prereg_checkin_repro_moddate),
-             cue = tar_cue("always"))
+             cue = tar_cue("always")),
+  
+  # Added SCORE variables - Gsheet
+  tar_target(effectsize_gsheet,
+             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
+  tar_target(effectsize_moddate,
+             get_google_mod_date(effectsize_gsheet),
+             cue = tar_cue("always")),
+  
+  # Added SCORE variables - Replication
+  tar_target(effectsize_repli,
+             read_google_sheet(effectsize_gsheet,
+                               effectsize_moddate,
+                               sheet = "replication")),
+  
+  # Added SCORE variables - Original
+  tar_target(effectsize_orig,
+             read_google_sheet(effectsize_gsheet,
+                               effectsize_moddate,
+                               sheet = "original")),
+  
+  # Added SCORE variables - Outcomes
+  tar_target(effectsize_outcome,
+             read_google_sheet(effectsize_gsheet,
+                               effectsize_moddate,
+                               sheet = "outcomes"))
 )
 ```
 
@@ -609,7 +635,8 @@ list(
              merge_repli_input(rr_outcomes_dataset_p1,
                                replication_qa,
                                rr_reporting_checkin,
-                               replication_cases)),
+                               replication_cases,
+                               effectsize_repli)),
   
   tar_target(repli_export,
              export_repli(repli_merged,
@@ -621,7 +648,8 @@ list(
                                    rr_attempts_minted,
                                    rr_statistics_output_p2,
                                    status,
-                                   stitched_claims)),
+                                   stitched_claims,
+                                  effectsize_outcome)),
   
   # Reproduction targets ----
   # Transformed data from forms

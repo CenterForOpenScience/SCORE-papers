@@ -6,7 +6,8 @@
 merge_repli_input <- function(rr_outcomes_dataset_p1,
                               replication_qa,
                               rr_reporting_checkin,
-                              replication_cases) {
+                              replication_cases,
+                              effectsize_repli) {
   
   # Bring in P1 replication outcomes 
   p1_rr <- rr_outcomes_dataset_p1 %>%
@@ -24,6 +25,8 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
                           "Data Analytic Replication",
                           "Hybrid")) %>%
     add_column(ready_for_export = NA)
+  
+  repli_effective <- rename(effectsize_repli, unique_report_id = `...1`)
   
   # Bring in extra many labs replication cases
   repli_cases <- replication_cases %>%
@@ -55,7 +58,8 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
               multiple = "all",
               relationship = "many-to-many")
   
-  rbind(p1_rr, p2_repli, repli_cases)
+  rbind(p1_rr, p2_repli, repli_cases) %>%
+    left_join(repli_effective, by = "unique_report_id")
   
 }
 
