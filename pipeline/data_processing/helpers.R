@@ -317,7 +317,7 @@ convert_chi <- function(chi_sq, n) {
 convert_to_cosr <- function(data, key_id) {
   
   # All will be changed to correspond to outcomes variables
-  stat_type <- names(select(data, contains("stat_type")))
+  stat_type <- names(select(data, ends_with("stat_type")))
   stat_value <- names(select(data, contains("stat_value")))
   sample_size <- names(select(data, contains("sample_size_value")))
   df1 <- names(select(data, contains("dof_1")))

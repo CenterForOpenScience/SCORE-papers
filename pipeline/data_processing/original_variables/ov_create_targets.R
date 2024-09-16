@@ -70,16 +70,23 @@ export_orig <- function(orig_statistics_output_p2,
 
 # Create Original Variable Analytic Dataset
 create_ov_analytic <- function(orig_dataset,
-                               complex_bushel) {
+                               complex_bushel,
+                               effectsize_orig,
+                               effectsize_outcome) {
   
   bushel <- transform_complex_bushel(complex_bushel)
 
-  orig_dataset %>%
+  orig <- orig_dataset %>%
+    left_join(effectsize_orig, by = join_by(unique_claim_id == claim_id)) %>%
     mutate(claim_id = unique_claim_id,
            # Coalesce reported into reference
            orig_sample_size_value = coalesce(
              original_analytic_sample_size_value_reported,
              original_analytic_sample_size_value_reference
+           ),
+           orig_sample_size_value = coalesce(
+             original_effective_sample_size,
+             orig_sample_size_value
            ),
            orig_stat_type = coalesce(
              original_statistic_type_reported,
@@ -89,6 +96,8 @@ create_ov_analytic <- function(orig_dataset,
              original_statistic_df1_reported,
              original_statistic_df1_reference
            ),
+           orig_stat_dof_1 = coalesce(original_effective_df1_reference, 
+                                      orig_stat_dof_1),
            orig_stat_dof_2 = coalesce(
              original_statistic_df2_reported,
              original_statistic_df2_reference
@@ -215,6 +224,21 @@ create_ov_analytic <- function(orig_dataset,
               is_covid,
               original_materials_link,
               original_poweranalysis_notes,
-              Tilburg_team_finished))
+              Tilburg_team_finished,
+              original_effective_sample_size,
+              original_effective_df1_reference))
+  
+  manual <- effectsize_outcome %>%
+    rename(claim_id = `...1`,
+           cos_r = r,
+           cos_r_lb = r_lb,
+           cos_r_ub = r_ub) %>%
+    filter(claim_id %in% orig$claim_id)
+  
+  effect_sizes <- convert_to_cosr(orig, "claim_id")
+  
+  orig %>%
+    left_join(effect_sizes, by = "claim_id") %>%
+    rows_update(manual, by = "claim_id")
 
 }

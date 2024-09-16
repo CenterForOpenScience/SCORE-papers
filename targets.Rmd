@@ -613,7 +613,9 @@ list(
                              orig_input_changelog)),
   tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset,
-                                complex_bushel))
+                                complex_bushel,
+                                effectsize_orig,
+                                effectsize_outcome))
 )
 ```
 
