@@ -84,7 +84,7 @@ create_ov_analytic <- function(orig_dataset,
              original_analytic_sample_size_value_reported,
              original_analytic_sample_size_value_reference
            ),
-           orig_sample_size_value = coalesce(
+           sample_size_value_effective = coalesce(
              original_effective_sample_size,
              orig_sample_size_value
            ),
@@ -96,8 +96,8 @@ create_ov_analytic <- function(orig_dataset,
              original_statistic_df1_reported,
              original_statistic_df1_reference
            ),
-           orig_stat_dof_1 = coalesce(original_effective_df1_reference, 
-                                      orig_stat_dof_1),
+           df_1_effective = coalesce(original_effective_df1_reference,
+                                     orig_stat_dof_1),
            orig_stat_dof_2 = coalesce(
              original_statistic_df2_reported,
              original_statistic_df2_reference
@@ -239,6 +239,8 @@ create_ov_analytic <- function(orig_dataset,
   
   orig %>%
     left_join(effect_sizes, by = "claim_id") %>%
-    rows_update(manual, by = "claim_id")
+    rows_update(manual, by = "claim_id") %>%
+    select(-c(sample_size_value_effective,
+              df_1_effective))
 
 }

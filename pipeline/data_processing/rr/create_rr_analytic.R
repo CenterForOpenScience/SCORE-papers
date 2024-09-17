@@ -134,10 +134,11 @@ create_repli_analytic <- function(repli_export,
         rr_statistic_type_reported,
         "chi-squared" ~ "chi_squared",
         .default = rr_statistic_type_reported),
-      repli_stat_dof_1 = coalesce(repli_effective_df1, 
+      repli_stat_df_1 = coalesce(repli_effective_df1, 
                                   rr_statistic_df1_reported),
-      repli_sample_size_value = coalesce(repli_effective_sample_size,
-                                         rr_analytic_sample_size_value_reported)
+      sample_size_value_effective = coalesce(
+        repli_effective_sample_size,
+        rr_analytic_sample_size_value_reported)
       ) %>%
     select(-c(rr_type,
               rr_analytic_sample_stage,
@@ -147,6 +148,8 @@ create_repli_analytic <- function(repli_export,
     relocate(claim_id, .after = paper_id) %>%
     # Name changes -----
     rename(
+      repli_stat_dof_1 = rr_statistic_df1_reported,
+      repli_sample_size_value = rr_analytic_sample_size_value_reported,
       repli_sample_size_units = rr_analytic_sample_size_units_reported,
       repli_sample_structure = rr_analytic_sample_cells_reported,
       repli_analysis_type = rr_statistic_analysis_type_reported,
@@ -207,11 +210,7 @@ create_repli_analytic <- function(repli_export,
               # These two, previously repli_pearsons_r_ub and 
               # repli_pearsons_r_lb, appear not to actually be used
               pi_ub_pearson,
-              pi_lb_pearson,
-              rr_statistic_df1_reported,
-              repli_effective_df1,
-              rr_analytic_sample_size_value_reported,
-              repli_effective_sample_size))
+              pi_lb_pearson))
   
   manual <- effectsize_outcome %>%
     rename(report_id = `...1`,
@@ -224,6 +223,8 @@ create_repli_analytic <- function(repli_export,
   
   repli %>%
     left_join(effect_sizes, by = "report_id") %>%
-    rows_update(manual, by = "report_id")
+    rows_update(manual, by = "report_id") %>%
+    select(-c(repli_stat_df_1,
+              sample_size_value_effective))
   
 }

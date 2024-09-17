@@ -319,8 +319,8 @@ convert_to_cosr <- function(data, key_id) {
   # All will be changed to correspond to outcomes variables
   stat_type <- names(select(data, ends_with("stat_type")))
   stat_value <- names(select(data, contains("stat_value")))
-  sample_size <- names(select(data, contains("sample_size_value")))
-  df1 <- names(select(data, contains("dof_1")))
+  sample_size <- names(select(data, contains("sample_size_value_effective")))
+  df1 <- names(select(data, contains("df_1")))
   df2 <- names(select(data, contains("dof_2")))
   
   t_table <- data %>%
@@ -334,7 +334,8 @@ convert_to_cosr <- function(data, key_id) {
                               get({{ sample_size }})))
   
   chi_table <- data %>%
-    filter(!!as.name(stat_type) == "chi_squared") %>%
+    filter(!!as.name(stat_type) == "chi_squared" |
+             !!as.name(stat_type) == "delta_g_squared") %>%
     mutate(convert_r = convert_chi(get({{ stat_value }}),
                                    get({{ sample_size }})))
   
