@@ -1,12 +1,12 @@
 # Update Reproduction and Replicaton Data
 
 # Applies fixes identified after initial data entry to the reproduction dataset
-update_repro <- function(repro_data_entry,
+update_repro <- function(repro_merge,
                          p2_repro_input_changelog) {
   
   # Some duplicates are in the changelog, so we will drop them after applying
   # changes
-  repro_data_entry %>%
+  repro_merge %>%
     apply_changelog(p2_repro_input_changelog, "unique_report_id") %>%
     distinct(rr_id,
              claim_id,

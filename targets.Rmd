@@ -386,6 +386,11 @@ list(
                                repli_cases_moddate,
                                sheet = "repli_export")),
   
+  tar_target(reproduction_cases,
+             read_google_sheet(repli_cases_gsheet,
+                               repli_cases_moddate,
+                               sheet = "repro_export")),
+  
   # File: SCORE-P2-081: Variable form - replications (Responses)
   tar_target(replication_qa_gsheet,
              "1Cs7iFLA29JwVDfp8DY0ZIaTlRTTnK0KsFSudLDHxjFQ"),
@@ -662,9 +667,14 @@ list(
   tar_target(rr_confrontations_repro_claim,
              transform_repro_claims(prereg_checkin_repro)),
   
+  # Merge with additional cases
+  tar_target(repro_merge,
+             repro_merge(repro_data_entry,
+                         reproduction_cases)),
+  
   # Update transformed data from forms
   tar_target(repro_export,
-             update_repro(repro_data_entry,
+             update_repro(repro_merge,
                           p2_repro_input_changelog)),
   
   # Create repro supplement
