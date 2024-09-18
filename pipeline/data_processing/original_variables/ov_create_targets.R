@@ -241,6 +241,9 @@ create_ov_analytic <- function(orig_dataset,
     left_join(effect_sizes, by = "claim_id") %>%
     rows_update(manual, by = "claim_id") %>%
     select(-c(sample_size_value_effective,
-              df_1_effective))
+              df_1_effective)) %>%
+    rename(orig_conv_r = cos_r,
+           orig_conv_r_lb = cos_r_lb,
+           orig_conv_r_ub = cos_r_ub)
 
 }

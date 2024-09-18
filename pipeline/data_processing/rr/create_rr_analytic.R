@@ -225,6 +225,9 @@ create_repli_analytic <- function(repli_export,
     left_join(effect_sizes, by = "report_id") %>%
     rows_update(manual, by = "report_id") %>%
     select(-c(repli_stat_df_1,
-              sample_size_value_effective))
+              sample_size_value_effective)) %>%
+    rename(repli_conv_r = cos_r,
+           repli_conv_r_lb = cos_r_lb,
+           repli_conv_r_ub = cos_r_ub)
   
 }
