@@ -95,6 +95,7 @@ process_pr_data <- function(pr_data_raw,
         "No - code was not found/is not available" ~ "No",
         .default = pr_code_available
       ),
+      public_source_data_and_code = "No",
       # Some dates are full dates rather than just year
       pr_data_date = case_when(nchar(pr_data_date) > 4 ~ str_sub(pr_data_date,
                                                                  1,

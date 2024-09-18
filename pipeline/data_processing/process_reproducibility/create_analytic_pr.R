@@ -47,7 +47,6 @@ create_pr_analytic <- function(pr_qc,
         "Partial/Incomplete" ~ "Incomplete",
         .default = pr_code_complete
       ),
-      public_source_data_and_code = "No",
       process_reproducible = case_when(
         pr_data_available == "Yes" & pr_code_available == "Yes" ~ "Yes",
         public_source_data_and_code == "Yes" ~ "Yes",
