@@ -205,7 +205,6 @@ create_repli_analytic <- function(repli_export,
               rr_input_source,
               rr_stat_version,
               pdf_filename,
-              is_covid,
               rr_pearsons_r_defined,
               # These two, previously repli_pearsons_r_ub and 
               # repli_pearsons_r_lb, appear not to actually be used
