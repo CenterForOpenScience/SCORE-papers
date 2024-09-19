@@ -223,9 +223,7 @@ create_ov_analytic <- function(orig_dataset,
               original_cos_notes,
               original_materials_link,
               original_poweranalysis_notes,
-              Tilburg_team_finished,
-              original_effective_sample_size,
-              original_effective_df1_reference))
+              Tilburg_team_finished))
   
   manual <- effectsize_outcome %>%
     rename(claim_id = `...1`,
