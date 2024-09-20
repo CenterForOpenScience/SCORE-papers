@@ -124,6 +124,24 @@ create_id_key <- function(covid_ta2,
 
 }
 
+transform_pubs <- function(publications_raw) {
+  publications_raw %>%
+    mutate(
+      # We want both the 10 field and 6 field versions for supplement and 
+      # analysis, respectively
+      COS_pub_expanded = COS_pub_category,
+      COS_pub_category = case_match(
+        COS_pub_category,
+        c("marketing/org behavior", "management") ~ "business",
+        "economics" ~ "economics and finance",
+        c("criminology", "sociology") ~ "sociology and criminology",
+        "public administration" ~ "political science",
+        c("health", "psychology") ~ "psychology and health",
+        .default = COS_pub_category
+      )
+    ) 
+}
+
 merge_paper_metadata <- function(all_metadata_filled,
                                  publications,
                                  covid_metadata,
@@ -205,20 +223,6 @@ merge_paper_metadata <- function(all_metadata_filled,
            publisher_address,
            ISSN = ISSN_CR) %>%
     left_join(publications, by = "ISSN") %>%
-    mutate(
-      # We want both the 10 field and 6 field versions for supplement and 
-      # analysis, respectively
-      COS_pub_expanded = COS_pub_category,
-      COS_pub_category = case_match(
-        COS_pub_category,
-        c("marketing/org behavior", "management") ~ "business",
-        "economics" ~ "economics and finance",
-        c("criminology", "sociology") ~ "sociology and criminology",
-        "public administration" ~ "political science",
-        c("health", "psychology") ~ "psychology and health",
-        .default = COS_pub_category
-      )
-    ) %>%
     # There are 7 more papers in this set than were actually used.
     # Filter out the 7 papers not among p1 and p2 deliverables
     left_join(status %>% select(paper_id, p1_delivery, p2_delivery),
