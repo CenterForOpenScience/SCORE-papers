@@ -108,7 +108,7 @@ list(
   tar_target(publications_moddate,
              get_google_mod_date(publications_file),
              cue = tar_cue("always")),
-  tar_target(publications,
+  tar_target(publications_raw,
              read_google_csv(publications_file,
                              publications_moddate)),
   
@@ -596,6 +596,9 @@ Paper metadata.
 
 ```{targets processed-papers}
 list(
+  tar_target(publications,
+             transform_pubs(publications_raw)),
+  
   tar_target(paper_metadata,
              merge_paper_metadata(all_metadata_filled,
                                  publications,
