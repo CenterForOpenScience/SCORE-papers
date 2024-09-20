@@ -149,6 +149,7 @@ merge_paper_metadata <- function(all_metadata_filled,
                open_access = NA,
                publisher_address = NA,
                eISSN = NA,
+               is_covid = TRUE,
                COS_pub_expanded = "health",
                COS_pub_category = "psychology and health") %>%
     select(paper_id,
@@ -176,7 +177,8 @@ merge_paper_metadata <- function(all_metadata_filled,
            publication_standard,
            eISSN,
            COS_pub_expanded,
-           COS_pub_category)
+           COS_pub_category,
+           is_covid)
   
   all_metadata_filled %>%
     # Drop WOS entries so there is only one source for paper metadata
@@ -223,6 +225,7 @@ merge_paper_metadata <- function(all_metadata_filled,
               by = "paper_id") %>%
     filter(p1_delivery | p2_delivery) %>%
     select(-c(p1_delivery, p2_delivery)) %>%
+    add_column(is_covid = FALSE) %>%
     add_row(covid) %>%
     # Standardize cases
     mutate(across(c(title, author_last, author_first), str_to_title)) %>%
