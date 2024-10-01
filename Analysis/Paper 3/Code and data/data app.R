@@ -17,15 +17,15 @@
     library(zcurve)
     library(funkyheatmap)
     library(tidyverse)
-    library(ggchicklet) #devtools::install_github("hrbrmstr/ggchicklet")
     library(cowplot)
+    library(colorspace)
   }
   
   # Data loading
   {
     # Check if this is being run from shinyapps.io or from the github folder (in
     # which case the data gets pulled from the targets output)
-    objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata")
+    objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata","status","repro_export","stitched_claims")
     if (file.exists("Analysis/common functions.R")) {
       # Being run from github/locally, get raw data and copy data files into
       # same level folder for uploading
@@ -111,8 +111,27 @@ ui <- {
                        # tabPanel("Dataset",
                        #          #DTOutput("repli_data_table")
                        # ),
-                       tabPanel("Figure: Code/Data by field",
-                                plotOutput("code_and_data_by_field")
+                       tabPanel("Figure 1: PR code/data overall",
+                                plotOutput("pr_outcomes_overall")
+                       ),
+                       tabPanel("Figure 2: PR code/data year",
+                                plotOutput("pr_outcomes_by_year")
+                       ),
+                       tabPanel("Figure 3: PR code/data field",
+                                plotOutput("pr_outcomes_by_field")
+                       ),
+                       tabPanel("Figure 4: PR code/data econ/polisci vs others",
+                                plotOutput("pr_outcomes_by_year_econ_vs")
+                       ),
+                       
+                       tabPanel("Figure 5: OR by year",
+                                plotOutput("or_outcomes_by_year")
+                       ),
+                       tabPanel("Figure 6: OR by field",
+                                plotOutput("or_outcomes_by_field")
+                       ),
+                       tabPanel("Figure 7: OR by year and field",
+                                plotOutput("or_outcomes_by_year_and_field")
                        ),
                        
                   )
@@ -158,242 +177,940 @@ server <- function(input, output, session) {
   rownames= FALSE
   )
   
-  output$code_and_data_by_field <- renderPlot({
-    # Data setup
-    {
-      pr <- pr_outcomes %>% filter(!covid) %>% 
-        select(paper_id, data_available, code_available) %>% 
-        rename(d = data_available, code = code_available) %>%
-        mutate(
-          across(
-            .cols = c(d, code),
-            .fns = function(x) str_detect(x, "Yes")
-          )
-        ) %>% 
-        left_join(paper_metadata %>% select(paper_id, pub_year,COS_pub_category), by = "paper_id") %>% 
-        mutate(field = str_to_sentence(COS_pub_category)) %>% 
-        mutate(
-          avail = case_when(
-            d & !code ~ "data",
-            !d & code ~ "code",
-            d & code ~ "both",
-            !d & !code ~ "neither"
-          )
-        ) %>% 
-        mutate(avail = as_factor(avail) %>% fct_relevel(., "code", "data", "both", "neither")) %>% 
-        group_by(field) %>% mutate(pr_ord = mean(avail == "both")) %>% 
-        ungroup() %>% group_by(avail != "neither") %>% 
-        arrange(avail) %>% ungroup() %>% select(-`avail != "neither"`)
-      
-      cats <- pr %>% 
-        group_by(field, avail != "neither") %>% 
-        mutate(rn = row_number()) %>% 
-        mutate(cat = percent_rank(rn)) %>% 
-        ungroup() %>% select(-`avail != "neither"`) %>% 
-        replace_na(list(cat = 1)) %>% 
-        mutate(field = as_factor(field) %>% fct_reorder(., pr_ord) %>% fct_rev()) %>% 
-        mutate(cat = ifelse(field == "Sociology" & cat == 0, 0.79, cat)) %>% 
-        mutate(cat = ifelse(field == "Economics" & avail == "neither" & cat == 0, 0.79, cat))
-
-      cats$avail_collapsed <- str_to_title(ifelse(cats$avail=="code" | cats$avail=="data",
-                                                  "Either Code or Data",as.character(cats$avail)))
-      cats$avail_collapsed <- ordered(cats$avail_collapsed,
-                                      labels=c("Neither","Either Code Or Data","Both"),
-                                      levels=c("Neither","Either Code Or Data","Both"))
-      cats$avail <- ordered(cats$avail,
-                            labels=c("Neither","Code","Data","Both"),
-                            levels=c("neither","code","data","both"))
-      cats_rects <- cats %>%
-        group_by(field,avail,avail_collapsed) %>%
-        summarise(count=n())%>%
-        group_by(field) %>%
-        mutate(proportion=count/sum(count))
-      
-      cats_rects_chicklet <- cats_rects
-      
-      cats_rects_both <- cats_rects %>%
-        filter(avail=="Both") %>%
-        select(field,proportion) %>%
-        rename(ymin = proportion)
-      cats_rects_neither <- cats_rects %>%
-        filter(avail=="Neither") %>%
-        select(field,proportion) %>%
-        rename(ymax = proportion) %>%
-        mutate(ymax = 1-ymax)
-      
-      cats_rects <- cats_rects %>% 
-        left_join(cats_rects_both, by = "field") %>%
-        left_join(cats_rects_neither, by = "field") %>%
-        filter(avail_collapsed=="Either Code Or Data") %>%
-        group_by(field) %>%
-        mutate(p_code_or_data = count/sum(count))
-      
-      cats_rects$xmin <- ifelse(cats_rects$avail=="Code",
-                                as.numeric(cats_rects$field)-.45,
-                                as.numeric(cats_rects$field)+.45-.9*cats_rects$p_code_or_data)
-      cats_rects$xmax <- ifelse(cats_rects$avail=="Code",
-                                cats_rects$xmin+.9*cats_rects$p_code_or_data,
-                                as.numeric(cats_rects$field)+.45)
-    }
-    # Chart setup
-    {
-      palette_bars <- rev(c("grey90",palette_score_charts[1],
-                            palette_score_charts[2],
-                            palette_score_charts[5]))
-      
-      plot_grid(snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="bar chart",
-                                      palette_bars = palette_bars) + 
-                  funkyheatmap::geom_rounded_rect(data=cats_rects,inherit.aes = FALSE,
-                                                  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail),
-                                                  radius=unit(3, "points"),show.legend=FALSE) + 
-                  annotate("text",x=1,y=0.03,hjust=0,
-                           label="Both Data\nand Code",color="white")+
-                  annotate("text",x=1.25,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
-                             mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
-                           label="Data only",color="black",hjust=0)+
-                  annotate("text",x=.75,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
-                             mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
-                           label="Code only",color="black",hjust=0)+
-                  annotate("text",x=1,y=0.97,hjust=1,
-                           label="Neither Data\nnor Code",color="black")+
-                  geom_segment(aes(x=1-(cats_rects[cats_rects$field=="Political science" & cats_rects$avail=="Code",]$p_code_or_data)*.9,
-                                   xend=1,
-                                   y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data"),
-                                   yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05),
-                               color="grey50",linetype=3) +
-                  geom_segment(aes(x=1,
-                                   xend=1,
-                                   y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data")+ .05,
-                                   yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .1),
-                               color="grey50",linetype=3),
-                snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="snake bin chart",
-                                      palette_snakebins = palette_bars),
-                align = c("h"),rel_widths = c(4,1))
-    }
+  output$pr_outcomes_by_field <- renderPlot({
+    data <- pr_outcomes %>% 
+      filter(!covid) %>% 
+      mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
+      mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
+      mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
+      mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
+      select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
+      pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      filter(response)
+    
+    data <- merge(data,paper_metadata[c("paper_id","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+    data$field <- str_to_title(data$COS_pub_category)
+    group_order <- unique(data$field)
+    data$field <- ordered(data$field,levels=group_order,labels=group_order)
+    
+    data$cat <- ordered(data$cat,
+                        levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
+                                   "d_only_sharing","no_data_code_available","no_data_no_code"),
+                        labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
+                                   "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                                   "Data shared directly,\ncode unavailable",
+                                   "Data unavailable,\ncode available",
+                                   "Neither data nor\ncode available")
+                        
+                        
+    )
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- c("Both","Both","Both",
+                                "Either",
+                                "Either",
+                                "Either",
+                                "Neither")
+    nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+    
+    nesting.structure$cat <- ordered(nesting.structure$cat)
+    nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+    nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    
+    plotlist <- lapply(1:length(group_order),function(x) 
+      bars.and.snakebins(data[data$field==group_order[x],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         display_axis = FALSE,
+                         n_bins = 3,
+                         n_bins_max = 200,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot+
+        theme(axis.title.y=element_text())+
+        ylab(group_order[x])
+    )
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data,nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         axis_only = TRUE,
+                         n_bins = 3,
+                         n_bins_max = 200,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data,nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         legend=TRUE,
+                         legend.color = c("white","white","black","white","black","black","black"),
+                         display_axis=FALSE,
+                         #n_bins = 3,
+                         n_bins_max = 200,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot+
+      geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
+      geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
+      geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+      ylim(0,1.2)+
+      annotate("text",x=1/6,y=1.05,label="Both Code and Data",color="black",size=3.7,vjust=0)+
+      annotate("text",x=1/2,y=1.05,label="Either Code or Data",color="black",size=3.7,vjust=0)+
+      annotate("text",x=5/6,y=1.05,label="Neither Code nor Data",color="black",size=3.7,vjust=0)+
+      annotate("text",x=2/3+.02,
+               y=.25,label="Data only",
+               color="black",size=3.7,hjust=0)+
+      annotate("text",x=2/3+.02,
+               y=.75,label="Code only",
+               color="black",size=3.7,hjust=0)
+    plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist)-1),3))
+    
   })
   
-  output$code_and_data_by_field <- renderPlot({
-    # Data setup
-    {
-      pr <- pr_outcomes %>% filter(!covid) %>% 
-        select(paper_id, data_available, code_available) %>% 
-        rename(d = data_available, code = code_available) %>%
-        mutate(
-          across(
-            .cols = c(d, code),
-            .fns = function(x) str_detect(x, "Yes")
-          )
-        ) %>% 
-        left_join(paper_metadata %>% select(paper_id, pub_year,COS_pub_category), by = "paper_id") %>% 
-        mutate(field = str_to_sentence(COS_pub_category)) %>% 
-        mutate(
-          avail = case_when(
-            d & !code ~ "data",
-            !d & code ~ "code",
-            d & code ~ "both",
-            !d & !code ~ "neither"
-          )
-        ) %>% 
-        mutate(avail = as_factor(avail) %>% fct_relevel(., "code", "data", "both", "neither")) %>% 
-        group_by(field) %>% mutate(pr_ord = mean(avail == "both")) %>% 
-        ungroup() %>% group_by(avail != "neither") %>% 
-        arrange(avail) %>% ungroup() %>% select(-`avail != "neither"`)
+  output$pr_outcomes_by_year <- renderPlot({
+    data <- pr_outcomes %>% 
+      filter(!covid) %>% 
+      mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
+      mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
+      mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
+      mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
+      select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
+      pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      filter(response)
+    
+    data <- merge(data,paper_metadata[c("paper_id","pub_year")],by="paper_id",all.x =TRUE,all.y=FALSE)
+    group_order <- seq(min(data$pub_year),max(data$pub_year,1))
+    data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
+    
+    data$cat <- ordered(data$cat,
+                        levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
+                                   "d_only_sharing","no_data_code_available","no_data_no_code"),
+                        labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
+                                   "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                                   "Data shared directly,\ncode unavailable",
+                                   "Data unavailable,\ncode available",
+                                   "Neither data nor\ncode available")
+                        
+                        
+    )
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- c("Both","Both","Both",
+                                "Either",
+                                "Either",
+                                "Either",
+                                "Neither")
+    nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+    
+    nesting.structure$cat <- ordered(nesting.structure$cat)
+    nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+    nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    
+    plotlist <- lapply(1:length(group_order),function(x) 
+      bars.and.snakebins(data[data$pub_year==group_order[x],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         display_axis = FALSE,
+                         n_bins = 3,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot+
+        theme(axis.title.y=element_text())+
+        ylab(group_order[x])
+    )
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         axis_only = TRUE,
+                         n_bins = 3,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         legend=TRUE,
+                         legend.color = c("white","white","black","white","black","black","black"),
+                         display_axis=FALSE,
+                         #n_bins = 3,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot+
+      geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
+      geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
+      geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+      ylim(0,1.2)+
+      annotate("text",x=1/6,y=1.05,label="Both Code and Data",color="black",size=3.7,vjust=0)+
+      annotate("text",x=1/2,y=1.05,label="Either Code or Data",color="black",size=3.7,vjust=0)+
+      annotate("text",x=5/6,y=1.05,label="Neither Code nor Data",color="black",size=3.7,vjust=0)+
+      annotate("text",x=2/3+.02,
+               y=.25,label="Data only",
+               color="black",size=3.7,hjust=0)+
+      annotate("text",x=2/3+.02,
+               y=.75,label="Code only",
+               color="black",size=3.7,hjust=0)
+    plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist)-1),3))
+    
+  })
+  
+  output$pr_outcomes_overall <- renderPlot({
+    data <- pr_outcomes %>% 
+      filter(!covid) %>% 
+      mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
+      mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
+      mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
+      mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
+      select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
+      pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      filter(response)
+    
+    data$cat <- ordered(data$cat,
+                        levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
+                                   "d_only_sharing","no_data_code_available","no_data_no_code"),
+                        labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
+                                   "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                                   "Data shared directly,\ncode unavailable",
+                                   "Data unavailable,\ncode available",
+                                   "Neither data nor\ncode available")
+                        
+                        
+    )
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- c("Open data,\ncode available", "Data restricted,\ncode available", 
+                                "Data shared directly,\ncode available", "Either data\nor code",
+                                "Either data\nor code",
+                                "Either data\nor code",
+                                "Neither data\nnor code")
+    nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+    
+    
+    nesting.structure$cat4 <- c("Both", "Both", "Both",
+                                "Either",
+                                "Either",
+                                "Either",
+                                "Neither")
+    
+    plot <- bars.and.snakebins(data,nesting.structure,
+                               # chart.palette = rev(c("grey75",palette_score_charts[1],
+                               #                        palette_score_charts[2],palette_score_charts[2],
+                               #                        palette_score_charts[5],palette_score_charts[5],palette_score_charts[5])),
+                               chart.palette = c(palette_score_charts[5],
+                                                 lighten(palette_score_charts[5],amount=.25),
+                                                 lighten(palette_score_charts[5],amount=.5),
+                                                 palette_score_charts[2],
+                                                 lighten(palette_score_charts[2],amount=.25),
+                                                 palette_score_charts[1],
+                                                 "grey80"
+                               ),
+                               display_axis = TRUE,
+                               #n_bins = 5,
+                               n_bins_max = 650,
+                               bin_width_x = .01,
+                               bins_offset = .2)$plot
+    cats_rects <- bars.and.snakebins(data,nesting.structure)$cats_rects
+    cats_rects$cat4 <- c("Both","Both","Both","Either","Either","Either","Neither")
+    
+    cats_rects_collapsed <- cats_rects %>%
+      group_by(cat4) %>%
+      summarise(xmin = min(xmin),
+                xmax = max(xmax),
+                ymin = min(ymin),
+                ymax = max(ymax),
+                n=sum(count))
+    plot +
+      funkyheatmap::geom_rounded_rect(data=cats_rects_collapsed,inherit.aes = FALSE,
+                                      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+                                      radius=unit(3, "points"),show.legend=FALSE,
+                                      alpha=0,
+                                      #size=1,
+                                      size=0,
+                                      color="black")+
       
-      cats <- pr %>% 
-        group_by(field, avail != "neither") %>% 
-        mutate(rn = row_number()) %>% 
-        mutate(cat = percent_rank(rn)) %>% 
-        ungroup() %>% select(-`avail != "neither"`) %>% 
-        replace_na(list(cat = 1)) %>% 
-        mutate(field = as_factor(field) %>% fct_reorder(., pr_ord) %>% fct_rev()) %>% 
-        mutate(cat = ifelse(field == "Sociology" & cat == 0, 0.79, cat)) %>% 
-        mutate(cat = ifelse(field == "Economics" & avail == "neither" & cat == 0, 0.79, cat))
-      
-      cats$avail_collapsed <- str_to_title(ifelse(cats$avail=="code" | cats$avail=="data",
-                                                  "Either Code or Data",as.character(cats$avail)))
-      cats$avail_collapsed <- ordered(cats$avail_collapsed,
-                                      labels=c("Neither","Either Code Or Data","Both"),
-                                      levels=c("Neither","Either Code Or Data","Both"))
-      cats$avail <- ordered(cats$avail,
-                            labels=c("Neither","Code","Data","Both"),
-                            levels=c("neither","code","data","both"))
-      cats_rects <- cats %>%
-        group_by(field,avail,avail_collapsed) %>%
-        summarise(count=n())%>%
-        group_by(field) %>%
-        mutate(proportion=count/sum(count))
-      
-      cats_rects_chicklet <- cats_rects
-      
-      cats_rects_both <- cats_rects %>%
-        filter(avail=="Both") %>%
-        select(field,proportion) %>%
-        rename(ymin = proportion)
-      cats_rects_neither <- cats_rects %>%
-        filter(avail=="Neither") %>%
-        select(field,proportion) %>%
-        rename(ymax = proportion) %>%
-        mutate(ymax = 1-ymax)
-      
-      cats_rects <- cats_rects %>% 
-        left_join(cats_rects_both, by = "field") %>%
-        left_join(cats_rects_neither, by = "field") %>%
-        filter(avail_collapsed=="Either Code Or Data") %>%
-        group_by(field) %>%
-        mutate(p_code_or_data = count/sum(count))
-      
-      cats_rects$xmin <- ifelse(cats_rects$avail=="Code",
-                                as.numeric(cats_rects$field)-.45,
-                                as.numeric(cats_rects$field)+.45-.9*cats_rects$p_code_or_data)
-      cats_rects$xmax <- ifelse(cats_rects$avail=="Code",
-                                cats_rects$xmin+.9*cats_rects$p_code_or_data,
-                                as.numeric(cats_rects$field)+.45)
-    }
-    # Chart setup
-    {
-      palette_bars <- rev(c("grey90",palette_score_charts[1],
-                            palette_score_charts[2],
-                            palette_score_charts[5]))
-      
-      plot_grid(snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="bar chart",
-                                      palette_bars = palette_bars) + 
-                  funkyheatmap::geom_rounded_rect(data=cats_rects,inherit.aes = FALSE,
-                                                  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=avail),
-                                                  radius=unit(3, "points"),show.legend=FALSE) + 
-                  annotate("text",x=1,y=0.03,hjust=0,
-                           label="Both Data\nand Code",color="white")+
-                  annotate("text",x=1.25,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
-                             mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
-                           label="Data only",color="black",hjust=0)+
-                  annotate("text",x=.75,y=mean(cats[cats$field=="Political science",]$avail=="Both") +
-                             mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05,
-                           label="Code only",color="black",hjust=0)+
-                  annotate("text",x=1,y=0.97,hjust=1,
-                           label="Neither Data\nnor Code",color="black")+
-                  geom_segment(aes(x=1-(cats_rects[cats_rects$field=="Political science" & cats_rects$avail=="Code",]$p_code_or_data)*.9,
-                                   xend=1,
-                                   y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data"),
-                                   yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .05),
-                               color="grey50",linetype=3) +
-                  geom_segment(aes(x=1,
-                                   xend=1,
-                                   y=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data")+ .05,
-                                   yend=mean(cats[cats$field=="Political science",]$avail=="Both") + 
-                                     mean(cats[cats$field=="Political science",]$avail_collapsed=="Either Code Or Data") + .1),
-                               color="grey50",linetype=3),
-                snake_bar_n_bin_chart(cats,"field","avail",rounded = TRUE,output="snake bin chart",
-                                      palette_snakebins = palette_bars),
-                align = c("h"),rel_widths = c(4,1))
-    }
+      annotate("text",vjust=1,size=5.5,
+               x=c((cats_rects[cats_rects$cat=="Data shared directly,\ncode available",]$xmax+cats_rects[cats_rects$cat=="Open data,\ncode available",]$xmin)/2,
+                   (max(cats_rects[cats_rects$cat2=="Either data\nor code",]$xmax)+min(cats_rects[cats_rects$cat2=="Either data\nor code",]$xmin))/2,
+                   (cats_rects[cats_rects$cat=="Neither data nor\ncode available",]$xmax+cats_rects[cats_rects$cat=="Neither data nor\ncode available",]$xmin)/2),
+               y=c(1.3,1.3,1.3),
+               label=c("Both Data and\nCode Available",
+                       "Either Data or\nCode Available",
+                       "Neither Data nor\nCode Available")
+      )+
+      annotate("text",vjust=1,size=4,
+               x=c((cats_rects[cats_rects$cat=="Data shared directly,\ncode available",]$xmax+cats_rects[cats_rects$cat=="Open data,\ncode available",]$xmin)/2,
+                   (max(cats_rects[cats_rects$cat2=="Either data\nor code",]$xmax)+min(cats_rects[cats_rects$cat2=="Either data\nor code",]$xmin))/2,
+                   (cats_rects[cats_rects$cat=="Neither data nor\ncode available",]$xmax+cats_rects[cats_rects$cat=="Neither data nor\ncode available",]$xmin)/2),
+               y=c(1.13,1.13,1.13),
+               label=c(paste0(format.round((cats_rects_collapsed$xmax[3]-cats_rects_collapsed$xmin[3])*100,1),
+                              "%\nn = ",cats_rects_collapsed$n[3],
+                              " / ",sum(cats_rects_collapsed$n)),
+                       paste0(format.round((cats_rects_collapsed$xmax[2]-cats_rects_collapsed$xmin[2])*100,1),
+                              "%\nn = ",cats_rects_collapsed$n[2],
+                              " / ",sum(cats_rects_collapsed$n)),
+                       paste0(format.round((cats_rects_collapsed$xmax[1]-cats_rects_collapsed$xmin[1])*100,1),
+                              "%\nn = ",cats_rects_collapsed$n[1],
+                              " / ",sum(cats_rects_collapsed$n))))+
+      geom_segment(x=cats_rects_collapsed[cats_rects_collapsed$cat4=="Either",]$xmin,
+                   xend=cats_rects_collapsed[cats_rects_collapsed$cat4=="Either",]$xmin-.01,
+                   y=1.01,yend=1.1,
+                   linetype=3,inherit.aes=FALSE)+
+      geom_segment(x=cats_rects_collapsed[cats_rects_collapsed$cat4=="Either",]$xmax,
+                   xend=cats_rects_collapsed[cats_rects_collapsed$cat4=="Either",]$xmax+.01,
+                   y=1.01,yend=1.1,
+                   linetype=3,inherit.aes=FALSE)+
+      geom_segment(x=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$xmax,
+                   xend=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$xmax+.02,
+                   y=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$ymin,
+                   yend=0.5,
+                   linetype=3,inherit.aes=FALSE)+
+      geom_segment(x=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$xmax+.02,
+                   xend=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$xmax+.02+.05,
+                   y=0.5,
+                   yend=0.5,
+                   linetype=3,inherit.aes=FALSE)+
+      annotate("text",x=cats_rects$xcenter[1],y=cats_rects$ycenter[1],label=cats_rects$cat[1],color="white",size=3.7)+
+      annotate("text",x=cats_rects$xcenter[2],y=-.1,label=cats_rects$cat[2],color="black",size=3.7)+
+      annotate("text",x=cats_rects$xcenter[3],y=cats_rects$ycenter[3],label="Data shared\ndirectly,\nCode available",color="black",size=3.7)+
+      annotate("text",x=cats_rects$xcenter[4],y=cats_rects$ycenter[4],label="Open data,\nCode\nunavailable",color="white",size=3.7)+
+      annotate("text",x=cats_rects$xcenter[5],y=-.1,label=cats_rects$cat[5],color="black",size=3.7)+
+      annotate("text",x=cats_rects$xcenter[6],y=cats_rects$ycenter[6],label=cats_rects$cat[6],color="black",size=3.7)+
+      annotate("text",x=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$xmax+.03,
+               y=.75,label=paste0("Code only\n",
+                                  format.round((sum(cats_rects[cats_rects$cat3=="Code only",]$count,na.rm=TRUE)/ sum(cats_rects[!is.na(cats_rects$cat3),]$count,na.rm=TRUE))*100,1),
+                                  "%\nn = ",sum(cats_rects[cats_rects$cat3=="Code only",]$count,na.rm=TRUE),
+                                  " / ",sum(cats_rects[!is.na(cats_rects$cat3),]$count,na.rm=TRUE)),
+               color="black",size=3.7,hjust=0)+
+      annotate("text",x=cats_rects[!is.na(cats_rects$cat3)&cats_rects$cat3=="Code only",]$xmax+.03,
+               y=.25,label=paste0("Data only\n",
+                                  format.round((sum(cats_rects[cats_rects$cat3=="Data only",]$count,na.rm=TRUE)/ sum(cats_rects[!is.na(cats_rects$cat3),]$count,na.rm=TRUE))*100,1),
+                                  "%\nn = ",sum(cats_rects[cats_rects$cat3=="Data only",]$count,na.rm=TRUE),
+                                  " / ",sum(cats_rects[!is.na(cats_rects$cat3),]$count,na.rm=TRUE)),
+               color="black",size=3.7,hjust=0)+
+      annotate("text",vjust=0,
+               x=c(.1,.1,.1),
+               y=c(-.1,-.1,-.1),
+               label=c(" ",
+                       " ",
+                       " "))
+
+  })
+  
+  output$pr_outcomes_by_year_econ_vs <- renderPlot({
+    data <- pr_outcomes %>% 
+      filter(!covid) %>% 
+      mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
+      mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
+      mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
+      mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
+      mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
+      mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
+      select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
+      pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      filter(response)
+    
+    data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+    group_order <- seq(min(data$pub_year),max(data$pub_year,1))
+    data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
+    
+    data$cat <- ordered(data$cat,
+                        levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
+                                   "d_only_sharing","no_data_code_available","no_data_no_code"),
+                        labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
+                                   "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                                   "Data shared directly,\ncode unavailable",
+                                   "Data unavailable,\ncode available",
+                                   "Neither data nor\ncode available")
+    )
+    data.econ.poli <- data[data$COS_pub_category=="economics and finance" | data$COS_pub_category=="political science",]
+    data.other <- data[!data$COS_pub_category=="economics and finance" & !data$COS_pub_category=="political science",]
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- c("Both","Both","Both",
+                                "Either",
+                                "Either",
+                                "Either",
+                                "Neither")
+    nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+    
+    nesting.structure$cat <- ordered(nesting.structure$cat)
+    nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+    nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    
+    plotlist.left <- lapply(1:length(group_order),function(x) 
+      bars.and.snakebins(data.econ.poli[data.econ.poli$pub_year==group_order[x],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         display_axis = FALSE,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05,
+                         flip_x=TRUE)$plot+
+        theme(axis.title.y=element_blank())+
+        ylab(group_order[x])
+    )
+    plotlist.left[[length(plotlist.left)+1]] <-
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         axis_only = TRUE,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05,
+                         flip_x=TRUE)$plot
+    plot.left <- plot_grid(plotlist=plotlist.left,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist.left)-1),1))
+    
+    plotlist.right <- lapply(1:length(group_order),function(x) 
+      bars.and.snakebins(data.other[data.other$pub_year==group_order[x],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         display_axis = FALSE,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot+
+        theme(axis.title.y=element_blank())+
+        ylab(group_order[x])
+    )
+    plotlist.right[[length(plotlist.right)+1]] <-
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = c(palette_score_charts[5],
+                                           lighten(palette_score_charts[5],amount=.25),
+                                           lighten(palette_score_charts[5],amount=.5),
+                                           palette_score_charts[2],
+                                           lighten(palette_score_charts[2],amount=.25),
+                                           palette_score_charts[1],
+                                           "grey80"
+                         ),
+                         axis_only = TRUE,
+                         n_bins_max = 80,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    plot.right <- plot_grid(plotlist=plotlist.right,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist.right)-1),1))
+    
+    plotlist.center <- lapply(1:length(group_order),function(x) 
+      #ggplot()+theme_blank() +
+      ggplot()+theme_minimal() +
+        theme(legend.position = "none",
+              legend.title=element_blank(),
+              panel.border = element_blank(),
+              panel.grid = element_blank(),
+              axis.title=element_blank(),
+              axis.text = element_blank(),
+              axis.line = element_blank(),
+              axis.ticks = element_blank(),
+              plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+        lims(x= c(0,1), y = c(0,1))+
+        annotate("text",x=0.5,y=0.5,
+                 label=group_order[x])
+    )
+    plotlist.center[[length(plotlist.center)+1]] <-
+      ggplot()+theme_nothing() +
+      theme(legend.position = "none",
+            legend.title=element_blank(),
+            panel.border = element_blank(),
+            panel.grid = element_blank(),
+            axis.title=element_blank(),
+            axis.text = element_blank(),
+            axis.line = element_blank(),
+            axis.ticks = element_blank(),
+            plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+      scale_x_continuous(limits=c(0,1),expand=c(0,0))+
+      scale_y_continuous(limits=c(0,1),expand=c(0,0))+
+      annotate("text",x=0.5,y=0.5,
+               label=" ",hjust=0.5)
+    
+    plot.center <- plot_grid(plotlist=plotlist.center,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist.center)-1),0.5))
+    
+    width.ratio <- 8
+    
+    plot.top.labels <-
+      plot_grid(
+        ggplot()+theme_nothing() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title=element_blank(),
+                axis.text = element_blank(),
+                axis.line = element_blank(),
+                axis.ticks = element_blank(),
+                plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+          scale_x_continuous(limits=c(-1,0),expand=c(0,0))+
+          scale_y_continuous(limits=c(0,1),expand=c(0,0))+
+          annotate("text",x=-.5,y=0.5,
+                   label="Economics and Political Science",hjust=0.5),
+        ggplot()+theme_nothing() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title=element_blank(),
+                axis.text = element_blank(),
+                axis.line = element_blank(),
+                axis.ticks = element_blank(),
+                plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+          scale_x_continuous(limits=c(0,1),expand=c(0,0))+
+          scale_y_continuous(limits=c(0,1),expand=c(0,0))+
+          annotate("text",x=0.5,y=0.5,
+                   label=" "),
+        ggplot()+theme_nothing() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title=element_blank(),
+                axis.text = element_blank(),
+                axis.line = element_blank(),
+                axis.ticks = element_blank(),
+                plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+          scale_x_continuous(limits=c(0,1),expand=c(0,0))+
+          scale_y_continuous(limits=c(0,1),expand=c(0,0))+
+          annotate("text",x=0.5,y=0.5,
+                   label="All other fields",hjust=0.5),
+        ncol=3,rel_widths = c(width.ratio,1,width.ratio))
+    
+    plot.main <- plot_grid(plot.left,plot.center,plot.right,ncol=3,rel_widths = c(width.ratio,1,width.ratio))
+    
+    plot_grid(plot.top.labels,plot.main,
+              bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                                 chart.palette = c(palette_score_charts[5],
+                                                   lighten(palette_score_charts[5],amount=.25),
+                                                   lighten(palette_score_charts[5],amount=.5),
+                                                   palette_score_charts[2],
+                                                   lighten(palette_score_charts[2],amount=.25),
+                                                   palette_score_charts[1],
+                                                   "grey80"
+                                 ),
+                                 legend=TRUE,
+                                 legend.color = c("white","white","black","white","black","black","black"),
+                                 display_axis=FALSE,
+                                 #n_bins = 3,
+                                 n_bins_max = 80,
+                                 bin_width_x = .01,
+                                 bins_offset = .05)$plot+
+                geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
+                geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
+                geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+                ylim(0,1.2)+
+                annotate("text",x=1/6,y=1.05,label="Both Code and Data",color="black",size=3.7,vjust=0)+
+                annotate("text",x=1/2,y=1.05,label="Either Code or Data",color="black",size=3.7,vjust=0)+
+                annotate("text",x=5/6,y=1.05,label="Neither Code nor Data",color="black",size=3.7,vjust=0)+
+                annotate("text",x=2/3+.02,
+                         y=.25,label="Data only",
+                         color="black",size=3.7,hjust=0)+
+                annotate("text",x=2/3+.02,
+                         y=.75,label="Code only",
+                         color="black",size=3.7,hjust=0),
+              ncol=1,rel_heights = c(1/length(plotlist.left),1,3/length(plotlist.left)))
+  })
+  
+  output$or_outcomes_by_year <- renderPlot({
+    data <- merge(repro_outcomes[c("paper_id","claim_id","repro_outcome_overall")],pr_outcomes[c("paper_id","covid")],
+                  by="paper_id",all.x=TRUE,all.y=FALSE)
+    data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],
+                  by="paper_id",all.x =TRUE,all.y=FALSE)
+    
+    data<-data[data$covid!=TRUE,]
+    data$covid <- NULL
+    data <- data %>%
+      group_by(paper_id) %>%
+      mutate(weight=1/n())
+    data$field <- str_to_title(data$COS_pub_category)
+    group_order <- seq(min(data$pub_year),max(data$pub_year,1))
+    data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
+    data$repro_outcome_overall <- str_to_title(data$repro_outcome_overall)
+    
+    data$cat <- ordered(data$repro_outcome_overall,
+                        labels=c( "Push Button\nReproduced",
+                                  "Precisely\nReproduced",
+                                  "Approximately\nReproduced",
+                                  "Not\nReproduced",
+                                  "Not\nAttempted"),
+                        levels=c( "Push Button",
+                                  "Precise",
+                                  "Approximate",
+                                  "Not",
+                                  "None"))
+    
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- nesting.structure$cat
+    nesting.structure$cat3 <- nesting.structure$cat
+    
+    nesting.structure$cat <- ordered(nesting.structure$cat)
+    nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+    nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    
+    chart.palette <- c(palette_score_charts[1],
+                       palette_score_charts[4],
+                       palette_score_charts[3],
+                       palette_score_charts[2],
+                       "grey90")
+    
+    # Year by year plots
+    plotlist <- lapply(1:length(group_order),function(x) {
+      plot <- bars.and.snakebins(data[data$pub_year==group_order[x],],nesting.structure,
+                                 chart.palette = chart.palette,
+                                 display_axis = FALSE,
+                                 n_bins = 3,
+                                 n_bins_max = 100,
+                                 bin_width_x = .01,
+                                 bins_offset = .05)$plot+
+        theme(axis.title.y=element_text())+
+        ylab(group_order[x])
+      plot
+    })
+    # Blank / right axis
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = chart.palette,
+                         axis_only_style = "right",
+                         n_bins = 3,
+                         n_bins_max = 100,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    # Totals row
+      cats_rects <- bars.and.snakebins(data,nesting.structure,
+                                       chart.palette = chart.palette,
+                                       display_axis = FALSE,
+                                       n_bins = 3,
+                                       n_bins_max = 100,
+                                       bin_width_x = .01,
+                                       bins_offset = .05)$cats_rects
+      plotlist[[length(plotlist)+1]] <- 
+        bars.and.snakebins(data,nesting.structure,
+                           chart.palette = chart.palette,
+                           display_axis = FALSE,
+                           n_bins = 3,
+                           n_bins_max = 100,
+                           bin_width_x = .01,
+                           bins_offset = .05,
+                           blank_bins=TRUE)$plot+
+          theme(axis.title.y=element_text())+
+          ylab("Total")+
+        geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
+                  color=c("black","black","black","white","black"))
+    
+    # Axis row
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = chart.palette,
+                         axis_only_style = "left",
+                         n_bins = 3,
+                         n_bins_max = 100,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    
+    plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist)-3),0.5,1.2,0.5))
+    
+  })
+  
+  output$or_outcomes_by_field <- renderPlot({
+    data <- merge(repro_outcomes[c("paper_id","claim_id","repro_outcome_overall")],pr_outcomes[c("paper_id","covid")],
+                  by="paper_id",all.x=TRUE,all.y=FALSE)
+    data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],
+                  by="paper_id",all.x =TRUE,all.y=FALSE)
+    
+    data<-data[data$covid!=TRUE,]
+    data$covid <- NULL
+    data <- data %>%
+      group_by(paper_id) %>%
+      mutate(weight=1/n())
+    data$field <- str_to_title(data$COS_pub_category)
+    data$field <- str_replace_all(data$field," ","\n")
+    data$field <- str_replace_all(data$field,"And","and")
+    group_order <- unique(data$field)
+    data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
+    data$repro_outcome_overall <- str_to_title(data$repro_outcome_overall)
+    
+    data$cat <- ordered(data$repro_outcome_overall,
+                        labels=c( "Push Button\nReproduced",
+                                  "Precisely\nReproduced",
+                                  "Approximately\nReproduced",
+                                  "Not\nReproduced",
+                                  "Not\nAttempted"),
+                        levels=c( "Push Button",
+                                  "Precise",
+                                  "Approximate",
+                                  "Not",
+                                  "None"))
+    
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- nesting.structure$cat
+    nesting.structure$cat3 <- nesting.structure$cat
+    
+    nesting.structure$cat <- ordered(nesting.structure$cat)
+    nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+    nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    
+    chart.palette <- c(palette_score_charts[1],
+                       palette_score_charts[4],
+                       palette_score_charts[3],
+                       palette_score_charts[2],
+                       "grey90")
+    
+    # Main section
+    plotlist <- lapply(1:length(group_order),function(x) {
+      plot <- bars.and.snakebins(data[data$field==group_order[x],],nesting.structure,
+                                 chart.palette = chart.palette,
+                                 display_axis = FALSE,
+                                 n_bins = 3,
+                                 n_bins_max = 200,
+                                 bin_width_x = .01,
+                                 bins_offset = .05)$plot+
+        theme(axis.title.y=element_text(hjust=1))+
+        ylab(group_order[x])
+      plot
+    })
+    
+    # Blank/right axis
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = chart.palette,
+                         axis_only_style = "right",
+                         n_bins = 3,
+                         n_bins_max = 200,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    
+    # Totals row
+    cats_rects <- bars.and.snakebins(data,nesting.structure,
+                                     chart.palette = chart.palette,
+                                     display_axis = FALSE,
+                                     n_bins = 3,
+                                     n_bins_max = 200,
+                                     bin_width_x = .01,
+                                     bins_offset = .05)$cats_rects
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data,nesting.structure,
+                         chart.palette = chart.palette,
+                         display_axis = FALSE,
+                         n_bins = 3,
+                         n_bins_max = 200,
+                         bin_width_x = .01,
+                         bins_offset = .05,
+                         blank_bins=TRUE)$plot+
+      theme(axis.title.y=element_text(hjust=1))+
+      ylab("Total")+
+      geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
+                color=c("black","black","black","white","black"))
+    
+    # Left axis/blank
+    plotlist[[length(plotlist)+1]] <- 
+      bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                         chart.palette = chart.palette,
+                         axis_only_style = "left",
+                         n_bins = 3,
+                         n_bins_max = 200,
+                         bin_width_x = .01,
+                         bins_offset = .05)$plot
+    
+    plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(rep(1,length(plotlist)-3),0.5,1.2,0.5))
+    
   })
 
+  output$or_outcomes_by_year_and_field <- renderPlot({
+    data <- merge(repro_outcomes[c("paper_id","claim_id","repro_outcome_overall")],pr_outcomes[c("paper_id","covid")],
+                  by="paper_id",all.x=TRUE,all.y=FALSE)
+    data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],
+                  by="paper_id",all.x =TRUE,all.y=FALSE)
+    
+    #data<-data[data$covid!=TRUE & data$repro_outcome_overall!="none",]
+    data<-data[data$covid!=TRUE,]
+    data$covid <- NULL
+    data <- data %>%
+      group_by(paper_id) %>%
+      mutate(weight=1/n())
+    data$field <- str_to_title(data$COS_pub_category)
+    group_order <- seq(min(data$pub_year),max(data$pub_year,1))
+    data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
+    data$repro_outcome_overall <- str_to_title(data$repro_outcome_overall)
+    
+    data$cat <- ordered(data$repro_outcome_overall,
+                        labels=c( "Push Button\nReproduced",
+                                  "Precisely\nReproduced",
+                                  "Approximately\nReproduced",
+                                  "Not\nReproduced",
+                                  "Not\nAttempted"),
+                        levels=c( "Push Button",
+                                  "Precise",
+                                  "Approximate",
+                                  "Not",
+                                  "None"))
+    
+    # Define nesting structure
+    cat <- levels(data$cat)
+    nesting.structure <- data.frame(cat)
+    
+    nesting.structure$cat2 <- nesting.structure$cat
+    nesting.structure$cat3 <- nesting.structure$cat
+    
+    nesting.structure$cat <- ordered(nesting.structure$cat)
+    nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+    nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    
+    chart.palette <- c(palette_score_charts[1],
+                       palette_score_charts[4],
+                       palette_score_charts[3],
+                       palette_score_charts[2],
+                       "grey90")
+    
+    field <- unique(data$field)[1]
+    plotlist.ext <- lapply(unique(data$field),function(field) {
+      print(field)
+      plotlist <- lapply(1:length(group_order),function(x) {
+        plot <- bars.and.snakebins(data[data$pub_year==group_order[x] & data$field==field,],nesting.structure,
+                                   chart.palette = chart.palette,
+                                   display_axis = FALSE,
+                                   #n_bins = 3,
+                                   n_bins_max = 100,
+                                   bin_width_x = .01,
+                                   bins_offset = .05)$plot
+        
+        plot
+      }
+      
+      )
+      plotlist[[length(plotlist)+1]] <- 
+        bars.and.snakebins(data[data$pub_year==group_order[1],],nesting.structure,
+                           chart.palette = chart.palette,
+                           axis_only = TRUE,
+                           #n_bins = 3,
+                           n_bins_max = 100,
+                           bin_width_x = .01,
+                           bins_offset = .05)$plot+
+        scale_x_continuous(labels=c("0%","100%"),breaks=c(0,1))
+      
+      title <- ggdraw() + 
+        draw_label(
+          field,
+          #fontface = 'bold',
+          x = 0,
+          hjust = 0
+        ) +
+        theme(
+          plot.margin = margin(0, 0, 0, 0)
+        )
+      plot_grid(title,plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1,rep(1,length(plotlist)-1),1))
+    })
+    
+    year.labels <- c(" ",group_order," ")
+    plotlist.center <- lapply(1:length(year.labels),function(x) 
+      #ggplot()+theme_blank() +
+      ggplot()+theme_minimal() +
+        theme(legend.position = "none",
+              legend.title=element_blank(),
+              panel.border = element_blank(),
+              panel.grid = element_blank(),
+              axis.title=element_blank(),
+              axis.text = element_blank(),
+              axis.line = element_blank(),
+              axis.ticks = element_blank(),
+              plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+        lims(x= c(0,1), y = c(0,1))+
+        annotate("text",x=0.5,y=0.5,
+                 label=year.labels[x])
+    )
+    left.labels <- plot_grid(plotlist =plotlist.center,ncol=1)
+    
+    plot_grid(plot_grid(left.labels,plot_grid(plotlist=plotlist.ext,nrow=1),ncol=2,
+                        rel_widths = c(1/(2*length(unique(data$field))),1)),
+              bars.and.snakebins(data,nesting.structure,
+                                 chart.palette = chart.palette,
+                                 legend=TRUE,
+                                 display_axis = FALSE,
+                                 legend.color = c("black","black","black","white","black"),
+                                 n_bins_max = 100,
+                                 bin_width_x = .01,
+                                 bins_offset = .00)$plot+
+                scale_x_continuous(limits=c(0,1/4.9999))+
+                theme(axis.title.y=element_text(),
+                      plot.margin = margin(t = 0, r = 0, b = 0, l = 0))+
+                ylab(" "),
+              rel_heights = c(12,1.5),ncol=1)
+  })
+  
 }
 
 shinyApp(ui, server)
