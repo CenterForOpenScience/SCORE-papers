@@ -1,4 +1,4 @@
-repro_merge <- function(repro_data_entry,
+merge_repro <- function(repro_data_entry,
                         reproduction_cases) {
   
   new_cases <- select(reproduction_cases, -c("rr_repro_cos_notes", 

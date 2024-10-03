@@ -313,12 +313,26 @@ convert_chi <- function(chi_sq, n) {
   
 }
 
+# The lor argument should be orig_coef_value/repli_coef_value and the 
+# se argument should be orig_coef_se/repli_coef_se
+lor_to_r <- function(lor, se) {
+  lor_interval <- c(lor, lor - 1.96*se, lor + 1.96*se)
+  lor_interval %>%
+    logoddsratio_to_r() %>%
+    set_names(c("r", "CI_low", "CI_high")) %>%
+    enframe() %>%
+    pivot_wider(names_from = name, values_from = value) %>%
+    mutate(CI = "0.95", .before = CI_low)
+}
+
 # Run conversions
 convert_to_cosr <- function(data, key_id) {
   
   # All will be changed to correspond to outcomes variables
   stat_type <- names(select(data, ends_with("stat_type")))
   stat_value <- names(select(data, contains("stat_value")))
+  coef_value <- names(select(data, contains("coef_value")))
+  coef_se <- names(select(data, contains("coef_se")))
   sample_size <- names(select(data, contains("sample_size_value_effective")))
   df1 <- names(select(data, contains("df_1")))
   df2 <- names(select(data, contains("dof_2")))
@@ -330,6 +344,7 @@ convert_to_cosr <- function(data, key_id) {
   
   z_table <- data %>% 
     filter(!!as.name(stat_type) == "z") %>%
+    filter(is.na(lor_conversion)) %>%
     mutate(convert_r = z_to_r(get({{ stat_value }}),
                               get({{ sample_size }})))
   
@@ -354,7 +369,18 @@ convert_to_cosr <- function(data, key_id) {
                                   get({{ df1 }}),
                                   get({{ df2 }})))
   
-  rbind(t_table, F_table, cf_table, z_table, chi_table) %>%
+  lor_table <- data %>%
+    filter(!is.na(lor_conversion)) %>%
+    rowwise() %>%
+    mutate(convert_r = lor_to_r(get({{ coef_value }}),
+                                get({{ coef_se }})))
+  
+  rbind(t_table, 
+        F_table, 
+        cf_table, 
+        z_table, 
+        chi_table,
+        lor_table) %>%
     unnest(convert_r) %>%
     rename(cos_r = r,
            cos_r_lb = CI_low,

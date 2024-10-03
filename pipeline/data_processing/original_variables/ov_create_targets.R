@@ -7,7 +7,8 @@ export_orig <- function(orig_statistics_output_p2,
                         orig_statistics_manual_data_entry,
                         orig_vars_qa,
                         tagtable_covid_p1,
-                        orig_input_changelog) {
+                        orig_input_changelog,
+                        orig_cases) {
 
   orig_extended <- transform_orig_output(orig_statistics_output_p2)
 
@@ -15,7 +16,8 @@ export_orig <- function(orig_statistics_output_p2,
                    original_inftest_dataset,
                    orig_statistics_manual_data_entry,
                    orig_vars_qa,
-                   tagtable_covid_p1) %>%
+                   tagtable_covid_p1,
+                   orig_cases) %>%
     update_orig_input(orig_input_changelog) %>%
     mutate(
       # Prioritize which version of duplicates to keep
@@ -72,7 +74,8 @@ export_orig <- function(orig_statistics_output_p2,
 create_ov_analytic <- function(orig_dataset,
                                complex_bushel,
                                effectsize_orig,
-                               effectsize_outcome) {
+                               effectsize_outcome,
+                               repli_outcomes) {
   
   bushel <- transform_complex_bushel(complex_bushel)
 
@@ -232,7 +235,9 @@ create_ov_analytic <- function(orig_dataset,
            cos_r_ub = r_ub) %>%
     filter(claim_id %in% orig$claim_id)
   
-  effect_sizes <- convert_to_cosr(orig, "claim_id")
+  effect_sizes <- orig %>%
+    filter(claim_id %in% repli_outcomes$claim_id) %>%
+    convert_to_cosr("claim_id")
   
   orig %>%
     left_join(effect_sizes, by = "claim_id") %>%

@@ -77,12 +77,3 @@
 # }
 # 
 
-transform_repli_cases <- function(replication_cases) {
-  
-  # Bring in extra many labs replication cases
-  repli_cases <- replication_cases %>%
-    mutate(rr_stat_version = 1,
-           sample_preference = NA, # Not sure what these should be yet
-           ml_preference = "ml_aggregation") %>%
-    rename()
-}

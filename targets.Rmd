@@ -391,6 +391,11 @@ list(
                                repli_cases_moddate,
                                sheet = "repro_export")),
   
+  tar_target(orig_cases,
+             read_google_sheet(repli_cases_gsheet,
+                               repli_cases_moddate,
+                               sheet = "orig_dataset")),
+  
   # File: SCORE-P2-081: Variable form - replications (Responses)
   tar_target(replication_qa_gsheet,
              "1Cs7iFLA29JwVDfp8DY0ZIaTlRTTnK0KsFSudLDHxjFQ"),
@@ -607,26 +612,6 @@ list(
 )
 ```
 
-Original variables data. QC'ed and merged. 
-
-```{targets processed-ov}
-list(
-  tar_target(orig_dataset,
-             export_orig(orig_statistics_output_p2,
-                             orig_statistics_dataset_p1,
-                             original_inftest_dataset,
-                             orig_statistics_manual_data_entry,
-                             orig_vars_qa,
-                             tagtable_covid_p1,
-                             orig_input_changelog)),
-  tar_target(orig_outcomes,
-             create_ov_analytic(orig_dataset,
-                                complex_bushel,
-                                effectsize_orig,
-                                effectsize_outcome))
-)
-```
-
 Replications/Reproductions variables data. QC'ed and merged.
 
 ```{targets processed-rr}
@@ -659,7 +644,7 @@ list(
                                    rr_statistics_output_p2,
                                    status,
                                    stitched_claims,
-                                  effectsize_outcome)),
+                                   effectsize_outcome)),
   
   # Reproduction targets ----
   # Transformed data from forms
@@ -671,13 +656,13 @@ list(
              transform_repro_claims(prereg_checkin_repro)),
   
   # Merge with additional cases
-  tar_target(repro_merge,
-             repro_merge(repro_data_entry,
+  tar_target(repro_merged,
+             merge_repro(repro_data_entry,
                          reproduction_cases)),
   
   # Update transformed data from forms
   tar_target(repro_export,
-             update_repro(repro_merge,
+             update_repro(repro_merged,
                           p2_repro_input_changelog)),
   
   # Create repro supplement
@@ -691,6 +676,28 @@ list(
              create_repro_analytic(repro_export,
                                    repro_supplement))
   
+)
+```
+
+Original variables data. QC'ed and merged. 
+
+```{targets processed-ov}
+list(
+  tar_target(orig_dataset,
+             export_orig(orig_statistics_output_p2,
+                         orig_statistics_dataset_p1,
+                         original_inftest_dataset,
+                         orig_statistics_manual_data_entry,
+                         orig_vars_qa,
+                         tagtable_covid_p1,
+                         orig_input_changelog,
+                         orig_cases)),
+  tar_target(orig_outcomes,
+             create_ov_analytic(orig_dataset,
+                                complex_bushel,
+                                effectsize_orig,
+                                effectsize_outcome,
+                                repli_outcomes))
 )
 ```
 

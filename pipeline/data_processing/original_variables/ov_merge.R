@@ -3,12 +3,14 @@ merge_orig_input <- function(orig_statistics_dataset_p1,
                              original_inftest_dataset,
                              orig_statistics_manual_data_entry,
                              orig_vars_qa,
-                             tagtable_covid_p1) {
+                             tagtable_covid_p1,
+                             orig_cases) {
 
   map(list(transform_orig_p1(orig_statistics_dataset_p1),
            transform_orig_inftest(original_inftest_dataset),
            transform_orig_manual(orig_statistics_manual_data_entry),
-           transform_orig_qa(orig_vars_qa)),
+           transform_orig_qa(orig_vars_qa),
+           orig_cases),
       \(x) select(x,
                   any_of(c(
                     # keys and reference variables
