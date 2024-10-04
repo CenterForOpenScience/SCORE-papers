@@ -75,9 +75,13 @@ create_ov_analytic <- function(orig_dataset,
                                complex_bushel,
                                effectsize_orig,
                                effectsize_outcome,
-                               repli_outcomes) {
+                               repli_export) {
   
   bushel <- transform_complex_bushel(complex_bushel)
+  
+  repli_ids <- repli_export %>% 
+    mutate(claim_id = str_c(paper_id, "_", claim_id)) %>%
+    pull(claim_id)
 
   orig <- orig_dataset %>%
     left_join(effectsize_orig, by = join_by(unique_claim_id == claim_id)) %>%
@@ -236,7 +240,7 @@ create_ov_analytic <- function(orig_dataset,
     filter(claim_id %in% orig$claim_id)
   
   effect_sizes <- orig %>%
-    filter(claim_id %in% repli_outcomes$claim_id) %>%
+    filter(claim_id %in% repli_ids) %>%
     convert_to_cosr("claim_id")
   
   orig %>%

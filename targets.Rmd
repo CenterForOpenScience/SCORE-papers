@@ -697,7 +697,7 @@ list(
                                 complex_bushel,
                                 effectsize_orig,
                                 effectsize_outcome,
-                                repli_outcomes))
+                                repli_export))
 )
 ```
 
