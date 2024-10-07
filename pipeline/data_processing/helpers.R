@@ -305,12 +305,13 @@ convert_chi <- function(chi_sq, n) {
                           ncol = 2,
                           adjust = F,
                           alternative = "two.sided") %>%
-    pull(Cramers_v)
-  se_r <- sqrt((1 - r^2)/(n - 2))
-  ci_low <- r - 1.96*se_r
-  ci_high <- r + 1.96*se_r
-  
-  tibble(r = r, CI = NA, CI_low = ci_low, CI_high = ci_high)
+    rename(r = Cramers_v)
+  #   pull(Cramers_v)
+  # se_r <- sqrt((1 - r^2)/(n - 2))
+  # ci_low <- r - 1.96*se_r
+  # ci_high <- r + 1.96*se_r
+  # 
+  # tibble(r = r, CI = NA, CI_low = ci_low, CI_high = ci_high)
   
 }
 
