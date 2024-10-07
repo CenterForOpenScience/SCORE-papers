@@ -303,7 +303,8 @@ convert_chi <- function(chi_sq, n) {
                           n,
                           nrow = 2,
                           ncol = 2,
-                          adjust = F) %>%
+                          adjust = F,
+                          alternative = "two.sided") %>%
     pull(Cramers_v)
   se_r <- sqrt((1 - r^2)/(n - 2))
   ci_low <- r - 1.96*se_r
