@@ -306,12 +306,7 @@ convert_chi <- function(chi_sq, n) {
                           adjust = F,
                           alternative = "two.sided") %>%
     rename(r = Cramers_v)
-  #   pull(Cramers_v)
-  # se_r <- sqrt((1 - r^2)/(n - 2))
-  # ci_low <- r - 1.96*se_r
-  # ci_high <- r + 1.96*se_r
-  # 
-  # tibble(r = r, CI = NA, CI_low = ci_low, CI_high = ci_high)
+
   
 }
 
@@ -341,6 +336,7 @@ convert_to_cosr <- function(data, key_id) {
   
   t_table <- data %>%
     filter(!!as.name(stat_type) == "t") %>%
+    filter(is.na(lor_conversion)) %>%
     mutate(convert_r = t_to_r(get({{ stat_value }}),
                               get({{ df1 }})))
   
@@ -353,6 +349,7 @@ convert_to_cosr <- function(data, key_id) {
   chi_table <- data %>%
     filter(!!as.name(stat_type) == "chi_squared" |
              !!as.name(stat_type) == "delta_g_squared") %>%
+    filter(is.na(lor_conversion)) %>%
     mutate(convert_r = convert_chi(get({{ stat_value }}),
                                    get({{ sample_size }})))
   
