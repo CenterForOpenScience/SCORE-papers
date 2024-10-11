@@ -53,7 +53,8 @@ create_repro_analytic <- function(repro_export,
       repro_upper_effect,
       repro_outcome_effect,
       repro_outcome_overall,
-      repro_secondary_criteria
+      repro_secondary_criteria,
+      is_covid
     )
 
 }

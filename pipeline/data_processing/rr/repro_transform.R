@@ -17,7 +17,8 @@ transform_repro_input <- function(reproduction_qa) {
                              "(?<=_)[:alnum:]*(?=[:blank:])"),
       claim_id = str_c(paper_id,
                        "_",
-                       c4_claim_id)
+                       c4_claim_id),
+      is_covid = str_detect(asana_ticket_name, "covid")
     ) %>%
     select(paper_id,
            claim_id,
@@ -37,7 +38,8 @@ transform_repro_input <- function(reproduction_qa) {
            rr_repro_pattern_description_reported,
            rr_repro_analyst_success_reported,
            unique_report_id,
-           rr_stat_version)
+           rr_stat_version,
+           is_covid)
   
 }
 
