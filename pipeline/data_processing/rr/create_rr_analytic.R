@@ -63,8 +63,6 @@ create_repli_analytic <- function(repli_export,
                "manylabs_type")
   
   repli <- repli_export %>%
-    filter(rr_type_internal %in% c("Direct Replication",
-                                   "Data Analytic Replication")) %>%
     select(-c(sample_preference, 
               ml_preference, 
               rr_type_internal)) %>%
