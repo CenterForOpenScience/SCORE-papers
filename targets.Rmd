@@ -550,7 +550,17 @@ list(
              create_id_list(status,
                             tagtable_covid_p1,
                             finalized_claim4_table,
-                            rr_projects))
+                            rr_projects)),
+  # Temp rr project list
+  tar_target(all_rr_attempts_gsheet,
+             "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),
+  tar_target(all_rr_attempts_moddate,
+             get_google_mod_date(all_rr_attempts_gsheet),
+             cue = tar_cue("always")),
+  tar_target(all_rr_attempts,
+             read_google_sheet(all_rr_attempts_gsheet,
+                               all_rr_attempts_moddate,
+                               sheet = "full_sweep"))
   # 
   # tar_target(id_key,
   #            create_id_key(covid_ta2,
