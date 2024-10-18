@@ -13,25 +13,15 @@
                                      by="claim_id",all.x=TRUE,all.y=FALSE)
       
       pr_outcomes <- merge(pr_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
-
+      
+      repro_papers <- pr_outcomes[pr_outcomes$covid==FALSE,][c(
+        "paper_id"
+      )]
+      repro_papers <- merge(repro_papers,paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year")],
+                                     by="paper_id",all.x=TRUE,all.y=FALSE)
+      
     }
-    
-    # pr_outcomes
-    # binary data_shared
-    # categorical data_shared_type
-    # binary code_shared
-    # categorical code_shared_type
-    
-    # repro_outcomes
-    # binary outcome_reproduced
-    # categorical outcome_repro_result_type
-    # categorical outcome_repro_analyst_interp_type
-    
-    # paper_metadata
-    # make COS_pub_category the original 10 field designations
-    # categorical field, (the collapsed 6 field designation)
-    # is_covid (move this here; easier to deal with as paper metadata)
-    
+
     # New key variables
     {
       pr_outcomes_modified <- pr_outcomes %>% 
@@ -46,21 +36,37 @@
                                     labels=c("available online","not shared","shared by authors privately","shared by authors publicly")),
         )
       
-      pr %>% 
-        group_by(COS_pub_category) %>% 
-        count(data_shared) %>% 
-        mutate(tot = sum(n)) %>% 
-        ungroup() %>% 
-        mutate(prop = n/tot) %>% 
-        select(-n, -tot) %>% 
-        pivot_wider(names_from = data_shared, values_from = prop) %>% 
-        mutate(across(.cols = everything(), .fns = function(x) ifelse(is.na(x), 0, x))) %>% 
-        arrange(desc(no)) %>% 
-        mutate(idx = row_number()) %>% 
-        pivot_longer(cols = -c(COS_pub_category, idx), names_to = "data_shared", values_to = "prop") %>% 
-        mutate(
-          data_shared = as_factor(data_shared) %>% fct_relevel(., "no", "shared", "available_online"),
-        )
+      repro_outcomes_merged$field <- str_to_title(repro_outcomes_merged$COS_pub_category)
+      repro_outcomes_merged$field <- str_replace_all(repro_outcomes_merged$field,"And","and")
+      repro_outcomes_merged$field <- ordered(repro_outcomes_merged$field,
+                                             levels=sort(unique(repro_outcomes_merged$field)),labels=sort(unique(repro_outcomes_merged$field)))
+      
+      repro_papers$field <- str_to_title(repro_papers$COS_pub_category)
+      repro_papers$field <- str_replace_all(repro_papers$field,"And","and")
+      repro_papers$field <- ordered(repro_papers$field,
+                                             levels=sort(unique(repro_papers$field)),labels=sort(unique(repro_papers$field)))
+      
+      pr_outcomes_modified$field <- str_to_title(pr_outcomes_modified$COS_pub_category)
+      pr_outcomes_modified$field <- str_replace_all(pr_outcomes_modified$field,"And","and")
+      pr_outcomes_modified$field <- ordered(pr_outcomes_modified$field,
+                                    levels=sort(unique(pr_outcomes_modified$field)),labels=sort(unique(pr_outcomes_modified$field)))
+      
+      #pr %>% 
+      # pr_outcomes_modified %>% 
+      #   group_by(COS_pub_category) %>% 
+      #   count(data_shared) %>% 
+      #   mutate(tot = sum(n)) %>% 
+      #   ungroup() %>% 
+      #   mutate(prop = n/tot) %>% 
+      #   select(-n, -tot) %>% 
+      #   pivot_wider(names_from = data_shared, values_from = prop) %>% 
+      #   mutate(across(.cols = everything(), .fns = function(x) ifelse(is.na(x), 0, x))) %>% 
+      #   arrange(desc(no)) %>% 
+      #   mutate(idx = row_number()) %>% 
+      #   pivot_longer(cols = -c(COS_pub_category, idx), names_to = "data_shared", values_to = "prop") %>% 
+      #   mutate(
+      #     data_shared = as_factor(data_shared) %>% fct_relevel(., "no", "shared", "available_online"),
+      #   )
     }
     
     # Stats
@@ -130,6 +136,75 @@
         
         n_claims_passed_process_repro <- sum(pr_outcomes$process_reproducible=="Yes")
         
+        # Table 2
+        {
+          data.table_2_col_1 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE,]
+          table_2_col_1 <- c(do.call(c,lapply(levels(data.table_2_col_1$field),function(field) {
+            n <- length(unique(data.table_2_col_1[data.table_2_col_1$field==field,]$publication_standard))
+            paste0(n," (",format.round(100*n/length(unique(data.table_2_col_1$publication_standard)),1),"%)")
+          })),paste0(length(unique(data.table_2_col_1$publication_standard))," (100%)")
+          )
+          for(x in 1:length(table_2_col_1)) {assign(paste0("table_2_",x,"_1"),table_2_col_1[x])}
+          
+          data.table_2_col_2 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE,]
+          table_2_col_2 <- c(do.call(c,lapply(levels(data.table_2_col_2$field),function(field) {
+            n <- length(unique(data.table_2_col_2[data.table_2_col_2$field==field,]$paper_id))
+            paste0(n," (",format.round(100*n/length(unique(data.table_2_col_2$paper_id)),1),"%)")
+          })),paste0(length(unique(data.table_2_col_2$paper_id))," (100%)")
+          )
+          for(x in 1:length(table_2_col_2)) {assign(paste0("table_2_",x,"_2"),table_2_col_2[x])}
+          
+          data.table_2_col_3 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE & pr_outcomes_modified$OA_data_shared!="no",]
+          table_2_col_3 <- c(do.call(c,lapply(levels(data.table_2_col_3$field),function(field) {
+            n <- length(unique(data.table_2_col_3[data.table_2_col_3$field==field,]$paper_id))
+            paste0(n," (",format.round(100*n/length(unique(data.table_2_col_3$paper_id)),1),"%)")
+          })),paste0(length(unique(data.table_2_col_3$paper_id))," (100%)")
+          )
+          for(x in 1:length(table_2_col_3)) {assign(paste0("table_2_",x,"_3"),table_2_col_3[x])}
+          
+          data.table_2_col_4 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE & pr_outcomes_modified$paper_id %in% repro_outcomes$paper_id,]
+          table_2_col_4 <- c(do.call(c,lapply(levels(data.table_2_col_4$field),function(field) {
+            n <- length(unique(data.table_2_col_4[data.table_2_col_4$field==field,]$paper_id))
+            paste0(n," (",format.round(100*n/length(unique(data.table_2_col_4$paper_id)),1),"%)")
+          })),paste0(length(unique(data.table_2_col_4$paper_id))," (100%)")
+          )
+          for(x in 1:length(table_2_col_4)) {assign(paste0("table_2_",x,"_4"),table_2_col_4[x])}
+        }
+        
+        # Table 3
+        {
+          data.table_3_col_1 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE,]
+          table_3_col_1 <- c(do.call(c,lapply(sort(unique(data.table_3_col_1$pub_year)),function(pub_year) {
+            n <- length(unique(data.table_3_col_1[data.table_3_col_1$pub_year==pub_year,]$publication_standard))
+            paste0(n," (",format.round(100*n/length(unique(data.table_3_col_1$publication_standard)),1),"%)")
+          })),paste0(length(unique(data.table_3_col_1$publication_standard))," (100%)")
+          )
+          for(x in 1:length(table_3_col_1)) {assign(paste0("table_3_",x,"_1"),table_3_col_1[x])}
+          
+          data.table_3_col_2 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE,]
+          table_3_col_2 <- c(do.call(c,lapply(sort(unique(data.table_3_col_2$pub_year)),function(pub_year) {
+            n <- length(unique(data.table_3_col_2[data.table_3_col_2$pub_year==pub_year,]$paper_id))
+            paste0(n," (",format.round(100*n/length(unique(data.table_3_col_2$paper_id)),1),"%)")
+          })),paste0(length(unique(data.table_3_col_2$paper_id))," (100%)")
+          )
+          for(x in 1:length(table_3_col_2)) {assign(paste0("table_3_",x,"_2"),table_3_col_2[x])}
+          
+          data.table_3_col_3 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE & pr_outcomes_modified$OA_data_shared!="no",]
+          table_3_col_3 <- c(do.call(c,lapply(sort(unique(data.table_3_col_3$pub_year)),function(pub_year) {
+            n <- length(unique(data.table_3_col_3[data.table_3_col_3$pub_year==pub_year,]$paper_id))
+            paste0(n," (",format.round(100*n/length(unique(data.table_3_col_3$paper_id)),1),"%)")
+          })),paste0(length(unique(data.table_3_col_3$paper_id))," (100%)")
+          )
+          for(x in 1:length(table_3_col_3)) {assign(paste0("table_3_",x,"_3"),table_3_col_3[x])}
+          
+          data.table_3_col_4 <- pr_outcomes_modified[pr_outcomes_modified$covid==FALSE & pr_outcomes_modified$paper_id %in% repro_outcomes$paper_id,]
+          table_3_col_4 <- c(do.call(c,lapply(sort(unique(data.table_3_col_4$pub_year)),function(pub_year) {
+            n <- length(unique(data.table_3_col_4[data.table_3_col_4$pub_year==pub_year,]$paper_id))
+            paste0(n," (",format.round(100*n/length(unique(data.table_3_col_4$paper_id)),1),"%)")
+          })),paste0(length(unique(data.table_3_col_4$paper_id))," (100%)")
+          )
+          for(x in 1:length(table_3_col_4)) {assign(paste0("table_3_",x,"_4"),table_3_col_4[x])}
+        }
         
     }
     
@@ -147,77 +222,79 @@
 
 
 # Run tag generation for testing. Note: comment out this section before deploying
-# if(TRUE){
-# 
-#   # Initial setup and libraries
-#   {
-#     #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
-# 
-#     library(shiny)
-#     library(bslib)
-#     library(dplyr)
-#     library(ggplot2)
-#     library(ggExtra)
-#     library(DT)
-#     library(tidyr)
-#     library(pbapply)
-#     library(googledrive)
-#     library(stringr)
-#     library(Hmisc)
-#     library(targets)
-#     library(googlesheets4)
-#     library(zcurve)
-#     library(scales)
-# 
-#     drive_auth(Sys.getenv("google_oauth_email"))
-#     #drive_deauth()
-#     # Common functions
-#     source(file="Analysis/common functions.R")
-#   }
-# 
-# 
-#   # Load data
-#     objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata")
-#     for(i in 1:length(objects_to_load)){
-#       assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-#       #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
-#     }
-# 
-# 
-#     # Pull paper to find what tags are in paper
-#     paper_text <- drive_read_string(file=googledrive::as_id("1yqMVMzZMmGMyPG4IiD_urFHmBfztFXv-om-Y2M0T7jQ"),
-#                                       type = "text/plain",encoding="UTF-8")  %>%
-#       strsplit(split = "(\r\n|\r|\n)") %>%
-#       .[[1]]
-#     paper_text <- paste0(paper_text,collapse="  ")
-# 
-#     # Pull paper to find what tags are calculated
-#       tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
-#       tags <- tags[tags!=""]
-#       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
-# 
-#     # Generate stats
-#       results_tagged_stats <- tagged_stats(iters = 20,
-#                                            repro_outcomes=repro_outcomes,
-#                                            pr_outcomes=pr_outcomes,
-#                                            orig_outcomes=orig_outcomes,
-#                                            paper_metadata=paper_metadata)
-# 
-#     # Generate list of tags
-#       values_text <- do.call(c,lapply(1:length(tags),function(x) {
-#         tag_to_find <- tags[x]
-#         if(tag_to_find %in% names(results_tagged_stats)){
-#           as.character(results_tagged_stats[[tag_to_find]])
-#         } else {
-#           "MISSING"
-#         }
-#       }))
-# 
-# 
-#   # Export
-#     sheet_write(data.frame(tags,values_text),
-#                 ss="https://docs.google.com/spreadsheets/d/1iIBhBsbvz89sZCDRFn9wghh17RExMa5XxQPLhlB_Bt8",sheet = "Paper 3")
-# 
-# 
-# 
-# }
+if(TRUE){
+
+  # Initial setup and libraries
+  {
+    #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+
+    library(shiny)
+    library(bslib)
+    library(dplyr)
+    library(ggplot2)
+    library(ggExtra)
+    library(DT)
+    library(tidyr)
+    library(pbapply)
+    library(googledrive)
+    library(stringr)
+    library(Hmisc)
+    library(targets)
+    library(googlesheets4)
+    library(zcurve)
+    library(scales)
+
+    drive_auth(Sys.getenv("google_oauth_email"))
+    #drive_deauth()
+    # Common functions
+    source(file="Analysis/common functions.R")
+  }
+
+
+  # Load data
+    objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes","paper_metadata","status","stitched_claims")
+    for(i in 1:length(objects_to_load)){
+      assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+      #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+    }
+
+
+    # Pull paper to find what tags are in paper
+    paper_text <- drive_read_string(file=googledrive::as_id("1yqMVMzZMmGMyPG4IiD_urFHmBfztFXv-om-Y2M0T7jQ"),
+                                      type = "text/plain",encoding="UTF-8")  %>%
+      strsplit(split = "(\r\n|\r|\n)") %>%
+      .[[1]]
+    paper_text <- paste0(paper_text,collapse="  ")
+
+    # Pull paper to find what tags are calculated
+      tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+      tags <- tags[tags!=""]
+      tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
+
+    # Generate stats
+      results_tagged_stats <- tagged_stats(iters = 20,
+                                           repro_outcomes=repro_outcomes,
+                                           pr_outcomes=pr_outcomes,
+                                           orig_outcomes=orig_outcomes,
+                                           paper_metadata=paper_metadata)
+
+    # Generate list of tags
+      values_text <- do.call(c,lapply(1:length(tags),function(x) {
+        tag_to_find <- tags[x]
+        if(tag_to_find %in% names(results_tagged_stats)){
+          as.character(results_tagged_stats[[tag_to_find]])
+        } else {
+          "MISSING"
+        }
+      }))
+
+
+  # Export
+      ss <- "https://docs.google.com/spreadsheets/d/1qs8Ap3wfw-t5SqlDbCa1sQvvtVY4LS38xwxd3rro0po"
+      range_delete(ss,range="A:H")
+      range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
+      
+    # sheet_write(data.frame(tags=paste0("{",tags,"}"),values_text),
+    #             ss=ss,sheet = "Sheet1")
+
+}

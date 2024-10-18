@@ -15,6 +15,11 @@
     library(stringr)
     library(Hmisc)
     library(zcurve)
+    library(ggridges)
+    library(cowplot)
+    library(tidyverse)
+    library(metafor)
+    library(glue)
   }
   
   # Data loading
@@ -132,65 +137,74 @@ ui <- {
                        tabPanel("Data properties",
                                 htmlOutput("repli_data_text")
                        ),
-                       tabPanel("Dataset",
-                                DTOutput("repli_data_table")
+                       tabPanel("Figure 1: Binary replication measures",
+                                plotOutput("repli_binary_measures"),
                        ),
-                       
-                       tabPanel("Chart: repli vs original ES",
-                                plotOutput("repli_outcomes_vs_orig"),
-                                h4("Options:"),
-                                fluidRow(
-                                  column(4,
-                                         #checkboxGroupInput(
-                                         radioButtons(
-                                           "rr_stat_outcomes_selected", "Effect size stats types",
-                                           choiceNames = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
-                                           choiceValues = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
-                                           selected = c("Pearson's R"),
-                                           inline=FALSE
-                                         )
-                                  ),
-                                  column(1),
-                                  column(7,
-                                         checkboxInput("repli_outcomes_vs_orig_abs",
-                                                       "Take absolute value of effect size",TRUE),
-                                         p("Chart elements:"),
-                                         checkboxInput("repli_outcomes_vs_orig_weighted_medians",
-                                                       "Median effect size lines (weighted)",TRUE),
-                                         checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
-                                                       "Smoothed distributions",TRUE),
-                                         checkboxInput("repli_outcomes_vs_orig_points",
-                                                       "Raw data points",TRUE),
-                                         checkboxInput("repli_outcomes_vs_orig_lines",
-                                                       "Lines",TRUE),
-                                         checkboxInput("repli_outcomes_vs_orig_points_jitter",
-                                                       "Jittered raw data points",FALSE),
-                                         checkboxInput("repli_outcomes_vs_orig_dotplot",
-                                                       "Dot plot",FALSE),
-                                         
-                                         p("Chart extent limits"),
-                                         fluidRow(
-                                           column(6,numericInput("repli_outcomes_vs_orig_lb",
-                                                                 "Lower bound",0)),
-                                           column(6,numericInput("repli_outcomes_vs_orig_ub",
-                                                                 "Upper bound",1))
-                                         ),
-                                         numericInput("repli_outcomes_vs_orig_null",
-                                                      "Null value",0)
-                                  )
-                                )
+                       tabPanel("Figure 2: Replication effect sizes vs original",
+                                plotOutput("repli_effect_sizes_vs_orig"),
                        ),
-                       tabPanel("Chart: Repli success vars",
-                                plotOutput("repli_success_vars"),
-                                h4("Options:"),
+                       tabPanel("Figure 3: Replication effect size distributions vs original by field",
+                                plotOutput("repli_effect_sizes_vs_orig_by_field"),
                        ),
-                       tabPanel("Chart: Repli success vars vs sample size",
-                                
-                                selectInput("repli_success_sample_size_var", "Select success outcome variable",
-                                            choices = c("SCORE criteria","Pattern criteria","Interpretation supported","Repli point estimate in orig CI","Orig point estimate in repli CI")),
-                                plotOutput("repli_success_sample_size")
-                                
-                       )
+                       # tabPanel("Dataset",
+                       #          DTOutput("repli_data_table")
+                       # ),
+                       # 
+                       # tabPanel("Chart: repli vs original ES",
+                       #          plotOutput("repli_outcomes_vs_orig"),
+                       #          h4("Options:"),
+                       #          fluidRow(
+                       #            column(4,
+                       #                   #checkboxGroupInput(
+                       #                   radioButtons(
+                       #                     "rr_stat_outcomes_selected", "Effect size stats types",
+                       #                     choiceNames = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
+                       #                     choiceValues = c("Pearson's R",unique(as.character(repli_outcomes$repli_effect_size_type))),
+                       #                     selected = c("Pearson's R"),
+                       #                     inline=FALSE
+                       #                   )
+                       #            ),
+                       #            column(1),
+                       #            column(7,
+                       #                   checkboxInput("repli_outcomes_vs_orig_abs",
+                       #                                 "Take absolute value of effect size",TRUE),
+                       #                   p("Chart elements:"),
+                       #                   checkboxInput("repli_outcomes_vs_orig_weighted_medians",
+                       #                                 "Median effect size lines (weighted)",TRUE),
+                       #                   checkboxInput("repli_outcomes_vs_orig_smoothed_dist",
+                       #                                 "Smoothed distributions",TRUE),
+                       #                   checkboxInput("repli_outcomes_vs_orig_points",
+                       #                                 "Raw data points",TRUE),
+                       #                   checkboxInput("repli_outcomes_vs_orig_lines",
+                       #                                 "Lines",TRUE),
+                       #                   checkboxInput("repli_outcomes_vs_orig_points_jitter",
+                       #                                 "Jittered raw data points",FALSE),
+                       #                   checkboxInput("repli_outcomes_vs_orig_dotplot",
+                       #                                 "Dot plot",FALSE),
+                       #                   
+                       #                   p("Chart extent limits"),
+                       #                   fluidRow(
+                       #                     column(6,numericInput("repli_outcomes_vs_orig_lb",
+                       #                                           "Lower bound",0)),
+                       #                     column(6,numericInput("repli_outcomes_vs_orig_ub",
+                       #                                           "Upper bound",1))
+                       #                   ),
+                       #                   numericInput("repli_outcomes_vs_orig_null",
+                       #                                "Null value",0)
+                       #            )
+                       #          )
+                       # ),
+                       # tabPanel("Chart: Repli success vars",
+                       #          plotOutput("repli_success_vars"),
+                       #          h4("Options:"),
+                       # ),
+                       # tabPanel("Chart: Repli success vars vs sample size",
+                       #          
+                       #          selectInput("repli_success_sample_size_var", "Select success outcome variable",
+                       #                      choices = c("SCORE criteria","Pattern criteria","Interpretation supported","Repli point estimate in orig CI","Orig point estimate in repli CI")),
+                       #          plotOutput("repli_success_sample_size")
+                       #          
+                       # )
                   )
                 )
 
@@ -382,7 +396,6 @@ server <- function(input, output, session) {
         panel.grid = element_blank(),
         axis.line = element_line(color="#393939"),
         legend.title=element_blank(),
-        #axis.title.y = element_blank(),
         panel.border = element_blank()
       )+
       geom_vline(xintercept=0,linetype=2)+
@@ -391,7 +404,6 @@ server <- function(input, output, session) {
       scale_x_continuous(expand=c(0,0))+
       scale_y_continuous(expand=c(0,0),labels = scales::percent)+
       coord_cartesian(ylim=c(0, 1),xlim=c(-2,2))+
-      #geom_point()+
       geom_smooth(method = "loess")
   })
   
@@ -440,6 +452,456 @@ server <- function(input, output, session) {
                    lengthChange = FALSE),
   rownames= FALSE
   )
+  
+  output$repli_binary_measures <- renderPlot({
+    # Original within repli
+    {
+      orig_within <- repli_outcomes %>% 
+        select(claim_id, paper_id,repli_conv_r_lb, repli_conv_r_ub) %>% 
+        left_join(orig_outcomes %>% select(claim_id, orig_conv_r), by = "claim_id") %>% 
+        mutate(orig_wthn = between(orig_conv_r, repli_conv_r_lb, repli_conv_r_ub)) %>% 
+        drop_na(orig_wthn)
+      
+      
+      orig_within$orig_conv_r_rescaled <- do.call(c,lapply(1:nrow(orig_within), function(i) {
+        scales::rescale(orig_within$orig_conv_r[i],from=c(orig_within$repli_conv_r_lb[i],orig_within$repli_conv_r_ub[i]),to=c(-1,1))
+      }))
+      
+      
+      build <- ggplot2::ggplot_build(ggplot(data=orig_within,aes(x=orig_conv_r_rescaled))+
+                                       geom_density()+
+                                       geom_vline(xintercept=c(-1,1),linetype=3)+
+                                       xlim(c(-4,4)))
+      
+      df_breaks <- build$data[[1]] %>% 
+        mutate(status = case_when(x < -1 ~ 'class1', # Arbitrary value, just as an example
+                                  x > 1 ~ 'class2',
+                                  TRUE ~ 'class3'))
+      p.orig_within <- df_breaks %>% 
+        ggplot() +
+        geom_area(
+          aes(x = x,y=y,fill = status),
+          linetype=0
+        )+
+        scale_fill_manual(values=c(palette_score_charts[7],palette_score_charts[7],palette_score_charts[1]))+
+        #scale_alpha_manual(values=c(.2,.2,1))+
+        geom_vline(xintercept=c(-1,1),linetype=3)+
+        theme_minimal()+
+        scale_x_continuous(limits=c(-4,4),breaks=c(-1,1),labels=c("Replication\n95% CI Lower Bound","Replication\n95% CI Upper Bound"))+
+        theme(legend.position = "none",
+              legend.title=element_blank(),
+              panel.border = element_blank(),
+              panel.grid = element_blank(),
+              axis.title=element_blank(),
+              axis.text.y=element_blank()
+              #axis.text = element_blank(),
+              #axis.line = element_blank(),
+              #axis.ticks = element_blank()
+        )+
+        annotate(geom="text",x=0,y=0.02,label="X% of Original effect sizes\nwithin 95% CI of Replication effect sizes",color="black",vjust=0)+
+      ylim(c(0,.4))
+    }
+    
+    # Repli within orig
+    {
+      repli_within <- orig_outcomes %>% 
+        select(claim_id, paper_id,orig_conv_r_lb, orig_conv_r_ub) %>% 
+        left_join(repli_outcomes %>% select(claim_id, repli_conv_r), by = "claim_id") %>% 
+        mutate(repli_wthn = between(repli_conv_r, orig_conv_r_lb, orig_conv_r_ub)) %>% 
+        drop_na(repli_wthn)
+    }
+    
+    # Score criteria
+    {
+      score_criteria <- repli_outcomes %>% 
+        select(claim_id, paper_id, repli_score_criteria_met,repli_pattern_criteria_met, repli_p_value) %>%
+        mutate(sig = repli_p_value <=.05,
+               dir = repli_pattern_criteria_met,
+               score_criteria_recalc = sig & dir,
+               agreement = repli_score_criteria_met==score_criteria_recalc)
+    }
+    
+    # Analyst interpretation
+    {
+      analyst_interpretation_supported <- repli_outcomes %>% 
+        select(claim_id, paper_id,analyst_interpretation_supported= repli_interpret_supported) %>% 
+        filter(analyst_interpretation_supported != "complicated") %>% 
+        mutate(analyst_interpretation_supported=analyst_interpretation_supported=="yes")
+    }
+    
+    # Meta analytic setup
+    {
+      meta <-  function(x) {
+        es <- escalc(
+          measure = "GEN",
+          yi = c(x[1], x[2]),
+          sei = c(x[3], x[4])
+        )
+        mod <- rma(yi = yi, vi = vi, data = es, method = "FE")
+        c(mod$b, mod$ci.lb, mod$ci.ub) %>% as.character() %>% str_c(., collapse = ", ")
+      }
+      
+      repli_meta <- repli_outcomes %>% 
+        mutate(repli_df1 = ifelse(is.na(repli_effective_df1), repli_stat_dof_1, repli_effective_df1)) %>% 
+        mutate(repli_size = ifelse(is.na(repli_effective_sample_size), repli_sample_size_value, repli_effective_sample_size)) %>% 
+        mutate(
+          repli_se = ifelse(
+            repli_stat_type == "t",
+            sqrt((1 - repli_conv_r^2)/repli_df1),
+            sqrt((1 - repli_conv_r^2)/repli_size)
+          )
+        )
+      orig_meta <- orig_outcomes %>% 
+        mutate(orig_df1 = ifelse(is.na(original_effective_df1_reference), orig_stat_dof_1, original_effective_df1_reference)) %>% 
+        mutate(orig_size = ifelse(is.na(original_effective_sample_size), orig_sample_size_value, original_effective_sample_size)) %>% 
+        mutate(
+          orig_se = ifelse(
+            orig_stat_type == "t",
+            sqrt((1 - orig_conv_r^2)/orig_df1),
+            sqrt((1 - orig_conv_r^2)/orig_size)
+          )
+        )
+      combined_meta <- repli_meta %>% 
+        select(report_id, paper_id, claim_id, repli_conv_r, repli_se) %>% 
+        left_join(orig_meta %>% select(claim_id, orig_conv_r, orig_se), by = "claim_id") %>% 
+        drop_na(repli_se) %>% 
+        drop_na(orig_se) %>% 
+        mutate(es = select(., c(repli_conv_r, orig_conv_r, repli_se, orig_se)) %>% apply(1, meta)) %>% 
+        separate(es, into = c("b", "lb_b", "ub_b"), sep = ", ") %>% 
+        mutate(across(.cols = c(b, lb_b, ub_b), as.numeric))
+    }
+    
+    # Meta analytic success (same sign and direction of effect)
+    {
+      metaanalytic <- combined_meta %>% 
+        mutate(sig = sign(lb_b) == sign(ub_b)) %>% 
+        mutate(dir = sign(orig_conv_r) == sign(lb_b)) %>% 
+        mutate(meta_success = sig & dir)
+    }
+    
+    # Replication within original prediction interval
+    {
+      # repli within original prediction interval
+      # defining prediction intervals as done in https://osf.io/z4gjn:
+      # comparison_es_lb_pi_nativeunits <- es_o - se_comb*qnorm(.975)
+      # comparison_es_ub_pi_nativeunits <- es_o + se_comb*qnorm(.975)
+      # NOTE: these can go above 1 and below -1, so just manually capping them for now
+      repli_within_orig_pred <- combined_meta %>% 
+        mutate(se_comb = select(., c(orig_se, repli_se)) %>% apply(1, function(x) sqrt((x[1])^2 + (x[2])^2))) %>% 
+        mutate(
+          o_lb_pi = select(., c(orig_conv_r, se_comb)) %>% apply(1, function(x) x[1] - (x[2])*qnorm(.975)),
+          o_ub_pi = select(., c(orig_conv_r, se_comb)) %>% apply(1, function(x) x[1] + (x[2])*qnorm(.975))
+        ) %>% 
+        mutate(
+          o_lb_pi = ifelse(o_lb_pi < -1, -1, o_lb_pi),
+          o_ub_pi = ifelse(o_ub_pi > 1, 1, o_ub_pi),
+        ) %>% 
+        mutate(wthn_pi = between(repli_conv_r, o_lb_pi, o_ub_pi))
+    }
+    
+    # Graphics functions
+    {
+      rescaled_density <- function(plotdata = repli_within,
+                                   xvar = "repli_conv_r",
+                                   lb = "orig_conv_r_lb",
+                                   ub = "orig_conv_r_ub",
+                                   bounds = 4,
+                                   axis.labels = c("Original\n95% CI Lower Bound","Original\n95% CI Upper Bound"),
+                                   fill.color = palette_score_charts[2],
+                                   alpha = .6,
+                                   ymax = .4) {
+        
+        plotdata$xvar <- plotdata[[xvar]]
+        plotdata$lb <- plotdata[[lb]]
+        plotdata$ub <- plotdata[[ub]]
+        
+        # Rescale
+        plotdata$x_rescaled <- do.call(c,lapply(1:nrow(plotdata), function(i) {
+          scales::rescale(plotdata$xvar[i],from=c(plotdata$lb[i],plotdata$ub[i]),to=c(-1,1))
+        }))
+        
+        
+        ggplot(data=plotdata,aes(x=x_rescaled))+
+          geom_density(fill=fill.color,linetype=0,size=0)+
+          annotate("rect",xmin=-bounds,xmax=-1,ymin=0,ymax=ymax,
+                   fill="white",alpha=alpha)+
+          annotate("rect",xmin=1,xmax=bounds,ymin=0,ymax=ymax,
+                   fill="white",alpha=alpha)+
+          geom_vline(xintercept=c(-1,1),linetype=3)+
+          xlim(c(-bounds,bounds))+
+          ylim(c(0,ymax))+
+          theme_minimal()+
+          scale_x_continuous(limits=c(-bounds,bounds),
+                             breaks=c(-1,1),
+                             labels=axis.labels)+
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title=element_blank(),
+                axis.text.y=element_blank()
+          )
+      }
+      
+      simple_bar <- function(data,xvar,
+                             fill.color=palette_score_charts[7],
+                             background.color="grey90",ypadding=0.5,
+                             display_percent=TRUE){
+        
+        proportion <- sum(data[[xvar]])/sum(!is.na(data[[xvar]]))
+        
+        plot <- ggplot()+
+          annotate("rect",xmin=0,xmax=1,ymin=0,ymax=1,fill=background.color)+
+          funkyheatmap::geom_rounded_rect(aes(xmin=0,xmax=proportion,ymin=0,ymax=1),
+                                          #fill=fill.color,
+                                          radius=unit(3, "points"),show.legend=FALSE,
+                                          color="black",
+                                          size=0)+
+          theme_light() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title=element_blank(),
+                axis.text = element_blank(),
+                axis.line = element_blank(),
+                axis.ticks = element_blank(),
+                plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
+          )+
+          ylim(c(-ypadding,1+ypadding))
+        
+        if(display_percent==TRUE){
+          plot <- plot+
+            annotate("text",x=proportion+.01,y=0.5,vjust=0.5,hjust=0,
+                     label=paste0(format.round(proportion*100,1),"%")
+                     )
+        plot
+        }
+        
+    }
+    }
+    
+    # Plots
+    {
+      colwidths <- c(1,2,2)
+      
+      row0 <- plot_grid(ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="Replication rate measure",size=6),
+                        ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="Summary %",size=6),
+                        ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="Detailed distribution data",size=6),
+                        nrow=1,rel_widths = colwidths
+      )
+      
+      row1 <- plot_grid(ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="% Original Effect Sizes\nwithin Replication 95% CI"),
+                        simple_bar(orig_within,"orig_wthn"),
+                        rescaled_density(plotdata=orig_within,"orig_conv_r","repli_conv_r_lb","repli_conv_r_ub",
+                                         axis.labels = c("Replication 95% CI\nLower Bound","Replication 95% CI\nUpper Bound"),
+                                         fill.color = palette_score_charts[3]),
+                        nrow=1,rel_widths = colwidths
+                        )
+      
+      row2 <- plot_grid(ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="% Replication Effect Sizes\nwithin Original 95% CI"),
+                        simple_bar(repli_within,"repli_wthn"),
+                        rescaled_density(plotdata=repli_within,"repli_conv_r","orig_conv_r_lb","orig_conv_r_ub",
+                                         axis.labels = c("Original 95% CI\nLower Bound","Original 95% CI\nUpper Bound"),
+                                         fill.color = palette_score_charts[4],),
+                        nrow=1,rel_widths = colwidths
+      )
+      
+      row3 <- plot_grid(ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="% Replication Effect Sizes\nwithin Predicted 95% CI"),
+                        simple_bar(repli_within_orig_pred,"wthn_pi"),
+                        rescaled_density(plotdata=repli_within_orig_pred,"repli_conv_r","o_lb_pi","o_ub_pi",
+                                         axis.labels = c("Prediction\n95% CI\nLower Bound","Prediction\n95% CI\nUpper Bound"),
+                                         fill.color = palette_score_charts[6],),
+                        nrow=1,rel_widths = colwidths
+      )
+      
+      # Data wrangling for  bars
+      {
+        cat <- c(
+          "Both same direction\nand p-value ≤ .05",
+          "Replication p-value ≤ .05",
+          "Replication and original\neffect size\nin same direction",
+          "Neither same\ndirection nor\np-value ≤ .05")
+        cat2 <- c("Both",
+                  "Either",
+                  "Either",
+                  "Neither")
+        cat3 <- c(
+          NA,"Sig only",
+          "Dir only",NA)
+  
+        nesting.structure <- data.frame(cat,cat2,cat3)
+        nesting.structure$cat <- ordered(nesting.structure$cat,levels=cat,labels=cat)
+        nesting.structure$cat2 <- ordered(nesting.structure$cat2,levels=cat2,labels=cat2)
+        nesting.structure$cat3 <- ordered(nesting.structure$cat3,levels=na.omit(cat3),labels=na.omit(cat3))
+        
+        chart.palette <- c(palette_score_charts[5],
+                           palette_score_charts[2],
+                           palette_score_charts[1],
+                           "grey80")
+        
+        score_criteria$cat <- ifelse(score_criteria$sig&score_criteria$dir,
+                                     cat[1],NA)
+        score_criteria$cat <- ifelse(score_criteria$sig&!score_criteria$dir,
+                                     cat[2],score_criteria$cat)
+        score_criteria$cat <- ifelse(!score_criteria$sig&score_criteria$dir,
+                                     cat[3],score_criteria$cat)
+        score_criteria$cat <- ifelse(!score_criteria$sig&!score_criteria$dir,
+                                     cat[4],score_criteria$cat)
+        
+        cats_rects <- rounded.bars(data=score_criteria[!is.na(score_criteria$cat),],nesting.structure = nesting.structure,
+                                   chart.palette=chart.palette)$cats_rects
+        bars <- rounded.bars(data=score_criteria[!is.na(score_criteria$cat),],nesting.structure = nesting.structure,
+                     chart.palette=chart.palette)$plot+
+          geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=as.character(cats_rects$cat)),
+                    color=c("white","white","black","black"),size=3)
+      }
+      
+      row4 <- plot_grid(ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="% Replications Meeting\nSCORE Criteria"),
+                        simple_bar(score_criteria,"repli_score_criteria_met"),
+                        bars,
+                        nrow=1,rel_widths = colwidths
+      )
+      
+      row5 <- plot_grid(ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="% Replications Meeting\nAnalyst Interpretation Match"),
+                        simple_bar(repli_within_orig_pred,"wthn_pi"),
+                        ggplot()+theme_nothing()+xlim(c(0,1))+ylim(c(0,1))+
+                          annotate("text",x=0.5,y=0.5,vjust=0.5,hjust=0.5,
+                                   label="No additional details"),
+                        nrow=1,rel_widths = colwidths
+      )
+      
+      plot_grid(row0,row1,row2,row3,row4,row5,ncol=1)
+      
+    }
+    
+  })
+  
+
+  output$repli_effect_sizes_vs_orig <- renderPlot({
+    all_effects <- repli_outcomes %>% 
+      filter(!is_covid) %>% 
+      filter(repli_version_of_record) %>% 
+      select(report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
+             repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
+      left_join(
+        orig_outcomes %>% 
+          select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
+          distinct(),
+        by = "claim_id"
+      ) %>% 
+      drop_na(repli_conv_r) %>% 
+      drop_na(orig_conv_r) %>% 
+      mutate(across(contains("orig"), abs)) %>% 
+      mutate(
+        across(
+          contains("repli"),
+          function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+        )
+      )
+    
+    
+    fig1 <- all_effects %>% 
+      ggplot(aes(x = orig_conv_r, y = repli_conv_r, color = success)) +
+      geom_point(alpha = 0.6, size = 3) +
+      geom_rug() +
+      scale_color_manual(labels = c("Failed", "Successful"),
+                         values = c("tomato3", "deepskyblue4")) +
+      geom_abline(slope = 1, intercept = 0, linetype = "solid", color = "slategray") +
+      xlim(0, 1) +
+      ylim(-0.55, 1) +
+      labs(
+        x = "Original",
+        y = "Replication",
+        color = "",
+        title = ""
+      ) +
+      theme(
+        plot.title = element_blank(),
+        axis.title.x = element_text(size = 16),
+        axis.text.x = element_text(size = 14),
+        axis.title.y = element_text(size = 16),
+        axis.text.y = element_text(size = 14),
+        legend.text = element_text(size = 16),
+        legend.position = "bottom"
+      )
+    
+    ggMarginal(fig1, type = "density", groupFill = T)
+  })
+
+  output$repli_effect_sizes_vs_orig_by_field <- renderPlot({
+    # Data wrangling
+    {
+      all_effects <- repli_outcomes %>% 
+        filter(!is_covid) %>% 
+        filter(repli_version_of_record) %>% 
+        select(claim_id,repli_conv_r) %>% 
+        left_join(
+          orig_outcomes %>% 
+            select(paper_id,claim_id, orig_conv_r) %>% 
+            distinct(),
+          by = "claim_id"
+        ) %>% 
+        drop_na(repli_conv_r) %>% 
+        drop_na(orig_conv_r)%>%
+        group_by(paper_id) %>%
+        mutate(weight=1/n())
+      
+      all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+      all_effects$field <- str_to_title(all_effects$COS_pub_category)
+      all_effects$field <- str_to_title(all_effects$COS_pub_category)
+      all_effects$field <- str_replace_all(all_effects$field," ","\n")
+      all_effects$field <- str_replace_all(all_effects$field,"And","and")
+      group_order <- unique(all_effects$field)
+      all_effects$field <- ordered(all_effects$field,labels=group_order,levels=group_order)
+      
+      all_effects$pub_year <- ordered(all_effects$pub_year,
+                                      levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
+                                      labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
+      
+      # Convert to long
+      all_effects <- all_effects %>%
+        pivot_longer(cols=c(repli_conv_r,orig_conv_r))
+      
+      all_effects$name <- ordered(all_effects$name,
+                                  levels=c("orig_conv_r","repli_conv_r"),
+                                  labels=c("Original effect size","Replication effect size"))
+      
+      ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name))+
+        geom_density_ridges(alpha=.6,scale = 0.9)+
+        theme_minimal()+
+        theme(legend.position = "bottom",
+              legend.title=element_blank(),
+              panel.border = element_blank(),
+              panel.grid = element_blank(),
+              axis.title=element_blank(),
+              axis.text.y=element_text(vjust=0)
+              #axis.text = element_blank(),
+              #axis.line = element_blank(),
+              #axis.ticks = element_blank()
+        ) +
+        scale_fill_manual(values=c(palette_score_charts[1],palette_score_charts[5]))+
+        xlim(-1,1)+
+        geom_vline(aes(xintercept=0),linetype=2)
+
+    }
+  })
 
 }
 
