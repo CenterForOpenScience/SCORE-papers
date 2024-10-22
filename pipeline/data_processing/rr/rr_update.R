@@ -10,7 +10,6 @@ update_repro <- function(repro_merged,
     apply_changelog(p2_repro_input_changelog, "unique_report_id") %>%
     distinct(rr_id,
              claim_id,
-             unique_report_id,
              .keep_all = TRUE)
   
 }
