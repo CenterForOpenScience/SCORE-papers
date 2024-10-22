@@ -34,133 +34,6 @@
           params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
     }
   }
-    # 
-    # snake_bar_n_bin_chart <- function(data,varname_x, varname_group,
-    #                             palette_bars=NA, palette_snakebins=palette_bars,
-    #                             n_bins = 6,rounded=TRUE,output="combined chart"){
-    #   # Data setup
-    #   {
-    #     data_rects <- data %>%
-    #       group_by(.data[[varname_x]],.data[[varname_group]]) %>%
-    #       summarise(count=n())%>%
-    #       group_by(.data[[varname_x]]) %>%
-    #       mutate(proportion=count/sum(count))
-    #   }
-    #   
-    #   # Main bar chart
-    #   {
-    #     p.bar <- ggplot(data=data,aes(x=.data[[varname_x]],fill=.data[[varname_group]]))
-    #     if(rounded){
-    #       p.bar <- p.bar + 
-    #         geom_chicklet(data=data_rects,aes(x=.data[[varname_x]],y=proportion,fill=.data[[varname_group]]),
-    #                       linetype=0, position = position_stack(reverse = FALSE))
-    #     } else {
-    #       p.bar <- p.bar + geom_bar(position="fill")
-    #     }
-    #     p.bar <- p.bar +
-    #       theme_light() +
-    #       theme(legend.position = "none",
-    #             legend.title=element_blank(),
-    #             panel.border = element_blank(),
-    #             panel.grid = element_blank(),
-    #             axis.line.y = element_line(),
-    #             axis.title = element_blank()
-    #       ) +
-    #       scale_y_continuous(expand=expansion(add = c(0, .05)),
-    #                          labels = scales::percent_format())+
-    #       guides(fill = guide_legend(reverse=TRUE)) +
-    #       coord_flip()
-    #     if (!anyNA(palette_bars)){
-    #       p.bar <- p.bar + scale_fill_manual(values = rev(palette_bars))
-    #     }
-    #   }
-    #   
-    #   # Snake stack plot
-    #   {
-    #     #position_nudge_width <- .25/2
-    #     position_nudge_width <- .9/n_bins
-    #     # Organize data and positioning
-    #     data <- data %>%
-    #       arrange(.data[[varname_x]],fct_rev(data[[varname_group]]))
-    #     
-    #     snake_bins <- function(n,n_bins){
-    #       do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
-    #         if((i %% 2) == 1){bin <- 1:n_bins
-    #         } else {bin <- n_bins:1}
-    #         y <- rep(i,n_bins)
-    #         data.frame(bin,y)
-    #       }))[1:n,]
-    #     }
-    #     
-    #     data <- cbind(data,
-    #                   do.call(rbind,lapply(1:length(unique(data[[varname_x]])),function(x) {
-    #                     snake_bins(n=nrow(data[data[[varname_x]]==unique(data[[varname_x]])[x],]),n_bins=n_bins)
-    #                   })))
-    #     
-    #     data$position_nudge <- position_nudge_width*(data$bin-(n_bins+1)/2)-position_nudge_width/2
-    #     data$x <- as.numeric(data[[varname_x]]) + data$position_nudge
-    #     data$y_dot <- data$y*n_bins-n_bins/2
-    #     
-    #     n_labels <- data %>% group_by(.data[[varname_x]]) %>%
-    #       mutate(count=n(),
-    #              count_up = ceiling(count/n_bins)*n_bins,
-    #              axis_labels = paste0(" n=",count))
-    #     
-    #     data$axis_labels <- factor(data[[varname_x]],
-    #                                levels = n_labels[[varname_x]],
-    #                                labels = n_labels$axis_labels)
-    #     
-    #   
-    #     # Plot
-    #     p.stacked.snake <- ggplot(data=data,aes(x=axis_labels,color=.data[[varname_group]])) + 
-    #     #p.stacked.snake <- ggplot(data=data,aes(x=.data[[varname_x]],color=.data[[varname_group]])) + 
-    #       geom_bar(linetype=0,fill="white")
-    #     if(rounded){
-    #       p.stacked.snake <- p.stacked.snake + 
-    #         funkyheatmap::geom_rounded_rect(data=data,inherit.aes=FALSE,
-    #                                       aes(xmin=x+.01,xmax=x+position_nudge_width-.01,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=.data[[varname_group]]),
-    #                                       linetype=0,radius=0.3,show.legend=FALSE)
-    #     } else {
-    #       p.stacked.snake <- p.stacked.snake + 
-    #         geom_rect(data=data,inherit.aes=FALSE,
-    #                    aes(xmin=x+.01,xmax=x+position_nudge_width-.01,ymin=y_dot-.9*n_bins/2,ymax=y_dot+.9*n_bins/2,fill=.data[[varname_group]]),
-    #                   linetype=0,,show.legend=FALSE)
-    #     }
-    #     p.stacked.snake <- p.stacked.snake + 
-    #       theme_light() +
-    #       theme(legend.position = "none",
-    #             legend.title=element_blank(),
-    #             panel.border = element_blank(),
-    #             panel.grid = element_blank(),
-    #             axis.title.x=element_blank(),
-    #             axis.title.y=element_blank(),
-    #             #axis.text.y = element_blank(),
-    #             axis.text.y = element_text(angle = 90, hjust = 0.5),
-    #             axis.line = element_blank(),
-    #             axis.ticks.y = element_blank()
-    #       )+
-    #       coord_flip()
-    #     if (!anyNA(palette_snakebins)){
-    #       p.stacked.snake <- p.stacked.snake + scale_fill_manual(values = rev(palette_snakebins))
-    #     }
-    #     
-    #   }
-    #   
-    #   # Output
-    #   {
-    #     if (output=="combined chart"){
-    #       plot_grid(p.bar,
-    #                 p.stacked.snake,
-    #                 align = c("h"),rel_widths = c(4,1))
-    #     } else if (output=="snake bin chart"){
-    #       p.stacked.snake
-    #     } else if (output=="bar chart"){
-    #       p.bar
-    #     } else if (output=="charts as objects"){
-    #       list("bar chart"=p.bar,"snake bin chart"=p.stacked.snake)
-    #     }
-    #   }
-    # }
     
     bars.and.snakebins <- function(data,nesting.structure,chart.palette=NA,
                                    display_axis=TRUE,axis_only_style="none",legend=FALSE,legend.color="black",
@@ -197,8 +70,6 @@
                                           cats_rects$proportion)
 
           cats_rects$cumproportion <- cumsum(cats_rects$proportion)
-          
-          
         }
         
         cats_rects$xmin <- ifelse(is.na(cats_rects$cat3),
@@ -315,41 +186,59 @@
               ymin <- ymax-1
               xmin <- xmax-1
               
-              xmin <- xmin*bin_width_x+1+bins_offset
-              xmax <- xmax*bin_width_x+1+bins_offset
+              # xmin <- xmin*bin_width_x+1+bins_offset
+              # xmax <- xmax*bin_width_x+1+bins_offset
+              xmin <- xmin*bin_width_x
+              xmax <- xmax*bin_width_x
               ymin <- ymin*1/n_bins
               ymax <- ymax*1/n_bins
               xcenter <- (xmin+xmax)/2
               ycenter <- (ymin+ymax)/2
               data.frame(xmin,xmax,ymin,ymax,xcenter,ycenter)
             }))[1:n,]
+            
           }
           
           data.bins <- cbind(arrange(data,data$cat),snake_bins(n=nrow(data),n_bins))
           
-          if(blank_bins!=TRUE){
-            plot <- plot +
-              funkyheatmap::geom_rounded_rect(
-                data=data.bins,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat),
-                radius=unit(3, "points"),show.legend=FALSE,
-                color="black",
-                size=0)
-          }
-          
-          plot <- plot +
+          snakebin_plot <- ggplot(data=data.bins,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat)) + 
+            funkyheatmap::geom_rounded_rect(
+              radius=unit(3, "points"),show.legend=FALSE,
+              color="black",
+              size=0)+
             scale_x_continuous(expand=expansion(add = c(0, .05)),
-                               labels = c("0%","25%","50%","75%","100%","0",n_bins_max),
-                               breaks=c(0,.25,.5,.75,1,1+bins_offset,1+bins_offset+bin_width_x*n_bins_max/n_bins),
-                               limits = c(0,1+bins_offset+bin_width_x*n_bins_max/n_bins))
+                             labels = c("0",n_bins_max),
+                             breaks= c(0,bin_width_x*n_bins_max/n_bins),
+                             limits = c(0,bin_width_x*n_bins_max/n_bins))+
+            theme_light() +
+            theme(legend.position = "none",
+                  legend.title=element_blank(),
+                  panel.border = element_blank(),
+                  panel.grid = element_blank(),
+                  axis.title.x=element_blank(),
+                  axis.title.y=element_blank(),
+                  axis.text.y = element_blank(),
+                  axis.line = element_blank(),
+                  axis.ticks.y = element_blank(),
+                  plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
+            )
+          # 
+          # plot <- plot +
+          #   scale_x_continuous(expand=expansion(add = c(0, .05)),
+          #                      labels = c("0%","25%","50%","75%","100%","0",n_bins_max),
+          #                      breaks=c(0,.25,.5,.75,1,1+bins_offset,1+bins_offset+bin_width_x*n_bins_max/n_bins),
+          #                      limits = c(0,1+bins_offset+bin_width_x*n_bins_max/n_bins))
           
         }
         # Options
         {
           if(display_axis==FALSE){
             plot <- plot + theme(axis.text.x=element_blank(),axis.title.x=element_blank(),axis.ticks.x = element_blank())
+            snakebin_plot <- snakebin_plot + theme(axis.text.x=element_blank(),axis.title.x=element_blank(),axis.ticks.x = element_blank())
           }
           if (!anyNA(chart.palette)){
             plot <- plot + scale_fill_manual(values=chart.palette[levels(cats_rects$cat) %in% cats_rects$cat])
+            snakebin_plot <- snakebin_plot + scale_fill_manual(values=chart.palette[levels(cats_rects$cat) %in% cats_rects$cat])
           }
           if(axis_only_style!="none"){
             
@@ -403,8 +292,309 @@
         }
         # Output
         {
+          plot <- plot_grid(plot,snakebin_plot,ncol=2)
+          return(list("cats_rects"=cats_rects,"plot" = plot))
+        }
+      }
+    }
+    
+    rounded.bars <- function(data,nesting.structure,chart.palette=NA,
+                                   display_axis=TRUE,axis_only=FALSE,legend=FALSE,legend.color="black",
+                                   flip_x = FALSE,weightvar=NA){
+      # Data manipulation
+      {
+        data.nested <- merge(data,nesting.structure,by="cat",all.x=TRUE,all.y=FALSE)
+        
+        if (is.na(weightvar)){
+          data.nested$weight <- 1
+        } else {
+          data.nested$weight<-data.nested[[weightvar]]
+        }
+        cats_rects <- data.nested %>%
+          group_by(cat,cat2,cat3) %>%
+          #summarise(count=n())%>%
+          summarise(count=sum(weight))%>%
+          ungroup() %>%
+          mutate(proportion=count/sum(count),
+                 cumproportion = cumsum(proportion))
+        
+        if(legend==TRUE){
+          cats_rects$count <- 1
+          cats_rects <- cats_rects %>%
+            group_by(cat2) %>%
+            mutate(count2=n(),
+                   proportion = 1/n()) %>%
+            group_by(cat3) %>%
+            mutate(count3=n()) %>%
+            group_by(cat2,cat3) %>%
+            mutate(count23=n())
+          
+          cats_rects$proportion<-cats_rects$proportion*1/length(unique(cats_rects$cat2))
+          cats_rects$proportion <- ifelse(!is.na(cats_rects$cat3),
+                                          cats_rects$proportion*(1/cats_rects$count3),
+                                          cats_rects$proportion)
+          cats_rects$proportion <- ifelse(!is.na(cats_rects$cat3),
+                                          cats_rects$proportion*(1/length(unique(cats_rects$cat2))/sum(cats_rects[!is.na(cats_rects$cat3),]$proportion)),
+                                          cats_rects$proportion)
+          
+          cats_rects$cumproportion <- cumsum(cats_rects$proportion)
+        }
+        
+        cats_rects$xmin <- ifelse(is.na(cats_rects$cat3),
+                                  cumsum(cats_rects$proportion)-cats_rects$proportion,
+                                  NA)
+        cats_rects$xmax <- ifelse(is.na(cats_rects$cat3),
+                                  cumsum(cats_rects$proportion),
+                                  NA)
+        cats_rects$ymin <- ifelse(is.na(cats_rects$cat3),
+                                  0,NA)
+        cats_rects$ymax <- ifelse(is.na(cats_rects$cat3),
+                                  1,NA)
+        
+        cats_rects$yproportion <- NA
+        cats_rects$ycumproportion <- NA
+        cats_rects$xinternalproportion <- NA
+        cats_rects$xinternalcumproportion <- NA
+        for(cat2 in unique(cats_rects[!is.na(cats_rects$cat3),]$cat2)) {
+          cats_rects$selected2 <- !is.na(cats_rects$cat2) & cats_rects$cat2==cat2
+          xmin_total <- 
+            min(cats_rects[cats_rects$selected2,]$cumproportion-cats_rects[cats_rects$selected2,]$proportion)
+          
+          xmax_total <- max(cats_rects[cats_rects$selected2,]$cumproportion)
+          
+          for(cat3 in unique(cats_rects[cats_rects$cat2==cat2,]$cat3)){
+            cats_rects$selected3 <- !is.na(cats_rects$cat3) & 
+              cats_rects$cat2==cat2 & 
+              cats_rects$cat3==cat3
+            cats_rects[cats_rects$selected3,]$yproportion <- 
+              sum(cats_rects[cats_rects$selected3,]$proportion) / 
+              sum(cats_rects[cats_rects$selected2,]$proportion)
+            
+            cats_rects[cats_rects$selected3,]$xinternalproportion <- 
+              cats_rects[cats_rects$selected3,]$proportion / 
+              sum(cats_rects[cats_rects$selected3,]$proportion)
+            
+            cats_rects[cats_rects$selected3,]$xinternalcumproportion <- 
+              cumsum(cats_rects[cats_rects$selected3,]$xinternalproportion)
+            
+            cats_rects[cats_rects$selected3,]$xmin <-
+              (cats_rects[cats_rects$selected3,]$xinternalcumproportion-cats_rects[cats_rects$selected3,]$xinternalproportion)*(xmax_total-xmin_total) +
+              xmin_total
+            
+            cats_rects[cats_rects$selected3,]$xmax <-
+              cats_rects[cats_rects$selected3,]$xinternalcumproportion*(xmax_total-cats_rects[cats_rects$selected3,]$xmin) +
+              cats_rects[cats_rects$selected3,]$xmin
+          }
+          if(all(as.character(cats_rects$cat)==as.character(cats_rects$cat2))){
+            cats_rects <- cats_rects %>%
+              group_by(cat3) %>%
+              mutate(ycumproportion = (row_number()==1)*yproportion) %>%
+              mutate(ycumproportion = cumsum(ifelse(is.na(ycumproportion), 0, ycumproportion)) + ycumproportion*0)
+          } else{
+            cats_rects <- cats_rects %>%
+              group_by(cat3) %>%
+              mutate(ycumproportion = (row_number()==1)*yproportion) %>%
+              ungroup() %>%
+              mutate(ycumproportion = cumsum(ifelse(is.na(ycumproportion), 0, ycumproportion)) + ycumproportion*0)
+          }
+          
+          cats_rects[cats_rects$selected2,]$ymin <- cats_rects[cats_rects$selected2,]$ycumproportion-cats_rects[cats_rects$selected2,]$yproportion
+          cats_rects[cats_rects$selected2,]$ymax <- cats_rects[cats_rects$selected2,]$ycumproportion
+        }
+        
+        cats_rects$xcenter <- (cats_rects$xmin+cats_rects$xmax)/2
+        cats_rects$ycenter <- (cats_rects$ymin+cats_rects$ymax)/2
+        
+        if(flip_x == TRUE){
+          cats_rects$xmax.temp <- cats_rects$xmin*-1
+          cats_rects$xmin <- cats_rects$xmax*-1
+          cats_rects$xmax <- cats_rects$xmax.temp
+          cats_rects$xmax.temp <- NULL
+          cats_rects$ymax.temp <- cats_rects$ymin*-1
+          cats_rects$ymin <- cats_rects$ymax*-1
+          cats_rects$ymax <- cats_rects$ymax.temp
+          cats_rects$ymax.temp <- NULL
+          
+          cats_rects$xcenter <- cats_rects$xcenter*-1
+          cats_rects$ycenter <- cats_rects$ycenter*-1
+        }
+      }
+      
+      # Chart generation
+      {
+        # Base chart
+        {
+          if (!axis_only){
+            plot <- ggplot(data=cats_rects,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat)) + 
+              funkyheatmap::geom_rounded_rect(radius=unit(3, "points"),show.legend=FALSE,
+                                              color="black",
+                                              size=0)+
+              scale_x_continuous(expand=expansion(add = c(0, .05)),
+                                 labels = scales::percent_format(),
+                                 breaks=c(0,.25,.5,.75,1))
+          } else {
+            plot <- ggplot(data=cats_rects,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat)) + 
+              funkyheatmap::geom_rounded_rect(radius=unit(3, "points"),show.legend=FALSE,
+                                              color="black",
+                                              size=0)
+          }
+          
+          labels <- c("0%","25%","50%","75%","100%")
+          breaks <- c(0,.25,.5,.75,1)
+          limits <- c(0,1)
+          
+          if(flip_x == TRUE){
+            labels <- rev(labels)
+            breaks <- -1*rev(breaks)
+            limits <- -1*rev(limits)
+          }
+          
+          plot <- plot +
+            scale_x_continuous(#expand=expansion(add = c(0, .05)),
+                               labels = labels,
+                               breaks=breaks,
+                               limits=limits)+
+            theme_light() +
+            theme(legend.position = "none",
+                  legend.title=element_blank(),
+                  panel.border = element_blank(),
+                  panel.grid = element_blank(),
+                  axis.title.x=element_blank(),
+                  axis.title.y=element_blank(),
+                  axis.text.y = element_blank(),
+                  axis.line = element_blank(),
+                  axis.ticks.y = element_blank(),
+                  plot.margin = margin(t = 0, r = 0, b = 0, l = 0),
+            )
+        }
+        # Options
+        {
+          if(display_axis==FALSE){
+            plot <- plot + theme(axis.text.x=element_blank(),axis.title.x=element_blank(),axis.ticks.x = element_blank())
+          }
+          if (!anyNA(chart.palette)){
+            plot <- plot + scale_fill_manual(values=chart.palette[levels(cats_rects$cat) %in% cats_rects$cat])
+          }
+          if(legend==TRUE){
+            plot <- plot+
+              geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
+                        color=legend.color)
+          }
+        }
+        # Output
+        {
           plot
           return(list("cats_rects"=cats_rects,"plot" = plot))
+        }
+      }
+    }
+    
+    snakebins <- function(data,nesting.structure,chart.palette=NA,
+                                   display_axis=TRUE,axis_only=FALSE,legend.color="black",
+                                   n_bins=6,n_bins_max=NA,bin_width_x=1,
+                                   flip_x = FALSE,collapsevar=NA){
+      # Data manipulation
+      snake_bins <- function(n,n_bins){
+        do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
+          if((i %% 2) == 1){ymax <- 1:n_bins
+          } else {ymax <- n_bins:1}
+          xmax <- rep(i,n_bins)
+          ymin <- ymax-1
+          xmin <- xmax-1
+          
+          xmin <- xmin*bin_width_x
+          xmax <- xmax*bin_width_x
+          ymin <- ymin*1/n_bins
+          ymax <- ymax*1/n_bins
+          xcenter <- (xmin+xmax)/2
+          ycenter <- (ymin+ymax)/2
+          data.frame(xmin,xmax,ymin,ymax,xcenter,ycenter)
+        }))[1:n,]
+      }
+      
+      # If data are to be collapsed, collapse into upper category
+      if (!is.na(collapsevar)){
+        # Generate initial weights
+        data$collapsevar <- data[[collapsevar]]
+        data <- data %>%
+          group_by(collapsevar) %>%
+          mutate(weight=1/n())
+        
+        # Get reweighted 
+        proportion <- data %>%
+          group_by(cat) %>%
+          #summarise(count=n())%>%
+          summarise(weightcountrounded=round(sum(weight),0)) 
+        
+        # Create expanded dataset
+        cats.expanded <- do.call(c,lapply(1:nrow(proportion),
+                                          function(x) {
+                                            rep(proportion$cat[x],proportion$weightcountrounded[x])
+                                          }))
+        data <- data.frame(cats.expanded)
+        colnames(data) <- c("cat")
+      }
+      
+      data.bins <- cbind(arrange(data,data$cat),snake_bins(n=nrow(data),n_bins))
+
+      # Chart generation
+      {
+        if(!axis_only){
+          snakebin_plot <- ggplot(data=data.bins,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat)) + 
+            funkyheatmap::geom_rounded_rect(
+              radius=unit(3, "points"),show.legend=FALSE,
+              color="black",
+              size=0)
+        } else {
+          snakebin_plot <- ggplot(data=data.bins,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat))+
+            funkyheatmap::geom_rounded_rect(
+              radius=unit(3, "points"),show.legend=FALSE,
+              color="black",fill="white",
+              size=0)
+        }
+        
+        labels <- c("0",n_bins_max)
+        breaks <- c(0,bin_width_x*n_bins_max/n_bins)
+        limits <- c(0,bin_width_x*n_bins_max/n_bins)
+        
+        if(flip_x == TRUE){
+          labels <- rev(labels)
+          breaks <- -1*rev(breaks)
+          limits <- -1*rev(limits)
+        }
+        
+        snakebin_plot <- snakebin_plot + 
+          scale_x_continuous(#expand=expansion(add = c(0, .05)),
+            expand=c(0,2),
+            #expand=expansion(add = c(10, 10)),
+                             labels = labels,
+                             breaks= breaks,
+                             limits = limits)+
+          theme_light() +
+          theme(legend.position = "none",
+                legend.title=element_blank(),
+                panel.border = element_blank(),
+                panel.grid = element_blank(),
+                axis.title.x=element_blank(),
+                axis.title.y=element_blank(),
+                axis.text.y = element_blank(),
+                axis.line = element_blank(),
+                axis.ticks.y = element_blank(),
+                plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
+          )
+        # Options
+        {
+          if(display_axis==FALSE){
+            snakebin_plot <- snakebin_plot + theme(axis.text.x=element_blank(),axis.title.x=element_blank(),axis.ticks.x = element_blank())
+          }
+          if (!anyNA(chart.palette)){
+            snakebin_plot <- snakebin_plot + scale_fill_manual(values=chart.palette[levels(data$cat) %in% data$cat])
+          }
+        }
+        # Output
+        {
+          snakebin_plot
+          return(list("plot" = snakebin_plot))
         }
       }
     }

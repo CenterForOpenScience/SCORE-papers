@@ -2,7 +2,7 @@
 # Functions (also readable by external sources)
 {
   # Create an object that contains the tagged stats
-  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata){
+  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts){
   
     # Data preparation
     {
@@ -14,6 +14,8 @@
       orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n())
       repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n())
       repli_outcomes_merged <- repli_outcomes_merged %>% group_by(paper_id) %>% mutate(weight = 1/n())
+      
+      paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
       
     }
     
@@ -29,11 +31,11 @@
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
                           x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                          weighted.mean(x$repli_p_value <= 0.05 & x$repli_pattern_direction==TRUE,
+                          weighted.mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==TRUE,
                                         w=x$weight,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("repli_p_value","repli_pattern_direction"),
+                        keepvars=c("repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
@@ -120,7 +122,7 @@
                           mean(x$repli_p_value <= 0.05)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("repli_p_value","repli_pattern_direction"),
+                        keepvars=c("repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
@@ -133,35 +135,35 @@
                                         w=x$weight,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("repli_p_value","repli_pattern_direction"),
+                        keepvars=c("repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
   
-      n_repli_stat_sig_claims_same_dir <- sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_direction==TRUE)
+      n_repli_stat_sig_claims_same_dir <- sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_criteria_met==TRUE)
       
       p_repli_stat_sig_claims_opposite_dir_wtd <-
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
                           x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                          weighted.mean(x$repli_p_value <= 0.05 & x$repli_pattern_direction==FALSE,w=x$weight,na.rm=TRUE)
+                          weighted.mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==FALSE,w=x$weight,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
   
       n_repli_stat_sig_claims_opposite_dir <-
-        sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_direction==FALSE)
+        sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_criteria_met==FALSE)
   
       p_repli_stat_sig_claims_opposite_dir <-
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
-                          mean(x$repli_p_value <= 0.05 & x$repli_pattern_direction==FALSE,na.rm=TRUE)
+                          mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==FALSE,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
@@ -170,10 +172,10 @@
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
                           x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                          weighted.mean(x$repli_p_value > 0.05 | x$repli_pattern_direction==FALSE,w=x$weight,na.rm=TRUE)
+                          weighted.mean(x$repli_p_value > 0.05 | x$repli_pattern_criteria_met==FALSE,w=x$weight,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
@@ -182,23 +184,23 @@
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
                           x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                          weighted.mean(x$repli_p_value > 0.05 | x$repli_pattern_direction==FALSE,w=x$weight,na.rm=TRUE)
+                          weighted.mean(x$repli_p_value > 0.05 | x$repli_pattern_criteria_met==FALSE,w=x$weight,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
   
-      n_repli_null_sig_claims_or_opposite_dir <- sum(repli_outcomes$repli_p_value > 0.05 | repli_outcomes$repli_pattern_direction==FALSE)
+      n_repli_null_sig_claims_or_opposite_dir <- sum(repli_outcomes$repli_p_value > 0.05 | repli_outcomes$repli_pattern_criteria_met==FALSE)
   
       p_repli_null_sig_claims_or_opposite_dir <-
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
-                          mean(x$repli_p_value > 0.05 | x$repli_pattern_direction==FALSE,na.rm=TRUE)
+                          mean(x$repli_p_value > 0.05 | x$repli_pattern_criteria_met==FALSE,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
@@ -369,10 +371,10 @@
       p_repli_stat_sig_claims_same_dir <-
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
-                          mean(x$repli_p_value <= 0.05 & x$repli_pattern_direction==TRUE,na.rm=TRUE)
+                          mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==TRUE,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=TRUE,digits=1
         )$formatted.text
@@ -561,11 +563,11 @@
       ratio_repli_stat_sig_same_dir_new_data_vs_secondary <- 
         bootstrap.clust(data=repli_outcomes,
                         FUN=function(x) {
-                          mean(x[x$repli_type=="new data",]$repli_p_value<=.05 & x[x$repli_type=="new data",]$repli_pattern_direction==TRUE,na.rm=TRUE)/
-                            mean(x[x$repli_type=="secondary data",]$repli_p_value<=.05 & x[x$repli_type=="secondary data",]$repli_pattern_direction==TRUE,na.rm=TRUE)
+                          mean(x[x$repli_type=="new data",]$repli_p_value<=.05 & x[x$repli_type=="new data",]$repli_pattern_criteria_met==TRUE,na.rm=TRUE)/
+                            mean(x[x$repli_type=="secondary data",]$repli_p_value<=.05 & x[x$repli_type=="secondary data",]$repli_pattern_criteria_met==TRUE,na.rm=TRUE)
                         },
                         clustervar = "paper_id",
-                        keepvars=c("repli_type","repli_p_value","repli_pattern_direction"),
+                        keepvars=c("repli_type","repli_p_value","repli_pattern_criteria_met"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         format.percent=FALSE,digits=1
         )$formatted.text
@@ -599,8 +601,6 @@
   
       p_replication_rate_success_field_max <- "Pending paper process data pipeline"
       
-      n_papers_available_to_score <- "Pending paper process data pipeline"
-      
       p_findings_within_1_SD <- "Pending discussion, probably drop"
       
       p_findings_within_2_SD <- "Pending discussion, probably drop"
@@ -622,6 +622,134 @@
         sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
         digits=1),"%")
       
+      # Table 2
+      {
+        fields.order <- c("Psychology And Health","Business","Sociology And Criminology",
+                          "Economics And Finance","Political Science","Education")
+        
+        format.row <- function(data){
+          data <- data %>% 
+            select(paper_id) %>% 
+            left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
+            count(field)
+          total <- sum(data$n)
+          field <- "Total"
+          n <- paste0(total," (100%)")
+          data$n <- paste0(data$n," (",
+                           format.round(100*data$n/sum(data$n),1),
+                           "%)")
+          data <- rbind(data,data.frame(field,n))
+          colnames <- data$field
+          data <- data.frame(t(rbind(data,data.frame(field,n))[,-1]))
+          colnames(data) <- colnames
+          data[c(fields.order,"Total")]
+        }
+        
+        r1 <- format.row(status %>% filter(p1_delivery))
+        r2 <- format.row(status %>% filter(RR))
+        r3 <- format.row(status %>% filter(bushel))
+        r4 <- format.row(status %>% filter(RR & !bushel))
+        r5 <- format.row(all_rr_attempts %>% 
+                           filter(str_detect(type, "Replication")))
+        r6 <- format.row(status %>% )
+        r7 <- format.row(status %>% )
+        r8 <- format.row(status %>% )
+        
+       
+        # have to remove covid and p2 papers
+        r5 <- all_rr_attempts %>% 
+          filter(str_detect(type, "Replication")) %>%
+          select(paper_id) %>% 
+          distinct() %>% 
+          semi_join(status %>% filter(RR), by = "paper_id") %>% 
+          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
+          count(field) %>% 
+          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          replace_na(., list(field = "Total")) %>% 
+          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
+          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
+          mutate(" " = "Papers with replication started", .before = Total) %>% 
+          select(-Total_percent)
+        
+        
+        # have to remove hybrids
+        # have to remove p2 papers
+        r6 <- repli_outcomes %>% 
+          filter(repli_type != "original and secondary data") %>% 
+          filter(!is_covid) %>% 
+          select(paper_id) %>% 
+          distinct() %>% 
+          semi_join(status %>% filter(RR), by = "paper_id") %>% 
+          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
+          count(field) %>% 
+          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          replace_na(., list(field = "Total")) %>% 
+          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
+          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
+          mutate(" " = "Papers with replications completed", .before = Total) %>% 
+          select(-Total_percent)
+        
+        # have to remove hybrids
+        # have to remove p2 papers
+        r7 <- repli_outcomes %>%
+          filter(repli_type != "original and secondary data") %>% 
+          filter(!is_covid) %>% 
+          semi_join(status %>% filter(RR), by = "paper_id") %>% 
+          filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
+          select(paper_id, claim_id, rr_id) %>% 
+          distinct() %>% 
+          select(paper_id) %>% 
+          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
+          count(field) %>% 
+          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          replace_na(., list(field = "Total")) %>% 
+          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
+          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
+          mutate(" " = "Total replications of claims", .before = Total) %>% 
+          select(-Total_percent)
+        
+        # have to remove hybrids
+        # have to remove p2 papers
+        r8 <- repli_outcomes %>%
+          filter(repli_type != "original and secondary data") %>% 
+          filter(!is_covid) %>% 
+          semi_join(status %>% filter(RR), by = "paper_id") %>% 
+          select(paper_id, claim_id) %>% 
+          distinct() %>% 
+          select(paper_id) %>% 
+          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
+          count(field) %>% 
+          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          replace_na(., list(field = "Total")) %>% 
+          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
+          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
+          mutate(" " = "Replications of unique claims", .before = Total) %>% 
+          select(-Total_percent)
+        
+        
+        bind_rows(r1, r2, r3, r4, r5, r6, r7, r8) %>% 
+          kbl(caption = "Table 2",
+              col.names = c(" ", "N", rep(c("n", "%"), 6)),
+              align = c("l", rep("c", 13))) %>% 
+          kable_styling(full_width = F) %>% 
+          add_header_above(header = c(" " = 1, "Total" = 1, "Business" = 2, "Economics" = 2, "Education" = 2, 
+                                      "Pol. Science" = 2, "Psychology" = 2, "Sociology" = 2)) %>%   
+          row_spec(1, extra_css = "border-top: solid;") %>% 
+          row_spec(8, extra_css = "border-bottom: solid;") %>% 
+          column_spec(1, border_left = T) %>% 
+          column_spec(3, border_left = T) %>% 
+          column_spec(5, border_left = T) %>% 
+          column_spec(7, border_left = T) %>% 
+          column_spec(9, border_left = T) %>% 
+          column_spec(11, border_left = T) %>% 
+          column_spec(13, border_left = T) %>% 
+          column_spec(14, border_right = T)
+      }
+      
     }
     
   
@@ -633,3 +761,81 @@
   }
 }
 
+# Run tag generation for testing. Note: comment out this section before deploying
+if(TRUE){
+  
+  # Initial setup and libraries
+  {
+    #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+    
+    library(shiny)
+    library(bslib)
+    library(dplyr)
+    library(ggplot2)
+    library(ggExtra)
+    library(DT)
+    library(tidyr)
+    library(pbapply)
+    library(googledrive)
+    library(stringr)
+    library(Hmisc)
+    library(targets)
+    library(googlesheets4)
+    library(zcurve)
+    library(scales)
+    
+    drive_auth(Sys.getenv("google_oauth_email"))
+    #drive_deauth()
+    # Common functions
+    source(file="Analysis/common functions.R")
+  }
+  
+  
+  # Load data
+  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts")
+  for(i in 1:length(objects_to_load)){
+    assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+    #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+  }
+  
+  
+  # Pull paper to find what tags are in paper
+  paper_text <- drive_read_string(file=googledrive::as_id("1mauNAwu0eZfvh5-5p44wnKz8NQL-5Tm_bAyZNseTONo"),
+                                  type = "text/plain",encoding="UTF-8")  %>%
+    strsplit(split = "(\r\n|\r|\n)") %>%
+    .[[1]]
+  paper_text <- paste0(paper_text,collapse="  ")
+  
+  # Pull paper to find what tags are calculated
+  tags <- unique(str_match_all(paper_text, "\\{\\s*(.*?)\\s*\\}")[[1]][,2])
+  tags <- tags[tags!=""]
+  tags <- tags[is.na(as.numeric(tags))]
+  tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
+  
+  # Generate stats
+  results_tagged_stats <- tagged_stats(iters = 20,
+                                       repli_outcomes=repli_outcomes,
+                                       orig_outcomes=orig_outcomes,
+                                       paper_metadata=paper_metadata,
+                                       all_rr_attempts=all_rr_attempts)
+  
+  # Generate list of tags
+  values_text <- do.call(c,lapply(1:length(tags),function(x) {
+    tag_to_find <- tags[x]
+    if(tag_to_find %in% names(results_tagged_stats)){
+      as.character(results_tagged_stats[[tag_to_find]])
+    } else {
+      "MISSING"
+    }
+  }))
+  
+  
+  # Export
+  ss <- "https://docs.google.com/spreadsheets/d/18l82lxIwItqeC2m9RW_dIj03cHY_Im8W91Z5RQ7VN1o"
+  range_delete(ss,range="A:H")
+  range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
+  
+  # sheet_write(data.frame(tags=paste0("{",tags,"}"),values_text),
+  #             ss=ss,sheet = "Sheet1")
+  
+}
