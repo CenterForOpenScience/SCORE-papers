@@ -428,6 +428,18 @@ list(
                                prereg_checkin_repro_moddate),
              cue = tar_cue("always")),
   
+  # File: repro_vor
+  # Reproduction Version of Record
+  tar_target(repro_vor_gsheet,
+             "1jxgJQDIiKOOodtZR9bTLoBxZya4KlGexhwi2SekbBU0"),
+  tar_target(repro_vor_moddate,
+             get_google_mod_date(repro_vor_gsheet),
+             cue = tar_cue("always")),
+  tar_target(repro_vor,
+             read_google_sheet(repro_vor_gsheet,
+                               repro_vor_moddate,
+                               sheet = "repro_version_of_record")),
+  
   # Added SCORE variables - Gsheet
   tar_target(effectsize_gsheet,
              "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
@@ -668,7 +680,8 @@ list(
   # Merge with additional cases
   tar_target(repro_merged,
              merge_repro(repro_data_entry,
-                         reproduction_cases)),
+                         reproduction_cases,
+                         repro_vor)),
   
   # Update transformed data from forms
   tar_target(repro_export,

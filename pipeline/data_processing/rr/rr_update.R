@@ -8,6 +8,8 @@ update_repro <- function(repro_merged,
   # changes
   repro_merged %>%
     apply_changelog(p2_repro_input_changelog, "unique_report_id") %>%
+    # Filter backwards
+    #map_df(rev) %>%
     distinct(rr_id,
              claim_id,
              .keep_all = TRUE)
