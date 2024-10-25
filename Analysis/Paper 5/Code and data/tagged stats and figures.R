@@ -11,9 +11,9 @@
       
       repli_outcomes_merged <- merge(repli_outcomes,orig_outcomes[,!(names(orig_outcomes) %in% c("paper_id"))],
                                      by="claim_id",all.x=TRUE,all.y=FALSE)
-      orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n())
-      repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n())
-      repli_outcomes_merged <- repli_outcomes_merged %>% group_by(paper_id) %>% mutate(weight = 1/n())
+      orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
+      repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
+      repli_outcomes_merged <- repli_outcomes_merged %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
       
       paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
       
@@ -404,7 +404,8 @@
   
       orig_outcomes <- orig_outcomes %>%
         group_by(paper_id_orig_and_repli_pearsons_estimatable) %>%
-        mutate(weight.estimatable = 1/n())
+        mutate(weight.estimatable = 1/n()) %>%
+        ungroup()
   
       median_orig_pearsons_both_estimatable_wtd <- round(weighted.median(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$orig_pearsons_r_value,
                                                                         orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight.estimatable,na.rm=TRUE),3)
@@ -417,7 +418,8 @@
       
       repli_outcomes <- repli_outcomes %>%
         group_by(paper_id_orig_and_repli_pearsons_estimatable) %>%
-        mutate(weight.estimatable = 1/n())
+        mutate(weight.estimatable = 1/n()) %>% 
+        ungroup()
       
       median_repli_pearsons_both_estimatable_wtd <- round(weighted.median(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$repli_pearsons_r_value,
                                                                               repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight.estimatable,na.rm=TRUE),3)
@@ -499,65 +501,6 @@
         )$formatted.text
       
       p_neg_ratio_all_ES_repli_vs_orig <- "Pending discussion, probably drop"
-      
-      table_4_r1_c1 <- length(unique(orig_outcomes$paper_id))
-      
-      table_4_r1_c2 <- length(unique(repli_outcomes$paper_id))
-      
-      table_4_r1_c3 <- length(unique(orig_outcomes$claim_id))
-      
-      table_4_r1_c4 <- length(unique(repli_outcomes$claim_id))
-      
-      table_4_r2_c1 <- "Pending discussion on effect sizes"
-      table_4_r2_c2 <- "Pending discussion on effect sizes"
-      table_4_r2_c3 <- "Pending discussion on effect sizes"
-      table_4_r2_c4 <- "Pending discussion on effect sizes"
-      table_4_r3_c1 <- "Pending discussion on effect sizes"
-      table_4_r3_c2 <- "Pending discussion on effect sizes"
-      table_4_r3_c3 <- "Pending discussion on effect sizes"
-      table_4_r3_c4 <- "Pending discussion on effect sizes"
-      table_4_r4_c1 <- "Pending discussion on effect sizes"
-      table_4_r4_c2 <- "Pending discussion on effect sizes"
-      table_4_r4_c3 <- "Pending discussion on effect sizes"
-      table_4_r4_c4 <- "Pending discussion on effect sizes"
-      table_4_r5_c1 <- "Pending discussion on effect sizes"
-      table_4_r5_c2 <- "Pending discussion on effect sizes"
-      table_4_r5_c3 <- "Pending discussion on effect sizes"
-      table_4_r5_c4 <- "Pending discussion on effect sizes"
-      table_4_r6_c1 <- "Pending discussion on effect sizes"
-      table_4_r6_c2 <- "Pending discussion on effect sizes"
-      table_4_r6_c3 <- "Pending discussion on effect sizes"
-      table_4_r6_c4 <- "Pending discussion on effect sizes"
-      
-      orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(paper_weight = 1/n())
-      repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(paper_weight = 1/n())
-      
-      table_4_r7_c1 <- paste0(prettyNum(weighted.median(orig_outcomes$orig_sample_size_value,orig_outcomes$paper_weight,na.rm=TRUE),big.mark = ","),
-                              " (IQR: ",
-                              prettyNum(weighted.quantile(orig_outcomes$orig_sample_size_value,orig_outcomes$paper_weight,quantile=.75,na.rm=TRUE) - 
-                                weighted.quantile(orig_outcomes$orig_sample_size_value,orig_outcomes$paper_weight,quantile=.25,na.rm=TRUE),big.mark = ","),
-                              ")"
-      )
-      
-      table_4_r7_c2 <- paste0(prettyNum(weighted.median(repli_outcomes$repli_sample_size_value,repli_outcomes$paper_weight,na.rm=TRUE),big.mark = ","),
-                              " (IQR: ",
-                              prettyNum(weighted.quantile(repli_outcomes$repli_sample_size_value,repli_outcomes$paper_weight,quantile=.75,na.rm=TRUE) - 
-                                weighted.quantile(repli_outcomes$repli_sample_size_value,repli_outcomes$paper_weight,quantile=.25,na.rm=TRUE),big.mark = ","),
-                              ")"
-      )
-      
-      table_4_r7_c3 <- paste0(prettyNum(median(orig_outcomes$orig_sample_size_value,na.rm=TRUE),big.mark = ","),
-                              " (IQR: ",
-                              prettyNum(IQR(orig_outcomes$orig_sample_size_value,na.rm=TRUE),big.mark = ","),
-                              ")"
-      )
-      
-      table_4_r7_c4 <- paste0(prettyNum(median(repli_outcomes$repli_sample_size_value,na.rm=TRUE),big.mark = ","),
-                              " (IQR: ",
-                              prettyNum(IQR(repli_outcomes$repli_sample_size_value,na.rm=TRUE),big.mark = ","),
-                              ")"
-      )
-
       
       
       ratio_repli_stat_sig_same_dir_new_data_vs_secondary <- 
@@ -649,107 +592,307 @@
         r2 <- format.row(status %>% filter(RR))
         r3 <- format.row(status %>% filter(bushel))
         r4 <- format.row(status %>% filter(RR & !bushel))
-        r5 <- format.row(all_rr_attempts %>% 
-                           filter(str_detect(type, "Replication")))
-        r6 <- format.row(status %>% )
-        r7 <- format.row(status %>% )
-        r8 <- format.row(status %>% )
-        
-       
-        # have to remove covid and p2 papers
-        r5 <- all_rr_attempts %>% 
-          filter(str_detect(type, "Replication")) %>%
-          select(paper_id) %>% 
-          distinct() %>% 
-          semi_join(status %>% filter(RR), by = "paper_id") %>% 
-          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
-          count(field) %>% 
-          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
-          bind_rows(summarize_at(., vars(-field), sum)) %>% 
-          replace_na(., list(field = "Total")) %>% 
-          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
-          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
-          mutate(" " = "Papers with replication started", .before = Total) %>% 
-          select(-Total_percent)
+        r5 <- format.row(all_rr_attempts  %>%
+                           filter(str_detect(type, "Replication")) %>%
+                             select(paper_id) %>% 
+                             distinct() %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id"))
+        r6 <- format.row(repli_outcomes %>% 
+                           filter(repli_type != "original and secondary data") %>% 
+                           filter(!is_covid) %>% 
+                           select(paper_id) %>% 
+                           distinct() %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id") )
+        r7 <- format.row(repli_outcomes %>%
+                           filter(repli_type != "original and secondary data") %>% 
+                           filter(!is_covid) %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id") %>% 
+                           filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
+                           select(paper_id, claim_id, rr_id) %>% 
+                           distinct() %>% 
+                           select(paper_id) )
         
         
-        # have to remove hybrids
-        # have to remove p2 papers
-        r6 <- repli_outcomes %>% 
-          filter(repli_type != "original and secondary data") %>% 
-          filter(!is_covid) %>% 
-          select(paper_id) %>% 
-          distinct() %>% 
-          semi_join(status %>% filter(RR), by = "paper_id") %>% 
-          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
-          count(field) %>% 
-          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
-          bind_rows(summarize_at(., vars(-field), sum)) %>% 
-          replace_na(., list(field = "Total")) %>% 
-          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
-          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
-          mutate(" " = "Papers with replications completed", .before = Total) %>% 
-          select(-Total_percent)
-        
-        # have to remove hybrids
-        # have to remove p2 papers
-        r7 <- repli_outcomes %>%
-          filter(repli_type != "original and secondary data") %>% 
-          filter(!is_covid) %>% 
-          semi_join(status %>% filter(RR), by = "paper_id") %>% 
-          filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
-          select(paper_id, claim_id, rr_id) %>% 
-          distinct() %>% 
-          select(paper_id) %>% 
-          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
-          count(field) %>% 
-          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
-          bind_rows(summarize_at(., vars(-field), sum)) %>% 
-          replace_na(., list(field = "Total")) %>% 
-          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
-          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
-          mutate(" " = "Total replications of claims", .before = Total) %>% 
-          select(-Total_percent)
-        
-        # have to remove hybrids
-        # have to remove p2 papers
-        r8 <- repli_outcomes %>%
-          filter(repli_type != "original and secondary data") %>% 
-          filter(!is_covid) %>% 
-          semi_join(status %>% filter(RR), by = "paper_id") %>% 
-          select(paper_id, claim_id) %>% 
-          distinct() %>% 
-          select(paper_id) %>% 
-          left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
-          count(field) %>% 
-          mutate(percent = ((n/sum(n))*100) %>% round) %>% 
-          bind_rows(summarize_at(., vars(-field), sum)) %>% 
-          replace_na(., list(field = "Total")) %>% 
-          pivot_wider(names_from = "field", values_from = c(n, "percent"), names_glue = "{field}_{.value}") %>% 
-          select(Total = Total_n, -"Total_percent", order(colnames(.))) %>% 
-          mutate(" " = "Replications of unique claims", .before = Total) %>% 
-          select(-Total_percent)
-        
-        
-        bind_rows(r1, r2, r3, r4, r5, r6, r7, r8) %>% 
-          kbl(caption = "Table 2",
-              col.names = c(" ", "N", rep(c("n", "%"), 6)),
-              align = c("l", rep("c", 13))) %>% 
-          kable_styling(full_width = F) %>% 
-          add_header_above(header = c(" " = 1, "Total" = 1, "Business" = 2, "Economics" = 2, "Education" = 2, 
-                                      "Pol. Science" = 2, "Psychology" = 2, "Sociology" = 2)) %>%   
-          row_spec(1, extra_css = "border-top: solid;") %>% 
-          row_spec(8, extra_css = "border-bottom: solid;") %>% 
-          column_spec(1, border_left = T) %>% 
-          column_spec(3, border_left = T) %>% 
-          column_spec(5, border_left = T) %>% 
-          column_spec(7, border_left = T) %>% 
-          column_spec(9, border_left = T) %>% 
-          column_spec(11, border_left = T) %>% 
-          column_spec(13, border_left = T) %>% 
-          column_spec(14, border_right = T)
+        r8 <- format.row(repli_outcomes %>%
+                           filter(repli_type != "original and secondary data") %>% 
+                           filter(!is_covid) %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id") %>% 
+                           select(paper_id, claim_id) %>% 
+                           distinct() %>% 
+                           select(paper_id))
+        table_2 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8)
+        for (row in 1:nrow(table_2)){
+          for (col in 1:ncol(table_2)){
+            assign(paste0("table_2_",row,"_",col),
+                   table_2[row,col])
+          }
+        }
+        rm(r1,r2,r3,r4,r5,r6,r7,r8)
       }
       
+      # Table 3
+      {
+        fields.order <- c("Psychology And Health","Business","Sociology And Criminology",
+                          "Economics And Finance","Political Science","Education")
+        
+        format.row <- function(data){
+          data <- data %>% 
+            select(paper_id) %>% 
+            left_join(paper_metadata %>% select(paper_id, pub_year), by = "paper_id") %>% 
+            count(pub_year)
+          total <- sum(data$n)
+          pub_year <- "Total"
+          n <- paste0(total," (100%)")
+          data$n <- paste0(data$n," (",
+                           format.round(100*data$n/sum(data$n),1),
+                           "%)")
+          data <- rbind(data,data.frame(pub_year,n))
+          colnames <- data$pub_year
+          data <- data.frame(t(rbind(data,data.frame(pub_year,n))[,-1]))
+          colnames(data) <- colnames
+          data[c(as.character(2009:2018),"Total")]
+        }
+        
+        r1 <- format.row(status %>% filter(p1_delivery))
+        r2 <- format.row(status %>% filter(RR))
+        r3 <- format.row(status %>% filter(bushel))
+        r4 <- format.row(status %>% filter(RR & !bushel))
+        r5 <- format.row(all_rr_attempts  %>%
+                           filter(str_detect(type, "Replication")) %>%
+                           select(paper_id) %>% 
+                           distinct() %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id"))
+        r6 <- format.row(repli_outcomes %>% 
+                           filter(repli_type != "original and secondary data") %>% 
+                           filter(!is_covid) %>% 
+                           select(paper_id) %>% 
+                           distinct() %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id") )
+        r7 <- format.row(repli_outcomes %>%
+                           filter(repli_type != "original and secondary data") %>% 
+                           filter(!is_covid) %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id") %>% 
+                           filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
+                           select(paper_id, claim_id, rr_id) %>% 
+                           distinct() %>% 
+                           select(paper_id) )
+        
+        
+        r8 <- format.row(repli_outcomes %>%
+                           filter(repli_type != "original and secondary data") %>% 
+                           filter(!is_covid) %>% 
+                           semi_join(status %>% filter(RR), by = "paper_id") %>% 
+                           select(paper_id, claim_id) %>% 
+                           distinct() %>% 
+                           select(paper_id))
+        
+        table_3 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8)
+        for (row in 1:nrow(table_3)){
+          for (col in 1:ncol(table_3)){
+            assign(paste0("table_3_",row,"_",col),
+                   table_3[row,col])
+          }
+        }
+        rm(r1,r2,r3,r4,r5,r6,r7,r8)
+      }
+      
+      # Table 4
+      {
+        repli_effects <- repli_outcomes %>% 
+          filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
+          select(report_id, claim_id, paper_id,repli_sample_size_value, success = repli_score_criteria_met, repli_type,
+                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub, repli_effect_size_type, repli_effect_size_value) %>%
+          mutate(ser_effect = ifelse(str_detect(repli_effect_size_type, "ser_"), abs(repli_effect_size_value), NA)) %>% 
+          mutate(across(contains("conv"), abs))
+        
+        orig_effects <- orig_outcomes %>% 
+          select(claim_id, paper_id,orig_sample_size_value, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub,
+                 orig_effect_size_type_repli, orig_effect_size_value_repli) %>%
+          semi_join(repli_effects, by = "claim_id") %>% 
+          
+          mutate(ser_effect = ifelse(str_detect(orig_effect_size_type_repli, "ser_"), abs(orig_effect_size_value_repli), NA)) %>% 
+          mutate(across(contains("conv"), abs))
+        
+        # Number of papers and claims
+        r1 <- c(length(unique(orig_effects$paper_id)),length(unique(repli_effects$paper_id)),
+                length(unique(orig_effects$claim_id)),length(unique(repli_effects$claim_id)))
+        
+        repli_effects <- repli_effects %>% 
+          filter(!is.na(repli_conv_r)) %>%
+          group_by(paper_id) %>% 
+          mutate(weight = 1/n()) %>% 
+          ungroup()
+        orig_effects <- orig_effects %>% 
+          filter(!is.na(orig_conv_r)) %>%
+          group_by(paper_id) %>% 
+          mutate(weight = 1/n()) %>% 
+          ungroup()
+        
+        # Number of effect sizes
+        r2 <- c(sum(as.numeric(!is.na(orig_effects$orig_conv_r))*orig_effects$weight),
+                sum(as.numeric(!is.na(repli_effects$repli_conv_r))*repli_effects$weight),
+                sum(!is.na(orig_effects$orig_conv_r)),
+                sum(!is.na(repli_effects$repli_conv_r))
+                )
+        
+        # IQR of effect sizes
+        r3 <- c(paste0(weighted.quantile(orig_effects$orig_sample_size_value,orig_effects$weight,.5)," (",format.round(weighted.quantile(orig_effects$orig_sample_size_value,orig_effects$weight,.75) - weighted.quantile(orig_effects$orig_sample_size_value,orig_effects$weight,.25),1),")"),
+                paste0(weighted.quantile(repli_effects$repli_sample_size_value,repli_effects$weight,.5)," (",format.round(weighted.quantile(repli_effects$repli_sample_size_value,repli_effects$weight,.75) - weighted.quantile(repli_effects$repli_sample_size_value,repli_effects$weight,.25),1),")"),
+                paste0(quantile(orig_effects$orig_sample_size_value,.5,na.rm=TRUE)," (",IQR(orig_effects$orig_sample_size_value,na.rm=TRUE),")"),
+                paste0(quantile(repli_effects$repli_sample_size_value,.5,na.rm=TRUE)," (",IQR(repli_effects$repli_sample_size_value,na.rm=TRUE),")")
+        )
+        
+        # Pearsons R effect size
+        r4 <- c(paste0(format.round(weighted.quantile(orig_effects$orig_conv_r,orig_effects$weight,.5),2)," (",format.round(sqrt(wtd.var(orig_effects$orig_conv_r,orig_effects$weight)),2),")"),
+                paste0(format.round(weighted.quantile(repli_effects$repli_conv_r,repli_effects$weight,.5),2)," (",format.round(sqrt(wtd.var(repli_effects$repli_conv_r,repli_effects$weight)),2),")"),
+                paste0(format.round(quantile(orig_effects$orig_conv_r,.5),2)," (",format.round(sd(orig_effects$orig_conv_r,1),2),")"),
+                paste0(format.round(quantile(repli_effects$repli_conv_r,.5),2)," (",format.round(sd(repli_effects$repli_conv_r,1),2),")")
+                
+        )
+        
+        table_4 <- rbind(r1,r2,r3,r4)
+        for (row in 1:nrow(table_4)){
+          for (col in 1:ncol(table_4)){
+            assign(paste0("table_4_",row,"_",col),
+                   table_4[row,col])
+          }
+        }
+        rm(r1,r2,r3,r4)
+      }
+
+      # Table 5
+      {
+        repli_effects <- repli_outcomes %>%
+          filter(!is_covid) %>%
+          filter(repli_version_of_record) %>%
+          select(report_id, claim_id,repli_sample_size_value, success = repli_score_criteria_met, repli_type,
+                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub, repli_effect_size_type, repli_effect_size_value) %>%
+          mutate(ser_effect = ifelse(str_detect(repli_effect_size_type, "ser_"), abs(repli_effect_size_value), NA)) %>%
+          mutate(across(contains("conv"), abs))
+        
+        orig_effects <- orig_outcomes %>%
+          semi_join(repli_effects, by = "claim_id") %>%
+          select(claim_id, paper_id,orig_sample_size_value, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub,
+                 orig_effect_size_type_repli, orig_effect_size_value_repli) %>%
+          mutate(ser_effect = ifelse(str_detect(orig_effect_size_type_repli, "ser_"), abs(orig_effect_size_value_repli), NA)) %>%
+          mutate(across(contains("conv"), abs)) %>%
+          mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>%
+          left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id")
+
+        effects_combined <- merge(orig_effects,repli_effects,by="claim_id",all.x = TRUE,all.y = FALSE)
+
+        effects_combined <- effects_combined %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+
+        table_5 <- do.call(rbind,lapply(unique(effects_combined$field), function(field) {
+          data <- effects_combined[effects_combined$field==field,]
+          c1 <- paste0(format.round(sum(as.numeric(data$success)*data$weight),1)," / ",length(unique(data$paper_id))," (",
+                       format.round(100 *sum(as.numeric(data$success)*data$weight)/length(unique(data$paper_id)),1),"%)")
+
+          c2 <- paste0(sum(data$success)," / ",nrow(data)," (",
+                       format.round(100 *sum(data$success)/nrow(data),1),"%)")
+          data.frame(field,c1,c2)
+        }))
+
+        table_5 <- table_5[order(table_5$field),]
+        table_5$field <- NULL
+
+        for (row in 1:nrow(table_5)){
+          for (col in 1:ncol(table_5)){
+            assign(paste0("table_5_",row,"_",col),
+                   table_5[row,col])
+          }
+        }
+        rm(orig_effects,repli_effects,effects_combined)
+      }
+      
+      # Table 6
+      {
+        repli_effects <- repli_outcomes %>%
+          filter(!is_covid) %>%
+          filter(repli_version_of_record) %>%
+          select(report_id, claim_id,repli_sample_size_value, success = repli_score_criteria_met, repli_type,
+                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub, repli_effect_size_type, repli_effect_size_value) %>%
+          mutate(ser_effect = ifelse(str_detect(repli_effect_size_type, "ser_"), abs(repli_effect_size_value), NA)) %>%
+          mutate(across(contains("conv"), abs))
+        
+        orig_effects <- orig_outcomes %>%
+          semi_join(repli_effects, by = "claim_id") %>%
+          select(claim_id, paper_id,orig_sample_size_value, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub,
+                 orig_effect_size_type_repli, orig_effect_size_value_repli) %>%
+          mutate(ser_effect = ifelse(str_detect(orig_effect_size_type_repli, "ser_"), abs(orig_effect_size_value_repli), NA)) %>%
+          mutate(across(contains("conv"), abs)) %>%
+          mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>%
+          left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id")
+        
+        effects_combined <- merge(orig_effects,repli_effects,by="claim_id",all.x = TRUE,all.y = FALSE)
+        
+        effects_combined <- effects_combined %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        r1.data <- effects_combined[effects_combined$repli_type=="new data",]
+        
+        r1 <- c(paste0(format.round(length(unique(r1.data$paper_id)),1)," of ",length(unique(r1.data$paper_id)),
+                       " (",format.round(100*length(unique(r1.data$paper_id))/length(unique(r1.data$paper_id)),1),"%)"),
+                paste0(format.round(sum(r1.data$success*r1.data$weight),1)," of ",length(unique(r1.data$paper_id)),
+                       " (",format.round(100*sum(r1.data$success*r1.data$weight)/length(unique(r1.data$paper_id)),1),"%)"),
+                paste0(nrow(r1.data)," of ",nrow(r1.data)," (",format.round(100*nrow(r1.data)/nrow(r1.data),1),"%)"),
+                paste0(sum(r1.data$success)," of ",nrow(r1.data)," (",format.round(100*sum(r1.data$success)/nrow(r1.data),1),"%)"))
+        
+        r2.data <- effects_combined[effects_combined$repli_type=="secondary data",]
+        
+        r2 <- c(paste0(format.round(length(unique(r2.data$paper_id)),1)," of ",length(unique(r2.data$paper_id)),
+                       " (",format.round(100*length(unique(r2.data$paper_id))/length(unique(r2.data$paper_id)),1),"%)"),
+                paste0(format.round(sum(r2.data$success*r2.data$weight),1)," of ",length(unique(r2.data$paper_id)),
+                       " (",format.round(100*sum(r2.data$success*r2.data$weight)/length(unique(r2.data$paper_id)),1),"%)"),
+                paste0(nrow(r2.data)," of ",nrow(r2.data)," (",format.round(100*nrow(r2.data)/nrow(r2.data),1),"%)"),
+                paste0(sum(r2.data$success)," of ",nrow(r2.data)," (",format.round(100*sum(r2.data$success)/nrow(r2.data),1),"%)"))
+        
+        r3.data <- r1.data %>%
+          filter(!is.na(orig_conv_r)) %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        r3 <- c(paste0(format.round(weighted.quantile(r3.data$orig_conv_r,r3.data$weight,.5),2),
+                       " (",format.round(sqrt(wtd.var(r3.data$orig_conv_r,r3.data$weight)),2),")"),
+                paste0(format.round(weighted.quantile(r3.data$repli_conv_r,r3.data$weight,.5),2),
+                       " (",format.round(sqrt(wtd.var(r3.data$repli_conv_r,r3.data$weight)),2),")"),
+                paste0(format.round(quantile(r3.data$orig_conv_r,.5,na.rm=TRUE),2)," (",format.round(sd(r3.data$orig_conv_r,1),2),")"),
+                paste0(format.round(quantile(r3.data$repli_conv_r,.5,na.rm=TRUE),2)," (",format.round(sd(r3.data$repli_conv_r,1),2),")")
+        )
+        
+        r4.data <- r2.data %>%
+          filter(!is.na(orig_conv_r)) %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        r4 <- c(paste0(format.round(weighted.quantile(r4.data$orig_conv_r,r4.data$weight,.5),2),
+                       " (",format.round(sqrt(wtd.var(r4.data$orig_conv_r,r4.data$weight)),2),")"),
+                paste0(format.round(weighted.quantile(r4.data$repli_conv_r,r4.data$weight,.5),2),
+                       " (",format.round(sqrt(wtd.var(r4.data$repli_conv_r,r4.data$weight)),2),")"),
+                paste0(format.round(quantile(r4.data$orig_conv_r,.5,na.rm=TRUE),2)," (",format.round(sd(r4.data$orig_conv_r,1),2),")"),
+                paste0(format.round(quantile(r4.data$repli_conv_r,.5,na.rm=TRUE),2)," (",format.round(sd(r4.data$repli_conv_r,1),2),")")
+        )
+        
+        table_6 <- rbind(r1,r2,r3,r4)
+        for (row in 1:nrow(table_6)){
+          for (col in 1:ncol(table_6)){
+            assign(paste0("table_6_",row,"_",col),
+                   table_6[row,col])
+          }
+        }
+        rm(r1,r2,r3,r4)
+        
+        
+      }
+
     }
     
   
@@ -783,6 +926,7 @@ if(TRUE){
     library(googlesheets4)
     library(zcurve)
     library(scales)
+    library(Hmisc)
     
     drive_auth(Sys.getenv("google_oauth_email"))
     #drive_deauth()
@@ -833,7 +977,7 @@ if(TRUE){
   # Export
   ss <- "https://docs.google.com/spreadsheets/d/18l82lxIwItqeC2m9RW_dIj03cHY_Im8W91Z5RQ7VN1o"
   range_delete(ss,range="A:H")
-  range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
+  range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE,sheet="Data")
   
   # sheet_write(data.frame(tags=paste0("{",tags,"}"),values_text),
   #             ss=ss,sheet = "Sheet1")
