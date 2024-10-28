@@ -647,6 +647,16 @@
            format.round(CI.lb,digits),"-",format.round(CI.ub,digits),
            end.notation,")")
   }
+  
+  format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE){
+    p <- binconf(x,n)
+    text <- paste0(format.round(100*p[1],digits),"%")
+    if(confint){
+      text <- format.text.CI(p[1],p[2],p[3],alpha,digits,format.percent = TRUE)
+    } else
+      text <- paste0(format.round(100*p[1],digits=digits),"%")
+    text
+  }
 }
 
 # Statistical functions
