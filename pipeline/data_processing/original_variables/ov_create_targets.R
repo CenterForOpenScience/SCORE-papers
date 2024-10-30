@@ -88,70 +88,70 @@ create_ov_analytic <- function(orig_dataset,
     mutate(claim_id = unique_claim_id,
            # Coalesce reported into reference
            orig_sample_size_value = coalesce(
-             original_analytic_sample_size_value_reported,
-             original_analytic_sample_size_value_reference
+             original_analytic_sample_size_value_reference,
+             original_analytic_sample_size_value_reported
            ),
            sample_size_value_effective = coalesce(
              original_effective_sample_size,
              orig_sample_size_value
            ),
            orig_stat_type = coalesce(
-             original_statistic_type_reported,
-             original_statistic_type_reference
+             original_statistic_type_reference,
+             original_statistic_type_reported
            ),
            orig_stat_dof_1 = coalesce(
-             original_statistic_df1_reported,
-             original_statistic_df1_reference
+             original_statistic_df1_reference,
+             original_statistic_df1_reported
            ),
            df_1_effective = coalesce(original_effective_df1_reference,
                                      orig_stat_dof_1),
            orig_stat_dof_2 = coalesce(
-             original_statistic_df2_reported,
-             original_statistic_df2_reference
+             original_statistic_df2_reference,
+             original_statistic_df2_reported
            ),
            orig_stat_value = coalesce(
-             original_statistic_value_reported,
-             original_statistic_value_reference
+             original_statistic_value_reference,
+             original_statistic_value_reported
            ),
            orig_stat_interaction = coalesce(
-             original_statistic_effect_type_reported,
-             original_statistic_effect_type_reference
+             original_statistic_effect_type_reference,
+             original_statistic_effect_type_reported
            ),
            orig_effect_size_text = coalesce(
-             original_effect_size_fulltext_reported,
-             original_effect_size_fulltext_reference
+             original_effect_size_fulltext_reference,
+             original_effect_size_fulltext_reported
            ),
            orig_effect_size_type_repro = coalesce(
-             original_effect_size_type_reported,
-             original_effect_size_type_reference
+             original_effect_size_type_reference,
+             original_effect_size_type_reported
            ),
            orig_effect_size_value_repro = coalesce(
-             original_effect_size_value_reported,
-             original_effect_size_value_reference
+             original_effect_size_value_reference,
+             original_effect_size_value_reported
            ),
            orig_coef_type = coalesce(
-             original_coefficient_type_reported,
-             original_coefficient_type_reference
+             original_coefficient_type_reference,
+             original_coefficient_type_reported
            ),
            orig_coef_value = coalesce(
-             original_coefficient_value_reported,
-             original_coefficient_value_reference
+             original_coefficient_value_reference,
+             original_coefficient_value_reported
            ),
            orig_coef_se = coalesce(
-             original_coefficient_se_reported,
-             original_coefficient_se_reference
+             original_coefficient_se_reference,
+             original_coefficient_se_reported
            ),
            orig_p_value_type = coalesce(
-             original_p_value_type_reported,
-             original_p_value_type_reference
+             original_p_value_type_reference,
+             original_p_value_type_reported
            ),
            orig_p_value = coalesce(
-             original_p_value_value_reported,
-             original_p_value_value_reference
+             original_p_value_value_reference,
+             original_p_value_value_reported
            ),
            orig_p_value_tails = coalesce(
-             original_p_value_tails_reported,
-             original_p_value_tails_reference
+             original_p_value_tails_reference,
+             original_p_value_tails_reported
            ),
            orig_stat_type = case_match(orig_stat_type,
                                        c("f", "Fvalue") ~ "F",
