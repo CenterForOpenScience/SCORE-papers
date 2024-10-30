@@ -795,6 +795,21 @@
   weighted.median <- function (x, weight, na.rm = FALSE){
     weighted.quantile(x,weight,quantile=.5,na.rm)
   }
+  
+  # Clustered/weighted proportion (convenience function)
+  cw.proportion <- function (data, weights, clusters,iters){
+    df <- data.frame(data,weights,clusters)
+    
+    bootstrap.clust(data=df,
+                    FUN=function(x) {
+                      sum(as.numeric(x$data)*x$weights)/sum(x$weights)
+                    },
+                    clustervar = "clusters",
+                    keepvars=c("clusters","data","weights"),
+                    alpha=.05,tails="two-tailed",iters=iters,
+                    format.percent=TRUE,digits=1
+    )
+  }
 }
 
 # Paper-specific functions
