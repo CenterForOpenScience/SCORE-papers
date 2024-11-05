@@ -278,17 +278,16 @@
                     panel.border = element_blank(),
                     panel.grid = element_blank(),
                     axis.title.x=element_blank(),
-                    axis.title.y=element_blank(),
                     axis.text.y = element_blank(),
                     axis.line = element_blank(),
                     axis.ticks.y = element_blank()
               )
           }
-          if(legend==TRUE){
-            plot <- plot+
-              geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
-                        color=legend.color)
-          }
+          # if(legend==TRUE){
+          #   plot <- plot+
+          #     geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
+          #               color=legend.color)
+          # }
         }
         # Output
         {
@@ -478,9 +477,9 @@
             plot <- plot + scale_fill_manual(values=chart.palette[levels(cats_rects$cat) %in% cats_rects$cat])
           }
           if(legend==TRUE){
-            plot <- plot+
-              geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
-                        color=legend.color)
+            # plot <- plot+
+            #   geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
+            #             color=legend.color)
           }
         }
         # Output
@@ -628,7 +627,7 @@
   }
   
   format.round <- function(x,digits){
-    format(round(x,digits),nsmall=digits)
+    format(round(x,digits),nsmall=digits,trim=TRUE)
   }
   
   
@@ -643,9 +642,9 @@
     }
     
     paste0(format.round(point.estimate,digits),
-           end.notation," (",100*(1-alpha),"% CI ",
-           format.round(CI.lb,digits),"-",format.round(CI.ub,digits),
-           end.notation,")")
+           end.notation," [",100*(1-alpha),"% CI ",
+           format.round(CI.lb,digits)," - ",format.round(CI.ub,digits),
+           end.notation,"]")
   }
   
   format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE){
@@ -798,6 +797,7 @@
   
   # Clustered/weighted proportion (convenience function)
   cw.proportion <- function (data, weights, clusters,iters){
+
     df <- data.frame(data,weights,clusters)
     
     bootstrap.clust(data=df,
