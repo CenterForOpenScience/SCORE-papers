@@ -251,6 +251,8 @@ create_ov_analytic <- function(orig_dataset,
               lor_conversion)) %>%
     rename(orig_conv_r = cos_r,
            orig_conv_r_lb = cos_r_lb,
-           orig_conv_r_ub = cos_r_ub)
+           orig_conv_r_ub = cos_r_ub) %>%
+    # For convenience
+    relocate(orig_sample_size_units, .after = orig_sample_size_value)
 
 }
