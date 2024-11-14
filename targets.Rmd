@@ -112,6 +112,18 @@ list(
              read_google_csv(publications_file,
                              publications_moddate)),
   
+  #SCORE TOP factor scoring sheet
+  # TOP factor info
+  tar_target(top_factor_file,
+             "1hDpl8wHE7RRh9rksO1izx-hRtnjaW9u471yV0scHBnA"),
+  tar_target(top_factor_moddate,
+             get_google_mod_date(top_factor_file),
+             cue = tar_cue("always")),
+  tar_target(top_factor,
+             read_google_sheet(top_factor_file,
+                               top_factor_moddate,
+                               sheet = "From TopFactor website")),
+  
   # p2_id_key.csv
   # Links cannonical paper ID to the IDs used by other teams
   # Does not include COVID papers
@@ -624,7 +636,8 @@ Paper metadata.
 ```{targets processed-papers}
 list(
   tar_target(publications,
-             transform_pubs(publications_raw)),
+             transform_pubs(publications_raw,
+                            top_factor)),
   
   tar_target(paper_metadata,
              merge_paper_metadata(all_metadata_filled,

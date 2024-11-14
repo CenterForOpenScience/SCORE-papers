@@ -124,7 +124,8 @@ create_id_key <- function(covid_ta2,
 
 }
 
-transform_pubs <- function(publications_raw) {
+transform_pubs <- function(publications_raw,
+                           top_factor) {
   publications_raw %>%
     mutate(
       # We want both the 10 field and 6 field versions for supplement and 
@@ -139,7 +140,9 @@ transform_pubs <- function(publications_raw) {
         c("health", "psychology") ~ "psychology and health",
         .default = COS_pub_category
       )
-    ) 
+    ) %>% 
+    left_join(top_factor, 
+              by = join_by(publication_standard == Journal))
 }
 
 merge_paper_metadata <- function(all_metadata_filled,
