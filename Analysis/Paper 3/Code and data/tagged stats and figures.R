@@ -899,8 +899,19 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
                                       repro_outcomes$weight
         )/(length(unique(repro_outcomes$paper_id))),1),"%")
       
-      p_short_papers_data_unavailable <- 
-        paste0(format.round(100*(n_papers_data_unavailable/n_papers_assess_process_repro),0),"%")
+      p_raw_papers_data_unavailable <- n_papers_data_unavailable/n_papers_assess_process_repro
+      p_raw_papers_OR_approx_or_precise <- cw.proportion(
+        repro_outcomes_no_none$repro_outcome_overall=="approximate" | 
+          repro_outcomes_no_none$repro_outcome_overall=="precise" | 
+          repro_outcomes_no_none$repro_outcome_overall=="push button",
+        weights=repro_outcomes_no_none$weight,
+        clusters = repro_outcomes_no_none$paper_id,iters)$point.estimate
+      p_short_papers_OR_approx_or_precise <- paste0(format.round(100*p_raw_papers_OR_approx_or_precise,0),"%")
+      
+      p_short_OR_min_plausible <- paste0(format.round(100*(0*(p_raw_papers_data_unavailable)+p_raw_papers_OR_approx_or_precise*(1-p_raw_papers_data_unavailable)),0),"%")
+      
+      
+      
   
     }
     
@@ -914,7 +925,7 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
 }
 
 # Figures
-figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
+figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publications){
   # Setup and initialization
   {
     # Libraries
@@ -979,6 +990,35 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     
   }
   
+  # Global aesthetic options
+  {
+    palette_process_repro_charts <- 
+      c(palette_score_charts[5],
+        lighten(palette_score_charts[5],amount=.3),
+        lighten(palette_score_charts[5],amount=.6),
+        palette_score_charts[2],
+        lighten(palette_score_charts[2],amount=.3),
+        palette_score_charts[1],
+        "grey90"
+      )
+
+    
+    palette_outcome_repro_charts <-
+      c(palette_score_charts[7],
+        lighten(palette_score_charts[7],.8),
+        palette_score_charts[8],
+        "grey90")
+    palette_outcome_repro_charts_attempts <-
+      c(lighten(palette_score_charts[7],.25),
+        palette_outcome_repro_charts[length(palette_outcome_repro_charts)])
+
+    palette_journal_TOP_factor_charts <-
+      c(palette_score_charts[6],
+        lighten(palette_score_charts[6],.4),
+        lighten(palette_score_charts[6],.8),
+        palette_score_charts[8])
+  }
+  
   # Figure 1. Process reproducibility success rates by year of publication
   {
     # Data wrangling
@@ -1041,14 +1081,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       x_axis_text_size <- 12
       legend_text_size <- 4
       
-      chart.palette <- c(palette_score_charts[5],
-                         lighten(palette_score_charts[5],amount=.25),
-                         lighten(palette_score_charts[5],amount=.5),
-                         palette_score_charts[2],
-                         lighten(palette_score_charts[2],amount=.25),
-                         palette_score_charts[1],
-                         "grey80"
-      )
+      chart.palette <- palette_process_repro_charts
     }
     
     # Group by group plots
@@ -1225,14 +1258,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     x_axis_text_size <- 12
     legend_text_size <- 4
     
-    chart.palette <- c(palette_score_charts[5],
-                       lighten(palette_score_charts[5],amount=.25),
-                       lighten(palette_score_charts[5],amount=.5),
-                       palette_score_charts[2],
-                       lighten(palette_score_charts[2],amount=.25),
-                       palette_score_charts[1],
-                       "grey80"
-    )
+    chart.palette <- palette_process_repro_charts
     
     # Group by group plots
     plotlist <- lapply(1:length(group_order),function(x) {
@@ -1388,14 +1414,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     
     # Aesthetic setup
     {
-      chart.palette <- c(palette_score_charts[5],
-                         lighten(palette_score_charts[5],amount=.25),
-                         lighten(palette_score_charts[5],amount=.5),
-                         palette_score_charts[2],
-                         lighten(palette_score_charts[2],amount=.25),
-                         palette_score_charts[1],
-                         "grey80"
-      )
+      chart.palette <- palette_process_repro_charts
       
       title_text_size <- 8
       y_axis_text_size <- 7
@@ -1581,11 +1600,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     
     # Aesthetic options
     {
-      chart.palette <- c(palette_score_charts[1],
-                         #palette_score_charts[4],
-                         palette_score_charts[3],
-                         palette_score_charts[2],
-                         "grey90")
+      chart.palette <- palette_outcome_repro_charts
       
       # Aesthetic setup
       bars_range <- c(0,1)
@@ -1601,9 +1616,14 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
         
-        cats_rects <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+        data.group <- data %>%
+          filter(group==group_order[x]) %>%
+          group_by(paper_id) %>%
+          mutate(weight=1/n())
+        
+        cats_rects <- rounded.bars(data.group,nesting.structure,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
@@ -1615,14 +1635,15 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
           fig_4_QC_denom_plot <<- sum(cats_rects$count)
         }
         
+        
         cats_rects_final <- cats_rects[nrow(cats_rects),]
-        rounded.bars.cutoff <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+        rounded.bars.cutoff <- rounded.bars(data.group,nesting.structure,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
         
-        snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
+        snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
@@ -1648,7 +1669,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="All types",size=y_axis_text_size,fontface="bold")
+          annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
         
         cats_rects <- rounded.bars(data,nesting.structure,
                                    weightvar="weight",
@@ -1661,7 +1682,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
                                             display_axis = FALSE)$plot+
           xlim(bars_range)+
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
-                    color=c("black","black","white"),size=legend_text_size,fontface="bold")
+                    color=c("white","black","white"),size=legend_text_size,fontface="bold")
         
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
@@ -1811,13 +1832,9 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     }
     
     # Aesthetic setup
-    chart.palette <- c(palette_score_charts[1],
-                       #palette_score_charts[4],
-                       palette_score_charts[3],
-                       palette_score_charts[2],
-                       "grey90")
+    chart.palette <- palette_outcome_repro_charts
     
-    chart.palette.largecat <- c(palette_score_charts[5],"grey90")
+    chart.palette.largecat <- palette_outcome_repro_charts_attempts
     
     bars_range <- c(0,1)
     col_widths <- c(.4,1.2,4,1)
@@ -1831,23 +1848,33 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       group_label <- ggplot()+theme_nothing()+
         annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
       
-      cats_rects <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
-                                 weightvar="weight",
-                                 chart.palette = chart.palette,
-                                 display_axis = FALSE)$cats_rects
-      cats_rects_final <- cats_rects[nrow(cats_rects),]
-      rounded.bars.cutoff <- rounded.bars(data.trimmed[data.trimmed$group==group_order[x],],nesting.structure.trimmed,
+      data.group <- data %>%
+        filter(group==group_order[x]) %>%
+        group_by(paper_id) %>%
+        mutate(weight=1/n())
+      
+      data.trimmed.group <- data.trimmed %>%
+        filter(group==group_order[x]) %>%
+        group_by(paper_id) %>%
+        mutate(weight=1/n())
+      
+      data.largecat.group <- data.largecat %>%
+        filter(group==group_order[x]) %>%
+        group_by(paper_id) %>%
+        mutate(weight=1/n())
+      
+      rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                           weightvar="weight",
                                           chart.palette = chart.palette,
                                           display_axis = FALSE)$plot+
         xlim(bars_range)
       
-      rounded.bars.largecat <- rounded.bars(data.largecat[data.largecat$group==group_order[x],],nesting.structure.largecat,
+      rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
                                             weightvar="weight",
                                             chart.palette = chart.palette.largecat,
                                             display_axis = FALSE)$plot
       
-      snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
+      snakebins_plot <- snakebins(data.group,nesting.structure,
                                   chart.palette = chart.palette,
                                   n_bins_max=n_bins_max,
                                   display_axis = FALSE,
@@ -1887,7 +1914,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
                                           display_axis = FALSE)$plot+
         xlim(bars_range)+
         geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
-                  color=c("black","black","white"),size=legend_text_size,fontface="bold")
+                  color=c("white","black","white"),size=legend_text_size,fontface="bold")
       
       cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                  weightvar="weight",
@@ -2056,127 +2083,139 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     }
     
     # Aesthetic setup
-    chart.palette <- c(palette_score_charts[1],
-                       #palette_score_charts[4],
-                       palette_score_charts[3],
-                       palette_score_charts[2],
-                       "grey90")
-    
-    chart.palette.largecat <- c(palette_score_charts[5],"grey90")
-    
-    bars_range <- c(0,1)
-    col_widths <- c(.8,1.2,4,1)
-    n_bins_max <- 150
-    y_axis_text_size <- 6
-    x_axis_text_size <- 12
-    legend_text_size <- 6
-    
-    # Group by group plots
-    plotlist <- lapply(1:length(group_order),function(x) {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-      
-      cats_rects <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
-                                 weightvar="weight",
-                                 chart.palette = chart.palette,
-                                 display_axis = FALSE)$cats_rects
-      cats_rects_final <- cats_rects[nrow(cats_rects),]
-      rounded.bars.cutoff <- rounded.bars(data.trimmed[data.trimmed$group==group_order[x],],nesting.structure.trimmed,
-                                          weightvar="weight",
-                                          chart.palette = chart.palette,
-                                          display_axis = FALSE)$plot+
-        xlim(bars_range)
-      
-      rounded.bars.largecat <- rounded.bars(data.largecat[data.largecat$group==group_order[x],],nesting.structure.largecat,
-                                            weightvar="weight",
-                                            chart.palette = chart.palette.largecat,
-                                            display_axis = FALSE)$plot
-      
-      snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
-                                  chart.palette = chart.palette,
-                                  n_bins_max=n_bins_max,
-                                  display_axis = FALSE,
-                                  collapsevar="paper_id")$plot
-      plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
-    })
-    # Blank / right axis
     {
-      group_label <- ggplot()+theme_nothing()
+      chart.palette <- palette_outcome_repro_charts
       
-      rounded.bars.cutoff <- ggplot()+theme_nothing()
+      chart.palette.largecat <- palette_outcome_repro_charts_attempts
       
-      rounded.bars.largecat <- ggplot()+theme_nothing()
-      
-      snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
-                                  chart.palette = "white",
-                                  n_bins_max=n_bins_max,
-                                  axis_only = TRUE,
-                                  collapsevar="paper_id")$plot+
-        theme(axis.text.x=element_text(size=x_axis_text_size))
-      
-      plotlist[[length(plotlist)+1]] <-
-        plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
+      bars_range <- c(0,1)
+      col_widths <- c(.8,1.2,4,1)
+      n_bins_max <- 150
+      y_axis_text_size <- 6
+      x_axis_text_size <- 12
+      legend_text_size <- 6
     }
-    # Totals row
+      
+    # Plots
     {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-      
-      cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
-                                 weightvar="weight",
-                                 chart.palette = chart.palette,
-                                 display_axis = FALSE)$cats_rects
-      rounded.bars.cutoff <- rounded.bars(data.trimmed,nesting.structure.trimmed,
-                                          weightvar="weight",
-                                          chart.palette = chart.palette,
-                                          display_axis = FALSE)$plot+
-        xlim(bars_range)+
-        geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
-                  color=c("black","black","white"),size=legend_text_size,fontface="bold")
-      
-      cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
-                                 weightvar="weight",
-                                 chart.palette = chart.palette.largecat,
-                                 display_axis = FALSE)$cats_rects
-      rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
+      # Group by group plots
+      plotlist <- lapply(1:length(group_order),function(x) {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        data.group <- data %>%
+          filter(group==group_order[x]) %>%
+          group_by(paper_id) %>%
+          mutate(weight=1/n())
+        
+        data.trimmed.group <- data.trimmed %>%
+          filter(group==group_order[x]) %>%
+          group_by(paper_id) %>%
+          mutate(weight=1/n())
+        
+        data.largecat.group <- data.largecat %>%
+          filter(group==group_order[x]) %>%
+          group_by(paper_id) %>%
+          mutate(weight=1/n())
+        
+        rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
-                                            chart.palette = chart.palette.largecat,
+                                            chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
-        geom_text(data=cats_rects,aes(x=xmax,y=c(0.90,.1),label=cat),
-                  color=c("black","black"),size=legend_text_size,fontface="bold",
-                  hjust=c(0,1),vjust=c(1,0))
-      snakebins_plot <- ggplot()+theme_nothing()
-      
-      plotlist[[length(plotlist)+1]] <- 
+          xlim(bars_range)
+        
+        rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
+                                              weightvar="weight",
+                                              chart.palette = chart.palette.largecat,
+                                              display_axis = FALSE)$plot
+        
+        snakebins_plot <- snakebins(data.group,nesting.structure,
+                                    chart.palette = chart.palette,
+                                    n_bins_max=n_bins_max,
+                                    display_axis = FALSE,
+                                    collapsevar="paper_id")$plot
         plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
-    }
-    
-    # Axis row
-    {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=0.5,y=1,label="")
-      rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
-                                          chart.palette = rep("white",length(chart.palette)),
-                                          axis_only = TRUE,)$plot+
-        scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
-        theme(axis.text.x=element_text(size=x_axis_text_size))
+      })
+      # Blank / right axis
+      {
+        group_label <- ggplot()+theme_nothing()
+        
+        rounded.bars.cutoff <- ggplot()+theme_nothing()
+        
+        rounded.bars.largecat <- ggplot()+theme_nothing()
+        
+        snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
+                                    chart.palette = "white",
+                                    n_bins_max=n_bins_max,
+                                    axis_only = TRUE,
+                                    collapsevar="paper_id")$plot+
+          theme(axis.text.x=element_text(size=x_axis_text_size))
+        
+        plotlist[[length(plotlist)+1]] <-
+          plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
+      }
       
+      # Totals row
+      {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
+                                   weightvar="weight",
+                                   chart.palette = chart.palette,
+                                   display_axis = FALSE)$cats_rects
+        rounded.bars.cutoff <- rounded.bars(data.trimmed,nesting.structure.trimmed,
+                                            weightvar="weight",
+                                            chart.palette = chart.palette,
+                                            display_axis = FALSE)$plot+
+          xlim(bars_range)+
+          geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
+                    color=c("white","black","white"),size=legend_text_size,fontface="bold")
+        
+        cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
+                                   weightvar="weight",
+                                   chart.palette = chart.palette.largecat,
+                                   display_axis = FALSE)$cats_rects
+        rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
+                                              weightvar="weight",
+                                              chart.palette = chart.palette.largecat,
+                                              display_axis = FALSE)$plot+
+          geom_text(data=cats_rects,aes(x=xmax,y=c(0.90,.1),label=cat),
+                    color=c("black","black"),size=legend_text_size,fontface="bold",
+                    hjust=c(0,1),vjust=c(1,0))
+        snakebins_plot <- ggplot()+theme_nothing()
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
+      }
       
-      rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
-                                            chart.palette = rep("white",length(chart.palette.largecat)),
-                                            axis_only = TRUE)$plot+
-        scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
-        theme(axis.text.x=element_text(size=x_axis_text_size))
-      
-      snakebins_plot <- snakebins(data,nesting.structure,
-                                  chart.palette = rep("white",length(chart.palette)),
-                                  n_bins_max=n_bins_max,
-                                  display_axis = FALSE,
-                                  collapsevar="paper_id")$plot+
-        xlim(0,n_bins_max)
-      
-      plotlist[[length(plotlist)+1]] <- 
-        plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
+      # Axis row
+      {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=0.5,y=1,label="")
+        rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
+                                            chart.palette = rep("white",length(chart.palette)),
+                                            axis_only = TRUE,)$plot+
+          scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
+          theme(axis.text.x=element_text(size=x_axis_text_size))
+        
+        
+        rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
+                                              chart.palette = rep("white",length(chart.palette.largecat)),
+                                              axis_only = TRUE)$plot+
+          scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
+          theme(axis.text.x=element_text(size=x_axis_text_size))
+        
+        snakebins_plot <- snakebins(data,nesting.structure,
+                                    chart.palette = rep("white",length(chart.palette)),
+                                    n_bins_max=n_bins_max,
+                                    display_axis = FALSE,
+                                    collapsevar="paper_id")$plot+
+          xlim(0,n_bins_max)
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
+      }
     }
     # Display plots
     figure_6 <- 
@@ -2270,7 +2309,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
       
-      chart.palette.largecat <- c(palette_score_charts[5],chart.palette[5])
+      chart.palette.largecat <- c(palette_score_charts[6],chart.palette[5])
       
       # Trim data for speed
       data <- data %>% select(field,pub_year,cat,group,weight)
@@ -2278,11 +2317,9 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     
     # Aesthetic setup
     {
-      chart.palette <- c(palette_score_charts[1],
-                       #palette_score_charts[4],
-                       palette_score_charts[3],
-                       palette_score_charts[2],
-                       "grey90")
+      chart.palette <- palette_outcome_repro_charts
+      
+      chart.palette.largecat <- palette_outcome_repro_charts_attempts
     
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
@@ -2297,12 +2334,17 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       data_field <- data[data$field==field,]
       
       plotlist <- lapply(1:length(group_order),function(x) {
-        cats_rects <- rounded.bars(data_field[data_field$group==group_order[x],],nesting.structure,
+        data.field.group <- data_field %>%
+          filter(group==group_order[x]) %>%
+          group_by(paper_id) %>%
+          mutate(weight=1/n())
+        
+        cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
         cats_rects_final <- cats_rects[nrow(cats_rects),]
-        rounded.bars.cutoff <- rounded.bars(data_field[data_field$group==group_order[x],],nesting.structure,
+        rounded.bars.cutoff <- rounded.bars(data.field.group,nesting.structure,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
@@ -2345,7 +2387,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
                              chart.palette = chart.palette,
                              display_axis=TRUE)$plot+
         geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                  color=c("black","black","white","black"),size=legend_text_size,fontface="bold")+
+                  color=c("white","black","white","black"),size=legend_text_size,fontface="bold")+
         theme(axis.text.x=element_text(size=x_axis_text_size))+
         scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
       legend_bar <- plot_grid(ggplot()+theme_nothing()+
@@ -2354,6 +2396,160 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
     
     figure_7 <- 
       plot_grid(main_plots,legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),1.8))
+  }
+  
+  # Figure 8: TOP Factor policies by field
+  {
+    # Data wrangling
+    {
+      publications <- na.omit(publications)
+      
+      publications$field <- ordered(publications$COS_pub_category,
+                                    labels=c(fields.abbreviated),
+                                    levels=c(fields.raw))
+      publications$data_sharing <- ordered(publications$`Data Transparency`,
+                                          levels=c(3,2,1,0),
+                                          labels=c("Verify","Require","Disclose","None"))
+      publications$code_sharing <- ordered(publications$`Analysis Code Transparency`,
+                                           levels=c(3,2,1,0),
+                                           labels=c("Verify","Require","Disclose","None"))
+      pubs_data_sharing <- publications[c("field","data_sharing")]
+      colnames(pubs_data_sharing) <- c("group","cat")
+      pubs_code_sharing <- publications[c("field","code_sharing")]
+      colnames(pubs_code_sharing) <- c("group","cat")
+      group_order <- fields.abbreviated
+      
+      cat <- levels(pubs_data_sharing$cat)
+      nesting.structure <- data.frame(cat)
+      
+      nesting.structure$cat2 <- nesting.structure$cat
+      nesting.structure$cat3 <- nesting.structure$cat
+      
+      nesting.structure$cat <- ordered(nesting.structure$cat)
+      nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+      nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+    }
+    
+    # Aesthetic options
+    {
+      chart.palette <- palette_journal_TOP_factor_charts
+      
+      bars_range <- c(0,1)
+      col_widths <- c(0.4,1,0.5,1,0.5)
+      n_bins_max <- 20
+      y_axis_text_size <- 6
+      x_axis_text_size <- 12
+      legend_text_size <- 6
+      n_bins_vert <- 4
+    }
+    
+    # Plots
+    {
+      # Main plots by field
+      plotlist <- lapply(0:length(group_order),function(x) {
+        
+        if(x==0){
+          left_label <-ggplot()+theme_nothing()+xlim(0,1)+ylim(0,1)+
+            annotate("text",x=0.5,y=0.5,label="Data Sharing Policy",size=y_axis_text_size,fontface="bold",hjust=0.5)+
+            theme(plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
+          right_label <-ggplot()+theme_nothing()+xlim(0,1)+ylim(0,1)+
+            annotate("text",x=0.5,y=0.5,label="Code Sharing Policy",size=y_axis_text_size,fontface="bold",hjust=0.5)+
+            theme(plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
+          plot_grid(ggplot()+theme_nothing(),left_label,right_label,
+                    nrow=1,rel_widths = c(col_widths[1],(sum(col_widths)-col_widths[1])/2,(sum(col_widths)-col_widths[1])/2))
+        } else{
+
+          group_label <- ggplot()+theme_nothing()+
+            annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          
+          rounded.bars.data.sharing <- rounded.bars(pubs_data_sharing[pubs_data_sharing$group==group_order[x],],nesting.structure,
+                                     chart.palette = chart.palette,
+                                     display_axis = FALSE)$plot
+          rounded.bars.code.sharing <- rounded.bars(pubs_code_sharing[pubs_code_sharing$group==group_order[x],],nesting.structure,
+                                                    chart.palette = chart.palette,
+                                                    display_axis = FALSE)$plot
+    
+          snakebins.data.sharing <- snakebins(pubs_data_sharing[pubs_data_sharing$group==group_order[x],],nesting.structure,
+                                      chart.palette = chart.palette,
+                                      n_bins=n_bins_vert,
+                                      n_bins_max=n_bins_max,
+                                      display_axis = FALSE)$plot
+          snakebins.code.sharing <- snakebins(pubs_code_sharing[pubs_code_sharing$group==group_order[x],],nesting.structure,
+                                              chart.palette = chart.palette,
+                                              n_bins=n_bins_vert,
+                                              n_bins_max=n_bins_max,
+                                              display_axis = FALSE)$plot
+          plot_grid(group_label,rounded.bars.data.sharing,snakebins.data.sharing,
+                    rounded.bars.code.sharing,snakebins.code.sharing,
+                    nrow=1,rel_widths = col_widths)
+          
+        }
+      })
+      # Blank / Axis row
+      {
+        group_label <- ggplot()+theme_nothing()
+        rounded.bars.data.sharing <- ggplot()+theme_nothing()
+        rounded.bars.code.sharing <- ggplot()+theme_nothing()
+        snakebins.data.sharing <- snakebins(pubs_data_sharing,nesting.structure,
+                                            chart.palette = rep("white",nrow(nesting.structure)),
+                                            n_bins=n_bins_vert,
+                                            n_bins_max=n_bins_max,
+                                            display_axis = TRUE)$plot
+        snakebins.code.sharing <- snakebins(pubs_code_sharing,nesting.structure,
+                                            chart.palette = rep("white",nrow(nesting.structure)),
+                                            n_bins=n_bins_vert,
+                                            n_bins_max=n_bins_max,
+                                            display_axis = TRUE)$plot
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars.data.sharing,snakebins.data.sharing,
+                    rounded.bars.code.sharing,snakebins.code.sharing,
+                    nrow=1,rel_widths = col_widths)
+        
+      }
+      # Totals row
+      {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        rounded.bars.data.sharing <- rounded.bars(pubs_data_sharing,nesting.structure,
+                                                  chart.palette = chart.palette,
+                                                  display_axis = TRUE)$plot
+        rounded.bars.code.sharing <- rounded.bars(pubs_code_sharing,nesting.structure,
+                                                  chart.palette = chart.palette,
+                                                  display_axis = TRUE)$plot
+        
+        snakebins.data.sharing <- ggplot()+theme_nothing()
+        snakebins.code.sharing <- ggplot()+theme_nothing()
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars.data.sharing,snakebins.data.sharing,
+                  rounded.bars.code.sharing,snakebins.code.sharing,
+                  nrow=1,rel_widths = col_widths)
+      }
+      # Spacer
+        plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
+      
+      # Legend
+      {
+        data.legend <- rbind(pubs_data_sharing,pubs_code_sharing) %>% group_by(cat) %>% summarise(n=1)
+        cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis=FALSE,legend=FALSE)$cats_rects
+        legend <- rounded.bars(data.legend,nesting.structure,
+                               chart.palette = chart.palette,
+                               display_axis=FALSE)$plot+
+          theme_nothing()+
+          geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                    color=c("white","white","black","white"),size=legend_text_size,fontface="bold")
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(ggplot()+theme_nothing(),legend,
+                    nrow=1,rel_widths = c(col_widths[1],sum(col_widths)-col_widths[1]))
+      }
+
+      figure_8 <- plot_grid(plotlist=plotlist,ncol=1,rel_heights = c(1.5,rep(1,length(group_order)),.5,1.5,0.5,1.5))
+      
+    }
   }
   
   # Export
@@ -2365,7 +2561,8 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata){
       "figure_4"=figure_4,
       "figure_5"=figure_5,
       "figure_6"=figure_6,
-      "figure_7"=figure_7))
+      "figure_7"=figure_7,
+      "figure_8"=figure_8))
   }
 }
   
@@ -2404,7 +2601,7 @@ if(TRUE){
   # Load data
     objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes",
                          "paper_metadata","status","stitched_claims",
-                         "all_rr_attempts")
+                         "all_rr_attempts","publications")
     for(i in 1:length(objects_to_load)){
       assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
       #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -2424,7 +2621,7 @@ if(TRUE){
       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
 
     # Generate stats
-      results_tagged_stats <- tagged_stats(iters = 20,
+      results_tagged_stats <- tagged_stats(iters = 200,
                                            repro_outcomes=repro_outcomes,
                                            pr_outcomes=pr_outcomes,
                                            orig_outcomes=orig_outcomes,
@@ -2447,8 +2644,8 @@ if(TRUE){
       range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
       
   # Generate figures
-  if (1==1){
-    generated_figures <- figures(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata)
+  if (0==1){
+    generated_figures <- figures(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publications)
 
     ggsave(
       "Analysis/Paper 3/Code and data/Figures/figure 1.png",
@@ -2478,11 +2675,17 @@ if(TRUE){
     ggsave(
       "Analysis/Paper 3/Code and data/Figures/figure 6.png",
       plot = generated_figures$figure_6,
+      #plot = figure_6,
       width = 6000,height = 2000,units = "px",bg="white"
     )
     ggsave(
       "Analysis/Paper 3/Code and data/Figures/figure 7.png",
       plot = generated_figures$figure_7,
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+    ggsave(
+      "Analysis/Paper 3/Code and data/Figures/figure 8.png",
+      plot = generated_figures$figure_8,
       width = 6000,height = 2000,units = "px",bg="white"
     )
 

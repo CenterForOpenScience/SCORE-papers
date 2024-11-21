@@ -366,7 +366,9 @@
                               palette_weezer_green[1],
                               palette_weezer_teal[1],
                               palette_weezer_van_weezer[3],
-                              palette_weezer_pinkerton[5]
+                              palette_weezer_pinkerton[5],
+                              palette_weezer_blue[4],
+                              palette_weezer_van_weezer[1]
     )
   }
   
