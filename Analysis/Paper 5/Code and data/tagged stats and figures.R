@@ -39,8 +39,8 @@
       {
         # Table 2
         {
-          fields.order <- c("Psychology And Health","Business","Sociology And Criminology",
-                            "Economics And Finance","Political Science","Education")
+          fields.order <- c("Psychology and Health","Business","Sociology and Criminology",
+                            "Economics and Finance","Political Science","Education")
           
           format.row <- function(data){
             data <- data %>% 
@@ -835,6 +835,24 @@
 
       }
       
+      # Discussion
+      {
+        p_repli_50_power_for_100_effect <- paste0(format.round(100*
+                                                                 sum(repli_outcomes$power_for_effect_size=="50% for 100%",na.rm = TRUE)/
+                                                                 sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
+                                                               digits=1),"%")
+        
+        p_repli_90_power_for_50_effect <- paste0(format.round(100*
+                                                                sum(repli_outcomes$power_for_effect_size=="90% for 50%",na.rm = TRUE)/
+                                                                sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
+                                                              digits=1),"%")
+        
+        p_repli_90_power_for_75_effect <- paste0(format.round(100*
+                                                                sum(repli_outcomes$power_for_effect_size=="90% for 75%",na.rm = TRUE)/
+                                                                sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
+                                                              digits=1),"%")
+      }
+      
       # Archive
       if(FALSE){
         p_repli_stat_sig_claims_same_dir_wtd <- 
@@ -1360,20 +1378,7 @@
         
         p_repli_orig_author_reviewed <- "Pending paper process data pipeline"
         
-        p_repli_50_power_for_100_effect <- paste0(format.round(100*
-                                                                 sum(repli_outcomes$power_for_effect_size=="50% for 100%",na.rm = TRUE)/
-                                                                 sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
-                                                               digits=1),"%")
         
-        p_repli_90_power_for_50_effect <- paste0(format.round(100*
-                                                                sum(repli_outcomes$power_for_effect_size=="90% for 50%",na.rm = TRUE)/
-                                                                sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
-                                                              digits=1),"%")
-        
-        p_repli_90_power_for_75_effect <- paste0(format.round(100*
-                                                                sum(repli_outcomes$power_for_effect_size=="90% for 75%",na.rm = TRUE)/
-                                                                sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
-                                                              digits=1),"%")
       }
 
     }
@@ -1384,6 +1389,247 @@
       rm(iters,orig_outcomes,repli_outcomes,repli_outcomes_merged)
       return(rev(as.list(environment())))
     }
+  }
+
+  figures <- function(repli_outcomes,orig_outcomes,paper_metadata){
+    # Initialization and data preparation
+    {
+      fields.raw <-
+        c("political science",
+          "economics and finance",
+          "sociology and criminology",
+          "psychology and health",
+          "business",
+          "education")
+      fields.format.2.row <- 
+        c("Political\nScience",
+          "Economics\nand Finance",
+          "Sociology and\nCriminology",
+          "Psychology\nand Health",
+          "Business",
+          "Education")
+      fields.format.3.row <- 
+        c("Political\nScience",
+          "Economics\nand\nFinance",
+          "Sociology\nand\nCriminology",
+          "Psychology\nand\nHealth",
+          "Business",
+          "Education")
+      fields.abbreviated <- 
+        c("Political Science",
+          "Economics",
+          "Sociology",
+          "Psychology",
+          "Business",
+          "Education")
+      
+    }
+    
+    # Figure generation
+    {
+    
+      # Figure 1
+      {
+        figure_1 <- ggplot()
+      }
+      
+      # Figure 2
+      {
+        figure_2 <- ggplot()
+      }
+      
+      # Figure 3
+      {
+        all_effects <- repli_outcomes %>% 
+          filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
+          select(report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
+                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
+          left_join(
+            orig_outcomes %>% 
+              select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
+              distinct(),
+            by = "claim_id"
+          ) %>% 
+          drop_na(repli_conv_r) %>% 
+          drop_na(orig_conv_r) %>% 
+          mutate(across(contains("orig"), abs)) %>% 
+          mutate(
+            across(
+              contains("repli"),
+              function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+            )
+          )
+        
+        
+        p <- all_effects %>% 
+          ggplot(aes(x = orig_conv_r, y = repli_conv_r, color = success)) +
+          geom_point(alpha = 0.6, size = 3) +
+          geom_rug() +
+          scale_color_manual(labels = c("Failed", "Successful"),
+                             values = c("tomato3", "deepskyblue4")) +
+          #geom_abline(slope = 1, intercept = 0, linetype = "solid", color = "slategray") +
+          #geom_segment(aes(x=0,y=0,xend=1,yend=1), linetype = 2, color = "slategray") +
+          annotate("segment",x=0,y=0,xend=1,yend=1, linetype = 2, color = "slategray") +
+          annotate("segment",x=0,y=0,xend=1,yend=0, linetype = "solid", color = "black") +
+          annotate("segment",x=0,y=-.55,xend=0,yend=1, linetype = "solid", color = "black") +
+          xlim(0, 1) +
+          ylim(-0.55, 1) +
+          labs(
+            x = "Original",
+            y = "Replication",
+            color = "",
+            title = ""
+          ) +
+          theme_minimal()+
+          theme(
+            plot.title = element_blank(),
+            axis.title.x = element_text(size = 16),
+            axis.text.x = element_text(size = 14),
+            axis.title.y = element_text(size = 16),
+            axis.text.y = element_text(size = 14),
+            legend.text = element_text(size = 16),
+            panel.grid = element_blank(),
+            legend.position = "bottom"
+          )
+        
+        figure_3 <- ggMarginal(p, type = "density", groupFill = T)
+      }
+      
+      # Figure 4
+      {
+        # Data wrangling
+        {
+          all_effects <- repli_outcomes %>% 
+            filter(!is_covid) %>% 
+            filter(repli_version_of_record) %>% 
+            select(claim_id,repli_conv_r) %>% 
+            left_join(
+              orig_outcomes %>% 
+                select(paper_id,claim_id, orig_conv_r) %>% 
+                distinct(),
+              by = "claim_id"
+            ) %>% 
+            drop_na(repli_conv_r) %>% 
+            drop_na(orig_conv_r)%>%
+            group_by(paper_id) %>%
+            mutate(weight=1/n())
+          
+          all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+          all_effects$field <- str_to_title(all_effects$COS_pub_category)
+          all_effects$field <- str_to_title(all_effects$COS_pub_category)
+          all_effects$field <- str_replace_all(all_effects$field," ","\n")
+          all_effects$field <- str_replace_all(all_effects$field,"And","and")
+          group_order <- unique(all_effects$field)
+          all_effects$field <- ordered(all_effects$field,labels=group_order,levels=group_order)
+          
+          all_effects$pub_year <- ordered(all_effects$pub_year,
+                                          levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
+                                          labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
+          
+          # Convert to long
+          all_effects <- all_effects %>%
+            pivot_longer(cols=c(repli_conv_r,orig_conv_r))
+          
+          all_effects$name <- ordered(all_effects$name,
+                                      levels=c("orig_conv_r","repli_conv_r"),
+                                      labels=c("Original effect size","Replication effect size"))
+          
+        }
+        # Plot
+        {
+          figure_4 <- ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name))+
+              geom_density_ridges(alpha=.6,scale = 0.9)+
+              theme_minimal()+
+              theme(legend.position = "bottom",
+                    legend.title=element_blank(),
+                    panel.border = element_blank(),
+                    panel.grid = element_blank(),
+                    axis.title=element_blank(),
+                    axis.text.y=element_text(vjust=0,face = "bold")
+                    #axis.text = element_blank(),
+                    #axis.line = element_blank(),
+                    #axis.ticks = element_blank()
+              ) +
+              scale_fill_manual(values=c(palette_score_charts[1],palette_score_charts[5]))+
+              xlim(-1,1)+
+              geom_vline(aes(xintercept=0),linetype=2)
+          }
+      }
+      
+      # Figure 5
+      {
+        # Data wrangling
+        {
+          all_effects <- repli_outcomes %>% 
+            filter(!is_covid) %>% 
+            filter(repli_version_of_record) %>% 
+            select(claim_id,repli_conv_r) %>% 
+            left_join(
+              orig_outcomes %>% 
+                select(paper_id,claim_id, orig_conv_r) %>% 
+                distinct(),
+              by = "claim_id"
+            ) %>% 
+            drop_na(repli_conv_r) %>% 
+            drop_na(orig_conv_r)%>%
+            group_by(paper_id) %>%
+            mutate(weight=1/n())
+          
+          all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+          # all_effects$field <- str_to_title(all_effects$COS_pub_category)
+          # all_effects$field <- str_to_title(all_effects$COS_pub_category)
+          # all_effects$field <- str_replace_all(all_effects$field," ","\n")
+          # all_effects$field <- str_replace_all(all_effects$field,"And","and")
+          # group_order <- unique(all_effects$field)
+          all_effects$field <- ordered(all_effects$COS_pub_category,labels=fields.abbreviated,
+                                       levels=fields.raw)
+          
+          all_effects$pub_year <- ordered(all_effects$pub_year,
+                                          levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
+                                          labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
+          
+          # Convert to long
+          all_effects <- all_effects %>%
+            pivot_longer(cols=c(repli_conv_r,orig_conv_r))
+          
+          all_effects$name <- ordered(all_effects$name,
+                                      levels=c("orig_conv_r","repli_conv_r"),
+                                      labels=c("Original effect size","Replication effect size"))
+          
+        }
+        # Plot
+        {
+          figure_5 <- ggplot(data=all_effects,aes(x=value,y=field,fill=name))+
+            geom_density_ridges(alpha=.6,scale = 0.9)+
+            theme_minimal()+
+            theme(legend.position = "bottom",
+                  legend.title=element_blank(),
+                  panel.border = element_blank(),
+                  panel.grid = element_blank(),
+                  axis.title=element_blank(),
+                  axis.text.y=element_text(vjust=0,face = "bold")
+                  #axis.text = element_blank(),
+                  #axis.line = element_blank(),
+                  #axis.ticks = element_blank()
+            ) +
+            scale_fill_manual(values=c(palette_score_charts[1],palette_score_charts[5]))+
+            xlim(-1,1)+
+            geom_vline(aes(xintercept=0),linetype=2)
+        }
+      }
+    }
+    
+    # Export
+    {
+      return(list(
+        "figure_1"=figure_1,
+        "figure_2"=figure_2,
+        "figure_3"=figure_3,
+        "figure_4"=figure_4,
+        "figure_5"=figure_5))
+    }
+    
   }
 }
 
@@ -1462,5 +1708,36 @@ if(TRUE){
   range_delete(ss,range="A:H")
   range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
   
+  # Generate figures
+  if (1==1){
+    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata)
+    
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 1.png",
+      plot = generated_figures$figure_1,
+      width = 6000,height = 2500,units = "px",bg="white"
+    )
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 2.png",
+      plot = generated_figures$figure_2,
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 3.png",
+      plot = generated_figures$figure_3,
+      width = 2000,height = 2000,units = "px",bg="white"
+    )
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 4.png",
+      plot = generated_figures$figure_4,
+      width = 2000,height = 2000,units = "px",bg="white"
+    )
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 5.png",
+      plot = generated_figures$figure_5,
+      width = 2000,height = 2000,units = "px",bg="white"
+    )
+    
+  }
   
 }

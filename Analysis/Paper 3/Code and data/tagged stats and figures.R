@@ -308,17 +308,17 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
       
       for (i in 2009:2018){
         assign(paste0("p_data_available_",i),{
-          format.text.percent(sum(pr_outcomes[pr_outcomes$pub_year==i,]$data_available=="Yes"),
-                              nrow(pr_outcomes[pr_outcomes$pub_year==i,]))
+          format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]$data_available=="Yes"),
+                              nrow(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]))
         })
       }
       
-      df.fields <- do.call(rbind,lapply(na.omit(unique(pr_outcomes$COS_pub_category)),function(field){
-        p_process_reproducible <- sum(pr_outcomes[pr_outcomes$COS_pub_category==field,]$data_available=="Yes")/
-          nrow(pr_outcomes[pr_outcomes$COS_pub_category==field,])
+      df.fields <- do.call(rbind,lapply(na.omit(unique(pr_outcomes_modified$COS_pub_category)),function(field){
+        p_process_reproducible <- sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes")/
+          nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,])
         formatted_text_process_reproducible <- 
-          format.text.percent(sum(pr_outcomes[pr_outcomes$COS_pub_category==field,]$data_available=="Yes"),
-                              nrow(pr_outcomes[pr_outcomes$COS_pub_category==field,]))
+          format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes"),
+                              nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]))
         
         data.frame(field,p_process_reproducible,formatted_text_process_reproducible)
       }))
@@ -608,15 +608,12 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
                  repro_outcomes_no_none$repro_outcome_overall=="precise" | 
                  repro_outcomes_no_none$repro_outcome_overall=="push button")),1)
       
-      # stat of interest here
       p_papers_OR_approx_or_precise <- cw.proportion(
         repro_outcomes_no_none$repro_outcome_overall=="approximate" | 
           repro_outcomes_no_none$repro_outcome_overall=="precise" | 
           repro_outcomes_no_none$repro_outcome_overall=="push button",
         weights=repro_outcomes_no_none$weight,
         clusters = repro_outcomes_no_none$paper_id,iters)$formatted.text
-      
-      test <- repro_outcomes_no_none[!repro_outcomes_no_none$claim_id %in% data$claim_id,]
       
       n_papers_OR_precise <- format.round(sum(repro_outcomes_no_none$weight *
                                                        (repro_outcomes_no_none$repro_outcome_overall=="precise" |
@@ -2621,7 +2618,7 @@ if(TRUE){
       tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
 
     # Generate stats
-      results_tagged_stats <- tagged_stats(iters = 200,
+      results_tagged_stats <- tagged_stats(iters = 20,
                                            repro_outcomes=repro_outcomes,
                                            pr_outcomes=pr_outcomes,
                                            orig_outcomes=orig_outcomes,
