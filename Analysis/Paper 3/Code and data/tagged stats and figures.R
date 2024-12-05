@@ -131,7 +131,6 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
 
   }
 
-  
   # Stats
   {
     # Table 2
@@ -340,31 +339,31 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
       p_papers_assess_process_repro <- format.text.percent(nrow(pr_outcomes_modified),
                                                            nrow(pr_outcomes_modified))
       
-      n_papers_data_available <- sum(pr_outcomes_modified$data_available=="Yes")
+      n_papers_data_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE)
       p_papers_data_available <- format.text.percent(n_papers_data_available,n_papers_assess_process_repro)
       
-      n_papers_code_available <- sum(pr_outcomes_modified$code_available=="Yes")
+      n_papers_code_available <- sum(pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_code_available <- format.text.percent(n_papers_code_available,n_papers_assess_process_repro)
       
-      n_papers_data_unavailable <- sum(pr_outcomes_modified$data_available=="No")
+      n_papers_data_unavailable <- sum(pr_outcomes_modified$data_available_or_shared==FALSE)
       p_papers_data_unavailable <- format.text.percent(n_papers_data_unavailable,n_papers_assess_process_repro)
       
-      n_papers_code_unavailable <- sum(pr_outcomes_modified$code_available=="No")
+      n_papers_code_unavailable <- sum(pr_outcomes_modified$code_available_or_shared==FALSE)
       p_papers_code_unavailable <- format.text.percent(n_papers_code_unavailable,n_papers_assess_process_repro)
       
-      n_papers_data_and_code_available <- sum(pr_outcomes_modified$data_available=="Yes" & pr_outcomes_modified$code_available=="Yes")
+      n_papers_data_and_code_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE & pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_data_and_code_available <- format.text.percent(n_papers_data_and_code_available,n_papers_assess_process_repro)
       
-      n_papers_data_or_code_available <- sum(pr_outcomes_modified$data_available=="Yes" | pr_outcomes_modified$code_available=="Yes")
+      n_papers_data_or_code_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_data_or_code_available <- format.text.percent(n_papers_data_or_code_available,n_papers_assess_process_repro)
       
-      n_papers_data_only_available <- sum(pr_outcomes_modified$data_available=="Yes" & pr_outcomes_modified$code_available=="No")
+      n_papers_data_only_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE & pr_outcomes_modified$code_available_or_shared==FALSE)
       p_papers_data_only_available <- format.text.percent(n_papers_data_only_available,n_papers_assess_process_repro)
       
-      n_papers_code_only_available <- sum(pr_outcomes_modified$data_available=="No" & pr_outcomes_modified$code_available=="Yes")
+      n_papers_code_only_available <- sum(pr_outcomes_modified$data_available_or_shared==FALSE & pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_code_only_available <- format.text.percent(n_papers_code_only_available,n_papers_assess_process_repro)
       
-      n_papers_neither_code_nor_data_available <- sum(pr_outcomes_modified$data_available=="No" & pr_outcomes_modified$code_available=="No")
+      n_papers_neither_code_nor_data_available <- sum(pr_outcomes_modified$data_available_or_shared==FALSE & pr_outcomes_modified$code_available_or_shared==FALSE)
       p_papers_neither_code_nor_data_available <- format.text.percent(n_papers_neither_code_nor_data_available,n_papers_assess_process_repro)
       
     }
@@ -372,23 +371,23 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
     # Results: Process reproducibility by year of original publication
     {
       rho <- SpearmanRho(x=as.numeric(pr_outcomes_modified$pub_year),
-               y=as.numeric(pr_outcomes_modified$data_available=="Yes"),
+               y=as.numeric(pr_outcomes_modified$data_available_or_shared==TRUE),
                conf.level=.95)
       rho_data_avail_v_year <- format.text.CI(rho[1],rho[2],rho[3],digits=2)
       
       rho <- SpearmanRho(x=as.numeric(pr_outcomes_modified$pub_year),
-                         y=as.numeric(pr_outcomes_modified$code_available=="Yes"),
+                         y=as.numeric(pr_outcomes_modified$code_available_or_shared==TRUE),
                          conf.level=.95)
       rho_code_avail_v_year <- format.text.CI(rho[1],rho[2],rho[3],digits=2)
       
       rho <- SpearmanRho(x=as.numeric(pr_outcomes_modified$pub_year),
-                         y=as.numeric(pr_outcomes_modified$code_available=="Yes" & pr_outcomes_modified$data_available=="Yes" ),
+                         y=as.numeric(pr_outcomes_modified$code_available_or_shared==TRUE & pr_outcomes_modified$data_available_or_shared==TRUE ),
                          conf.level=.95)
       rho_code_and_data_avail_v_year <- format.text.CI(rho[1],rho[2],rho[3],digits=2)
       
-      rho <- SpearmanRho(x=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available=="Yes" | pr_outcomes_modified$code_available=="Yes",]$pub_year),
-                         y=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available=="Yes" | pr_outcomes_modified$code_available=="Yes",]$code_available=="Yes" &
-                                        pr_outcomes_modified[pr_outcomes_modified$data_available=="Yes" | pr_outcomes_modified$code_available=="Yes",]$data_available=="Yes" ),
+      rho <- SpearmanRho(x=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$pub_year),
+                         y=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$code_available=="Yes" &
+                                        pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$data_available=="Yes" ),
                          conf.level=.95)
       rho_code_and_data_avail_v_year_among_either <- format.text.CI(rho[1],rho[2],rho[3],digits=2)
       
@@ -2641,7 +2640,7 @@ if(TRUE){
       range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
       
   # Generate figures
-  if (0==1){
+  if (FALSE){
     generated_figures <- figures(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publications)
 
     ggsave(
@@ -2689,4 +2688,5 @@ if(TRUE){
   }
 
 }
+
 
