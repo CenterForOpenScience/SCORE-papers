@@ -41,18 +41,29 @@ googlesheets4::gs4_auth()
 
 tar_option_set(
   # Packages the targets need to run
-  packages = c("tibble",
-               "readr",
-               "tidyr",
+  packages = c("BayesFactor",
+               "BayesRep",
+               "BFF",
                "dplyr",
-               "stringr",
-               "purrr",
-               "lubridate",
-               "here",
+               "effectsize",
+               "ggExtra",
+               "glue",
                "googlesheets4",
                "googledrive",
+               "here",
+               "kableExtra",
+               "lubridate",
+               "metaBMA",
+               "metafor",
                "osfr",
-               "effectsize") 
+               "purrr",
+               "pwr",
+               "readr",
+               "ReplicationSuccess",
+               "sjPlot",
+               "stringr",
+               "tibble",
+               "tidyr") 
 )
 
 # All functions used are found in the folder named "pipeline"
@@ -680,6 +691,11 @@ list(
                                    status,
                                    stitched_claims,
                                    effectsize_outcome)),
+  
+  tar_target(repli_binary,
+             calculate_repli_binary(repli_outcomes,
+                                    orig_outcomes,
+                                    paper_metadata)),
   
   # Reproduction targets ----
   # Transformed data from forms
