@@ -1051,17 +1051,19 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
+      nesting.structure$cat2 <- nesting.structure$cat
+      nesting.structure$cat3 <- nesting.structure$cat
       
-      nesting.structure$cat2 <- c("Both","Both","Both",
-                                  "Either",
-                                  "Either",
-                                  "Either",
-                                  "Neither")
-      nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
-      
-      nesting.structure$cat <- ordered(nesting.structure$cat)
-      nesting.structure$cat2 <- ordered(nesting.structure$cat2)
-      nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+      # nesting.structure$cat2 <- c("Both","Both","Both",
+      #                             "Either",
+      #                             "Either",
+      #                             "Either",
+      #                             "Neither")
+      # nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+      # 
+      # nesting.structure$cat <- ordered(nesting.structure$cat)
+      # nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+      # nesting.structure$cat3 <- ordered(nesting.structure$cat3)
       
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,paper_id)
@@ -1150,27 +1152,27 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
     data.legend <- data %>% group_by(cat) %>% summarise(n=n())
     cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
                                       chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=TRUE)$cats_rects
+                                      display_axis=FALSE,legend=FALSE)$cats_rects
     rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
                                       chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=TRUE)$plot+
+                                      display_axis=FALSE,legend=FALSE)$plot+
       geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
                 color=c("white","white","black","white","black","black","black"),size=legend_text_size,fontface="bold")+
                 #color=c("white","white","white","white","white","white","black"),size=legend_text_size,fontface="bold")+
       
-      geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+      geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
+      geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
+      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
       ylim(0,1.2)+
-      annotate("text",x=1/6,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=1/2,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=5/6,y=1.05,label="Neither Code nor Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=2/3+.02,
-               y=.25,label="Data only",
-               color="black",hjust=0,size=legend_text_size,fontface="bold")+
-      annotate("text",x=2/3+.02,
-               y=.75,label="Code only",
-               color="black",hjust=0,size=legend_text_size,fontface="bold")
+      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+      # annotate("text",x=2/3+.02,
+      #          y=.25,label="Data only",
+      #          color="black",hjust=0,size=legend_text_size,fontface="bold")+
+      # annotate("text",x=2/3+.02,
+      #          y=.75,label="Code only",
+      #          color="black",hjust=0,size=legend_text_size,fontface="bold")
     
     snakebins_plot <- ggplot()+theme_nothing()+
       annotate("text",x=0.5,y=1,label="")
@@ -1229,17 +1231,19 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
+      nesting.structure$cat2 <- nesting.structure$cat
+      nesting.structure$cat3 <- nesting.structure$cat
       
-      nesting.structure$cat2 <- c("Both","Both","Both",
-                                  "Either",
-                                  "Either",
-                                  "Either",
-                                  "Neither")
-      nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
-      
-      nesting.structure$cat <- ordered(nesting.structure$cat)
-      nesting.structure$cat2 <- ordered(nesting.structure$cat2)
-      nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+      # nesting.structure$cat2 <- c("Both","Both","Both",
+      #                             "Either",
+      #                             "Either",
+      #                             "Either",
+      #                             "Neither")
+      # nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+      # 
+      # nesting.structure$cat <- ordered(nesting.structure$cat)
+      # nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+      # nesting.structure$cat3 <- ordered(nesting.structure$cat3)
       
       # Trim data for speed
       data <- data %>% select(field,cat,group,paper_id)
@@ -1327,25 +1331,19 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
     data.legend <- data %>% group_by(cat) %>% summarise(n=n())
     cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
                                       chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=TRUE)$cats_rects
+                                      display_axis=FALSE,legend=FALSE)$cats_rects
     rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
                                       chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=TRUE)$plot+
+                                      display_axis=FALSE,legend=FALSE)$plot+
       geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
                 color=c("white","white","black","white","black","black","black"),fontface="bold")+
-      geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+      geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
+      geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
+      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
       ylim(0,1.2)+
-      annotate("text",x=1/6,y=1.05,label="Both Code and Data",color="black",size=legend_text_size+2,vjust=0,fontface="bold")+
-      annotate("text",x=1/2,y=1.05,label="Either Code or Data",color="black",size=legend_text_size+2,vjust=0,fontface="bold")+
-      annotate("text",x=5/6,y=1.05,label="Neither Code nor Data",color="black",size=legend_text_size+2,vjust=0,fontface="bold")+
-      annotate("text",x=2/3+.02,
-               y=.25,label="Data only",
-               color="black",size=legend_text_size,hjust=0,fontface="bold")+
-      annotate("text",x=2/3+.02,
-               y=.75,label="Code only",
-               color="black",size=legend_text_size,hjust=0,fontface="bold")
+      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
     
     snakebins_plot <- ggplot()+theme_nothing()+
       annotate("text",x=0.5,y=1,label="")
@@ -1395,17 +1393,19 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
+      nesting.structure$cat2 <- nesting.structure$cat
+      nesting.structure$cat3 <- nesting.structure$cat
       
-      nesting.structure$cat2 <- c("Both","Both","Both",
-                                  "Either",
-                                  "Either",
-                                  "Either",
-                                  "Neither")
-      nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
-      
-      nesting.structure$cat <- ordered(nesting.structure$cat)
-      nesting.structure$cat2 <- ordered(nesting.structure$cat2)
-      nesting.structure$cat3 <- ordered(nesting.structure$cat3)
+      # nesting.structure$cat2 <- c("Both","Both","Both",
+      #                             "Either",
+      #                             "Either",
+      #                             "Either",
+      #                             "Neither")
+      # nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
+      # 
+      # nesting.structure$cat <- ordered(nesting.structure$cat)
+      # nesting.structure$cat2 <- ordered(nesting.structure$cat2)
+      # nesting.structure$cat3 <- ordered(nesting.structure$cat3)
     }
     
     # Aesthetic setup
@@ -1516,30 +1516,165 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
       cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
                                         chart.palette = chart.palette,
-                                        display_axis=FALSE,legend=TRUE)$cats_rects
+                                        display_axis=FALSE,legend=FALSE)$cats_rects
       legend <- rounded.bars(data.legend,nesting.structure,
                              chart.palette = chart.palette,
-                             display_axis=FALSE,legend=TRUE)$plot+
+                             display_axis=FALSE,legend=FALSE)$plot+
         geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
                   color=c("white","white","black","white","black","black","black"),size=legend_text_size,fontface="bold")+
         geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
         geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
         geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
         ylim(0,1.2)+
-        annotate("text",x=1/6,y=1.05,label="Both Code and Data",color="black",size=legend_text_size+2,vjust=0,fontface="bold")+
-        annotate("text",x=1/2,y=1.05,label="Either Code or Data",color="black",size=legend_text_size+2,vjust=0,fontface="bold")+
-        annotate("text",x=5/6,y=1.05,label="Neither Code nor Data",color="black",size=legend_text_size+2,vjust=0,fontface="bold")+
-        annotate("text",x=2/3+.02,
-                 y=.25,label="Data only",
-                 color="black",size=legend_text_size,hjust=0,fontface="bold")+
-        annotate("text",x=2/3+.02,
-                 y=.75,label="Code only",
-               color="black",size=legend_text_size,hjust=0,fontface="bold")
+        geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
+        geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
+        #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+        ylim(0,1.2)+
+        annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
     
     }
     figure_3 <- 
       plot_grid(plot.top.labels,plot.main,ggplot()+theme_nothing(),legend,
               ncol=1,rel_heights = c(1/length(plotlist.main),1,0.1,3/length(plotlist.main)))
+  }
+  
+  # Figure 3 Candidate. Outcome reproducibility by discipline and year
+  {
+    # Data wrangling
+    {
+      data <- pr_outcomes %>% 
+        filter(!covid) %>% 
+        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
+        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
+        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
+        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
+        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
+        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
+        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
+        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
+        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
+        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+        filter(response)
+      
+      data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+      group_order <- seq(min(data$pub_year),max(data$pub_year,1))
+      #data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
+      data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
+      
+      data$cat <- ordered(data$cat,
+                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
+                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
+                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
+                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                                     "Data shared directly,\ncode unavailable",
+                                     "Data unavailable,\ncode available",
+                                     "Neither data nor\ncode available")
+      )
+      field_order <- fields.abbreviated
+      data$field <- ordered(data$COS_pub_category,
+                            levels=fields.raw,
+                            labels=fields.abbreviated)
+      
+      data.econ.poli <- data[data$COS_pub_category=="economics and finance" | data$COS_pub_category=="political science",]
+      data.other <- data[!data$COS_pub_category=="economics and finance" & !data$COS_pub_category=="political science",]
+      # Define nesting structure
+      cat <- levels(data$cat)
+      nesting.structure <- data.frame(cat)
+      nesting.structure$cat2 <- nesting.structure$cat
+      nesting.structure$cat3 <- nesting.structure$cat
+
+    }
+    # Aesthetic setup
+    {
+      chart.palette <- palette_process_repro_charts
+      
+      #chart.palette.largecat <- palette_outcome_repro_charts_attempts
+      
+      bars_range <- c(0,1)
+      col_widths <- c(.4,1.2,4,1)
+      y_axis_text_size <- 6
+      x_axis_text_size <- 12
+      legend_text_size <- 6
+      fields_text_size <- 8
+    }
+    
+    # Group by field plots
+    plotlist_field <- lapply(levels(data$field),function(field) {
+      data_field <- data[data$field==field,]
+      
+      plotlist <- lapply(1:length(group_order),function(x) {
+        data.field.group <- data_field %>%
+          filter(group==group_order[x]) %>%
+          group_by(paper_id) %>%
+          mutate(weight=1/n())
+        
+        cats_rects <- rounded.bars(data.field.group,nesting.structure,
+                                   weightvar="weight",
+                                   chart.palette = chart.palette,
+                                   display_axis = FALSE)$cats_rects
+        cats_rects_final <- cats_rects[nrow(cats_rects),]
+        rounded.bars.cutoff <- rounded.bars(data.field.group,nesting.structure,
+                                            weightvar="weight",
+                                            chart.palette = chart.palette,
+                                            display_axis = FALSE)$plot+
+          funkyheatmap::geom_rounded_rect(data_field=cats_rects_final,aes(xmin=cats_rects_final$xmin,
+                                                                          ymin=cats_rects_final$ymin,
+                                                                          xmax=bars_range[2],
+                                                                          ymax=cats_rects_final$ymax),
+                                          radius=unit(3, "points"),size=0,fill=chart.palette[length(chart.palette)])+
+          xlim(bars_range)
+        rounded.bars.cutoff
+      })
+      
+      plotlist <- append(list(ggplot() + theme_nothing()+
+                                annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
+                         plotlist)
+      
+      plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
+    })
+    plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
+    
+    # Year labels
+    plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
+      ggplot() + theme_nothing()+
+        annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
+    })
+    plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                         annotate("text",x=0.5,y=1,label="")),
+                                  plotlist_yearlabels)
+    year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
+    
+    
+    main_plots <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
+    
+    # Legend
+    data.legend <- data %>% group_by(cat) %>% summarise(n=n())
+    cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                      chart.palette = chart.palette,
+                                      display_axis=FALSE,legend=FALSE)$cats_rects
+    legend <- rounded.bars(data.legend,nesting.structure,
+                                      chart.palette = chart.palette,
+                                      display_axis=TRUE,legend=FALSE)$plot+
+      geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                color=c("white","white","black","white","black","black","black"),fontface="bold")+
+      geom_segment(x=3/7,xend=3/7,y=1,yend=1.6,linetype=3)+
+      geom_segment(x=6/7,xend=6/7,y=1,yend=1.6,linetype=3)+
+      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+      ylim(0,1.6)+
+      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      theme(axis.text.x=element_text(size=x_axis_text_size))+
+      scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
+    
+    legend_bar <- plot_grid(ggplot()+theme_nothing()+
+                              annotate("text",x=0.5,y=1,label=""),
+                            legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
+    
+    figure_3X <- 
+      plot_grid(main_plots,ggplot()+theme_nothing(),legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),0.4,2.5))
   }
   
   # Figure 4. Outcome reproducibility by whether data and code were available, only data was available, and data was reconstructed from source data was available
@@ -2554,6 +2689,7 @@ figures <- function(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publ
       "figure_1"=figure_1,
       "figure_2"=figure_2,
       "figure_3"=figure_3,
+      "figure_3X"=figure_3X,
       "figure_4"=figure_4,
       "figure_5"=figure_5,
       "figure_6"=figure_6,
@@ -2640,7 +2776,7 @@ if(TRUE){
       range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
       
   # Generate figures
-  if (FALSE){
+  if (TRUE){
     generated_figures <- figures(repro_outcomes,pr_outcomes,orig_outcomes,paper_metadata,publications)
 
     ggsave(
@@ -2656,6 +2792,11 @@ if(TRUE){
     ggsave(
       "Analysis/Paper 3/Code and data/Figures/figure 3.png",
       plot = generated_figures$figure_3,
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+    ggsave(
+      "Analysis/Paper 3/Code and data/Figures/figure 3X.png",
+      plot = generated_figures$figure_3X,
       width = 6000,height = 2000,units = "px",bg="white"
     )
     ggsave(
