@@ -557,27 +557,3 @@
     )
   }
 }
-# 
-# # Paper-specific functions
-# {
-#   # Replications
-#   {
-#     repli_outcomes_default_subset <- function(){
-#       df <- repli_outcomes
-#       
-#       df <- df[df$repli_type %in% c("new data","secondary data"),]
-#       df <- df[df$repli_version_of_record %in% c(TRUE),]
-#       df <- df[df$repli_is_generalizability %in% c(FALSE),]
-#       
-#       select_manylabs_selected <- c("not_manylabs","ml_aggregation")
-#       if ("not_manylabs" %in% select_manylabs_selected){
-#         df[df$manylabs_type %in% select_manylabs_selected | df$is_manylabs==FALSE,]
-#       } else {
-#         df <- df[df$manylabs_type %in% select_manylabs_selected,]
-#       }
-#       df <- df[df$power_for_effect_size %in% c("50% for 100%","90% for 50%","90% for 75%","lab power analysis","not performed"),]
-#       
-#       df
-#     }
-#   }
-# }
