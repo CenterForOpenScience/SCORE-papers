@@ -1,5 +1,5 @@
 calculate_repli_binary <- function(repli_outcomes, 
-                                   orig_outcomes,
+                                   orig_outcomes, 
                                    paper_metadata) {
   
   # Sub-functions ----
@@ -506,7 +506,7 @@ calculate_repli_binary <- function(repli_outcomes,
       )
     )
   
-  all_measures <- score %>% 
+  score %>% 
     left_join(interpret %>% select(report_id, analyst), 
               by = "report_id") %>% 
     left_join(orig_within %>% select(report_id, orig_wthn), 
@@ -531,7 +531,5 @@ calculate_repli_binary <- function(repli_outcomes,
               by = "report_id") %>%
     left_join(bayes_factor %>% select(report_id, bf_result), 
               by = "report_id")
-  
-  return(all_measures)
   
 }
