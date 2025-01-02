@@ -550,8 +550,8 @@ list(
   tar_target(
     orig_statistics_output_p2,
     load_osf_tsv(orig_statistics_output_p2_osf,
-                                          orig_statistics_output_p2_mod_date,
-                                          quote = "\\\"")
+                 orig_statistics_output_p2_mod_date,
+                 quote = "\\\"")
   ),
   
   # rr_statistics_output_p2.txt
@@ -684,18 +684,24 @@ list(
                           repli_input_changelog)),
   
   # Create replication analytic dataset
-  tar_target(repli_outcomes,
+  tar_target(repli_outcomes_interm,
              create_repli_analytic(repli_export,
-                                   rr_attempts_minted,
-                                   rr_statistics_output_p2,
-                                   status,
-                                   stitched_claims,
-                                   effectsize_outcome)),
-  
+                                  rr_attempts_minted,
+                                  rr_statistics_output_p2,
+                                  status,
+                                  stitched_claims,
+                                  effectsize_outcome,
+                                  orig_outcomes,
+                                  paper_metadata)),
+
   tar_target(repli_binary,
-             calculate_repli_binary(repli_outcomes,
+             calculate_repli_binary(repli_outcomes_interm,
                                     orig_outcomes,
                                     paper_metadata)),
+  
+  tar_target(repli_outcomes,
+             merge_repli_outcomes(repli_outcomes_interm,
+                                  repli_binary)),
   
   # Reproduction targets ----
   # Transformed data from forms
