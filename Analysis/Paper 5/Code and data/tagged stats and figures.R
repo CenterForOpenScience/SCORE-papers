@@ -2,7 +2,7 @@
 # Functions (also readable by external sources)
 {
   # Create an object that contains the tagged stats
-  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts){
+  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts,repli_binary){
   
     # Data preparation
     {
@@ -1391,7 +1391,7 @@
     }
   }
 
-  figures <- function(repli_outcomes,orig_outcomes,paper_metadata){
+  figures <- function(repli_outcomes,orig_outcomes,paper_metadata,repli_binary){
     # Initialization and data preparation
     {
       fields.raw <-
@@ -1423,22 +1423,260 @@
           "Business",
           "Education")
       
+      binvars.raw <- c("repli_score_criteria_met",
+                       "analyst","orig_wthn","rep_wthn","wthn_pi","meta_success",
+                       "sum_p","telescopes","bf_result","bayes_rep","bma_result","skep_p",
+                       "correspondence")
+      binvars.order <- binvars.raw
+      binvars.short <- c("Sig. + pattern",
+                       "Analyst interpretation",
+                       "Orig. in rep. CI",
+                       "Rep. in orig. CI",
+                       "Rep. in prediction interval",
+                       "Meta-analysis",
+                       "Sum of p-values",
+                       "Small telescopes",
+                       "Bayes factor",
+                       "Replication Bayes factor",
+                       "Bayesian meta-analysis",
+                       "Skeptical p-value",
+                       "Correspondence test")
+      df.binvars <- data.frame(binvars.raw,binvars.short)
     }
     
     # Figure generation
     {
-    
       # Figure 1
       {
-        figure_1 <- ggplot()
+        # Data wrangling
+        {
+          # Summarize by proportions w/ CIs
+            binary.varnames <- colnames(repli_binary)[3:ncol(repli_binary)]
+
+            binary.proportions <- 
+              do.call(rbind,lapply(binvars.raw,function(binary.var){
+                n <- sum(repli_binary[[binary.var]],na.rm=TRUE)
+                denom <- sum(!is.na(repli_binary[[binary.var]]))
+                n.text <- paste0("n=",n,"/",denom)
+              data.frame(binary.var,n,denom,n.text,
+                         binconf(sum(repli_binary[[binary.var]],na.rm=TRUE),sum(!is.na(repli_binary[[binary.var]]),na.rm=TRUE))
+              )
+            }))
+            
+            
+            #binary.order.pointest <- binary.proportions[order(-binary.proportions$PointEst),]
+            binary.proportions$binary.var <- ordered(binary.proportions$binary.var,
+                                                     levels = binvars.raw,
+                                                     labels= binvars.short)
+            
+            # Reorder by size
+            binary.proportions <- binary.proportions[order(-binary.proportions$PointEst),]
+            binary.proportions$binary.var <- ordered(as.character(binary.proportions$binary.var),
+                                                     levels = binary.proportions$binary.var,
+                                                     labels= binary.proportions$binary.var)
+            
+            binary.proportions$num <- rev(1:nrow(binary.proportions))
+            
+        }
+        
+        # Chart generation
+        {
+          #ggplot(binary.proportions, aes(x=binary.var,y=PointEst)) + 
+          figure_1 <- ggplot(binary.proportions, aes(x=reorder(binary.var, -PointEst),y=PointEst)) + 
+            
+            geom_bar(stat="identity",fill="grey90") +
+            geom_text(aes(x=num,y=0.02,label=n.text),hjust=0,size=3)+
+            funkyheatmap::geom_rounded_rect(
+              aes(xmin=num-.45,xmax=num+.45,ymin = Lower, ymax = Upper),
+              radius=unit(3, "points"),show.legend=FALSE,color="black",size=0,fill=palette_score_charts[1])+
+            geom_segment(aes(x=num-.45,xend=num+.45,y = PointEst, yend = PointEst))+
+            # geom_errorbar(aes(y=PointEst,ymin=Lower, ymax=Upper), width=.2)+
+            theme_minimal()+
+            scale_x_discrete(limits=rev(binary.proportions$binary.var))+
+            coord_flip()+
+            scale_y_continuous(expand=expansion(add = c(0, .05)),
+                               labels = scales::percent_format(),
+                               breaks=c(0,.25,.5,.75,1),
+                               limits=c(0,1))+
+            theme(legend.position = "none",
+                  legend.title=element_blank(),
+                  panel.border = element_blank(),
+                  panel.grid = element_blank(),
+                  axis.line = element_blank(),
+            )+
+            xlab("Binary success measure")+
+            ylab("Proportion successfully replicated according to measure")
+        }
       }
       
       # Figure 2
       {
-        figure_2 <- ggplot()
+        # Data wrangling
+        {
+          # Get repli binary results
+          repli_binary_rowsums <- repli_binary[,3:ncol(repli_binary)]
+          repli_binary_rowsums <- repli_binary_rowsums[c(binvars.raw)]
+          colnames(repli_binary_rowsums) <- binvars.short
+          
+          lapply(1:ncol(repli_binary_rowsums),function(x) {
+            repli_binary_rowsums[[colnames(repli_binary_rowsums[x])]] <<- as.integer(repli_binary_rowsums[[colnames(repli_binary_rowsums[x])]]) 
+          })
+          
+          repli_binary_rowsums$binary_sums <- rowSums(repli_binary_rowsums,na.rm = TRUE)
+          
+          vars.order <- colSums(repli_binary_rowsums,na.rm=TRUE)
+          vars.order <- vars.order[1:(length(vars.order)-1)]
+          vars.order <- names(vars.order[order(-vars.order)])
+          
+          repli_binary_rowsums <- repli_binary_rowsums[c(vars.order,"binary_sums")]
+          
+          df.counts <- do.call(rbind,lapply(0:(length(binvars.raw)),function (i) {
+            n <- sum(repli_binary_rowsums$binary_sums==i,na.rm=TRUE)
+            #print(paste0(i,", ",n))
+            
+            repli_binary_rowsums_subset <- repli_binary_rowsums[repli_binary_rowsums$binary_sums==i,]
+            colsums <- t(colSums(repli_binary_rowsums_subset, na.rm=TRUE))
+            df.out <- data.frame("n"=i,"total"=n, t(colSums(repli_binary_rowsums_subset, na.rm=TRUE)))
+            colnames(df.out) <- c("n","total",colnames(colsums))
+            df.out
+            #data.frame(n)
+          }))
+          
+          rownames(df.counts) <- df.counts$n
+          df.counts$n <- df.counts$binary_sums <-  NULL
+          df.counts <- as.data.frame(t(df.counts))
+        }
+        
+        # Plot generation
+        {
+          bar_width <- 0.7
+          
+          bar.ind <- function(i.binvar,i.count){
+            ggplot() + theme_nothing()+
+              funkyheatmap::geom_rounded_rect(aes(xmin = (1-bar_width)/2, xmax = 1-(1-bar_width)/2,
+                                                  ymin = 0, ymax = 1-(df.counts[[as.character(i.count)]][i.binvar+1]/df.counts[[as.character(i.count)]][1])),
+                                              fill=palette_score_charts[8],radius=.1)+
+              funkyheatmap::geom_rounded_rect(aes(xmin = (1-bar_width)/2, xmax = 1-(1-bar_width)/2,
+                                                  ymax = 1, ymin = 1-(df.counts[[as.character(i.count)]][i.binvar+1]/df.counts[[as.character(i.count)]][1])),
+                                              fill=palette_score_charts[4],radius=.1)
+          }
+          rel.label.width <- 0.3
+          
+          bar.row <- function(i.binvar){
+            row.label <- ggplot()+theme_nothing()+
+              annotate("text",x=1,y=0.5,label=rownames(df.counts)[i.binvar+1],hjust=1,vjust=0.5,fontface="bold")+
+              xlim(0,1)+ylim(0,1)
+            
+            
+            plotlist <- lapply(0:(ncol(df.counts)-1),function(i.count) {
+              bar.ind(i.binvar,i.count)
+              
+            })
+            bars <- plot_grid(plotlist = plotlist,nrow=1,align="v")
+            plot_grid(row.label,bars,nrow=1,rel_widths=c(rel.label.width,1))
+          }
+          
+          main.bar.plots <- plot_grid(plotlist= {
+            lapply(1:length(binvars.raw),function(i.binvar) {
+              bar.row(i.binvar)
+            })
+          },nrow=length(binvars.raw))
+          
+          countlabels.row <- function(){
+            row.label <- ggplot()+theme_nothing()+
+              annotate("text",x=1,y=0.5,label="",hjust=1,vjust=0.5)+
+              xlim(0,1)+ylim(0,1)
+            
+            plotlist <- lapply(0:(ncol(df.counts)-1),function(i.count) {
+              ggplot()+theme_nothing()+
+                annotate("text",x=0.5,y=0.5,label=as.character(i.count),hjust=0.5,vjust=0.5,fontface="bold")+
+                xlim(0,1)+ylim(0,1)
+              
+            })
+            bars <- plot_grid(plotlist = plotlist,nrow=1,align="v")
+            plot_grid(row.label,bars,nrow=1,rel_widths=c(rel.label.width,1))
+          }
+          
+          nlabels.row <- function(){
+            row.label <- ggplot()+theme_nothing()+
+              #annotate("text",x=1,y=0.5,label="N studies with X\nreplication success measures",hjust=1,vjust=0.5)+
+              annotate("text",x=1,y=0.5,label="",hjust=1,vjust=0.5)+
+              xlim(0,1)+ylim(0,1)
+            
+            plotlist <- lapply(1:(ncol(df.counts)),function(i) {
+              ggplot()+theme_nothing()+
+                annotate("text",x=0.5,y=0.5,label=paste0("n=",as.character(df.counts[1,i])),hjust=0.5,vjust=0.5)+
+                xlim(0,1)+ylim(0,1)
+              
+            })
+            bars <- plot_grid(plotlist = plotlist,nrow=1,align="v")
+            plot_grid(row.label,bars,nrow=1,rel_widths=c(rel.label.width,1))
+          }
+          title.row <- function(){
+            row.label <- ggplot()+theme_nothing()+
+              annotate("text",x=0.5,y=0.5,label="",hjust=0.5,vjust=0.5)+
+              xlim(0,1)+ylim(0,1)
+            
+            title <- ggplot()+theme_nothing()+
+              annotate("text",x=0.5,y=0.5,label="Number of measures indicating replication success",hjust=0.5,vjust=0.5,fontface="bold")+
+              xlim(0,1)+ylim(0,1)
+            plot_grid(row.label,title,nrow=1,rel_widths=c(rel.label.width,1))
+          }
+          
+          figure_2 <- plot_grid(title.row(),countlabels.row(),nlabels.row(),main.bar.plots,ncol=1,rel_heights = c(1,1,1,12))
+          figure_2
+        }
+
+      }
+
+      # Figure 3
+      {
+        # Data wrangling
+        {
+          # Get pointest order
+          binary.varnames <- colnames(repli_binary)[3:ncol(repli_binary)]
+          
+          binary.proportions <- 
+            do.call(rbind,lapply(binvars.raw,function(binary.var){
+              n <- sum(repli_binary[[binary.var]],na.rm=TRUE)
+              denom <- sum(!is.na(repli_binary[[binary.var]]))
+              n.text <- paste0("n=",n,"/",denom)
+              data.frame(binary.var,n,denom,n.text,
+                         binconf(sum(repli_binary[[binary.var]],na.rm=TRUE),sum(!is.na(repli_binary[[binary.var]]),na.rm=TRUE))
+              )
+            }))
+          
+          binary.proportions$binary.var <- ordered(binary.proportions$binary.var,
+                                                   levels = binvars.raw,
+                                                   labels= binvars.short)
+          
+          # Reorder by size
+          binary.order.pointest <- binary.proportions[order(-binary.proportions$PointEst),]$binary.var
+          
+          
+          # Summarize by proportions w/ CIs
+          repli_binary_cors <- repli_binary[,3:ncol(repli_binary)]
+          repli_binary_cors <- repli_binary_cors[c(binvars.order)]
+          colnames(repli_binary_cors) <- binvars.short
+          
+          # Reorder by size
+          repli_binary_cors <- repli_binary_cors[c(binary.order.pointest)]
+          
+          lapply(1:ncol(repli_binary_cors),function(x) {
+            repli_binary_cors[[colnames(repli_binary_cors[x])]] <<- as.integer(repli_binary_cors[[colnames(repli_binary_cors[x])]]) 
+          })
+          
+          
+          M <- cor(repli_binary_cors,use="complete.obs")
+          
+        }
+        figure_3 <- corrplot.mixed(M, tl.col = 'black',lower = 'color',upper="number",col.lim=c(0,1),
+                                   tl.pos="lt",
+                                   #type="upper",
+                                   tl.cex=.5,cl.cex=.5,number.cex=.5,number.digits =2)
       }
       
-      # Figure 3
+      # Figure 4
       {
         all_effects <- repli_outcomes %>% 
           filter(!is_covid) %>% 
@@ -1493,10 +1731,10 @@
             legend.position = "bottom"
           )
         
-        figure_3 <- ggMarginal(p, type = "density", groupFill = T)
+        figure_4 <- ggMarginal(p, type = "density", groupFill = T)
       }
       
-      # Figure 4
+      # Figure 5
       {
         # Data wrangling
         {
@@ -1538,7 +1776,7 @@
         }
         # Plot
         {
-          figure_4 <- ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name))+
+          figure_5 <- ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name))+
               geom_density_ridges(alpha=.6,scale = 0.9)+
               theme_minimal()+
               theme(legend.position = "bottom",
@@ -1557,7 +1795,7 @@
           }
       }
       
-      # Figure 5
+      # Figure 6
       {
         # Data wrangling
         {
@@ -1600,7 +1838,7 @@
         }
         # Plot
         {
-          figure_5 <- ggplot(data=all_effects,aes(x=value,y=field,fill=name))+
+          figure_6 <- ggplot(data=all_effects,aes(x=value,y=field,fill=name))+
             geom_density_ridges(alpha=.6,scale = 0.9)+
             theme_minimal()+
             theme(legend.position = "bottom",
@@ -1627,7 +1865,8 @@
         "figure_2"=figure_2,
         "figure_3"=figure_3,
         "figure_4"=figure_4,
-        "figure_5"=figure_5))
+        "figure_5"=figure_5,
+        "figure_6"=figure_6))
     }
     
   }
@@ -1655,8 +1894,10 @@ if(TRUE){
     library(googlesheets4)
     library(zcurve)
     library(scales)
-    library(Hmisc)
     library(wCorr)
+    library(corrplot)
+    library(cowplot)
+    library(ggridges)
     
     drive_auth(Sys.getenv("google_oauth_email"))
     #drive_deauth()
@@ -1666,7 +1907,7 @@ if(TRUE){
   
   
   # Load data
-  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts")
+  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts","repli_binary")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
     #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -1690,7 +1931,8 @@ if(TRUE){
                                        repli_outcomes=repli_outcomes,
                                        orig_outcomes=orig_outcomes,
                                        paper_metadata=paper_metadata,
-                                       all_rr_attempts=all_rr_attempts)
+                                       all_rr_attempts=all_rr_attempts,
+                                       repli_binary=repli_binary)
   
   # Generate list of tags
   values_text <- do.call(c,lapply(1:length(tags),function(x) {
@@ -1710,23 +1952,23 @@ if(TRUE){
   
   # Generate figures
   if (1==1){
-    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata)
+    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata,repli_binary)
     
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 1.png",
       plot = generated_figures$figure_1,
-      width = 6000,height = 2500,units = "px",bg="white"
+      width = 3000,height = 1000,units = "px",bg="white"
     )
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 2.png",
       plot = generated_figures$figure_2,
-      width = 6000,height = 2000,units = "px",bg="white"
+      width = 2800,height = 1300,units = "px",bg="white"
     )
-    ggsave(
-      "Analysis/Paper 5/Code and data/Figures/figure 3.png",
-      plot = generated_figures$figure_3,
-      width = 2000,height = 2000,units = "px",bg="white"
-    )
+    # ggsave(
+    #   "Analysis/Paper 5/Code and data/Figures/figure 3.png",
+    #   plot = generated_figures$figure_3,
+    #   width = 2000,height = 2000,units = "px",bg="white"
+    # )
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 4.png",
       plot = generated_figures$figure_4,
@@ -1737,7 +1979,11 @@ if(TRUE){
       plot = generated_figures$figure_5,
       width = 2000,height = 2000,units = "px",bg="white"
     )
-    
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 6.png",
+      plot = generated_figures$figure_6,
+      width = 2000,height = 2000,units = "px",bg="white"
+    )
   }
   
 }
