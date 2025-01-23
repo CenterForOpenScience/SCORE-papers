@@ -231,26 +231,3 @@ create_repli_analytic <- function(repli_export,
            repli_conv_r_ub = cos_r_ub)
   
 }
-
-merge_repli_outcomes <- function(repli_outcomes_interm,
-                                 repli_binary) {
-  
-  
-  binary <- repli_binary %>%
-    select(report_id,
-           repli_binary_analyst = analyst,
-           repli_binary_orig_wthn = orig_wthn,
-           repli_binary_rep_wthn = rep_wthn,
-           repli_binary_meta_success = meta_success,
-           repli_binary_wthn_pi = wthn_pi,
-           repli_binary_sum_p = sum_p,
-           repli_binary_telescopes = telescopes,
-           repli_binary_bayes_rep = bayes_rep,
-           repli_binary_bma_result = bma_result,
-           repli_binary_skep_p = skep_p,
-           repli_binary_correspondence = correspondence,
-           repli_binary_bf_result = bf_result)
-  
-  repli_outcomes_interm %>%
-    left_join(binary, by = "report_id")
-}

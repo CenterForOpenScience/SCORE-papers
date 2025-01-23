@@ -684,7 +684,7 @@ list(
                           repli_input_changelog)),
   
   # Create replication analytic dataset
-  tar_target(repli_outcomes_interm,
+  tar_target(repli_outcomes,
              create_repli_analytic(repli_export,
                                   rr_attempts_minted,
                                   rr_statistics_output_p2,
@@ -695,13 +695,9 @@ list(
                                   paper_metadata)),
 
   tar_target(repli_binary,
-             calculate_repli_binary(repli_outcomes_interm,
+             calculate_repli_binary(repli_outcomes,
                                     orig_outcomes,
                                     paper_metadata)),
-  
-  tar_target(repli_outcomes,
-             merge_repli_outcomes(repli_outcomes_interm,
-                                  repli_binary)),
   
   # Reproduction targets ----
   # Transformed data from forms

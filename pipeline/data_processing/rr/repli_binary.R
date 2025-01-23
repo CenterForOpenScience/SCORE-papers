@@ -530,6 +530,19 @@ calculate_repli_binary <- function(repli_outcomes,
     left_join(correspondence_test %>% select(report_id, correspondence), 
               by = "report_id") %>%
     left_join(bayes_factor %>% select(report_id, bf_result), 
-              by = "report_id")
+              by = "report_id") %>%
+    select(report_id,
+           repli_binary_analyst = analyst,
+           repli_binary_orig_wthn = orig_wthn,
+           repli_binary_rep_wthn = rep_wthn,
+           repli_binary_meta_success = meta_success,
+           repli_binary_wthn_pi = wthn_pi,
+           repli_binary_sum_p = sum_p,
+           repli_binary_telescopes = telescopes,
+           repli_binary_bayes_rep = bayes_rep,
+           repli_binary_bma_result = bma_result,
+           repli_binary_skep_p = skep_p,
+           repli_binary_correspondence = correspondence,
+           repli_binary_bf_result = bf_result)
   
 }
