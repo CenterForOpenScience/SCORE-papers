@@ -2,20 +2,15 @@
 # Functions (also readable by external sources)
 {
   # Create an object that contains the tagged stats
-  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts,repli_binary){
+  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts){
   
     # Data preparation
     {
-      # Temporary for convenience
-      objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts")
-      for(i in 1:length(objects_to_load)){
-        assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
-      }
-      
-      # Trim out non-version of record lines
+      # Trim out non-version of record lines and non-COVID entries
       repli_outcomes_orig <- repli_outcomes
       
       repli_outcomes <- repli_outcomes[repli_outcomes$repli_version_of_record,]
+      repli_outcomes <- repli_outcomes[!repli_outcomes$is_covid,]
       
       paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year")]
       paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
@@ -31,6 +26,67 @@
       
       #paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
       
+      binvars.raw <- c("repli_score_criteria_met",
+                       "repli_binary_analyst",
+                       "repli_binary_orig_wthn",
+                       "repli_binary_rep_wthn",
+                       "repli_binary_wthn_pi",
+                       "repli_binary_meta_success",
+                       "repli_binary_sum_p",
+                       "repli_binary_telescopes",
+                       "repli_binary_bf_result",
+                       "repli_binary_bayes_rep",
+                       "repli_binary_bma_result",
+                       "repli_binary_skep_p",
+                       "repli_binary_correspondence")
+      binvars.order <- binvars.raw
+      
+      binvars.short <- c("Sig. + pattern",
+                         "Analyst interpretation",
+                         "Orig. in rep. CI",
+                         "Rep. in orig. CI",
+                         "Rep. in prediction interval",
+                         "Meta-analysis",
+                         "Sum of p-values",
+                         "Small telescopes",
+                         "Bayes factor",
+                         "Replication Bayes factor",
+                         "Bayesian meta-analysis",
+                         "Skeptical p-value",
+                         "Correspondence test")
+      binvars.group <- c("Statistic significance / p-value based measures",
+                         "SCORE specific",
+                         "Contained within interval measures",
+                         "Contained within interval measures",
+                         "Contained within interval measures",
+                         "Meta analysis based measures",
+                         "Statistic significance / p-value based measures",
+                         "Combined effect magnitude and uncertainty measures",
+                         "Combined effect magnitude and uncertainty measures",
+                         "Combined effect magnitude and uncertainty measures",
+                         "Meta analysis based measures",
+                         "Statistic significance / p-value based measures",
+                         "Combined effect magnitude and uncertainty measures")
+      
+      binvars.order <- c("repli_binary_analyst",
+                         "repli_score_criteria_met",
+                         "repli_binary_sum_p",
+                         "repli_binary_skep_p",
+                         "repli_binary_orig_wthn",
+                         "repli_binary_rep_wthn",
+                         "repli_binary_wthn_pi",
+                         "repli_binary_meta_success",
+                         "repli_binary_bma_result",
+                         "repli_binary_telescopes",
+                         "repli_binary_bf_result",
+                         "repli_binary_bayes_rep",
+                         "repli_binary_correspondence")
+      
+      df.binvars <- data.frame(binvars.raw,binvars.short,binvars.group,binvars.order)
+      df.binvars <- do.call(rbind,lapply(binvars.order,function(x) {
+        df.binvars[df.binvars$binvars.raw==x,]
+      }))
+      
     }
     
     # Stats
@@ -39,8 +95,8 @@
       {
         # Table 2
         {
-          fields.order <- c("Psychology and Health","Business","Sociology and Criminology",
-                            "Economics and Finance","Political Science","Education")
+          fields.order <- sort(c("Psychology and Health","Business","Sociology and Criminology",
+                            "Economics and Finance","Political Science","Education"))
           
           format.row <- function(data){
             data <- data %>% 
@@ -76,6 +132,24 @@
             data[c(fields.order,"Total")]
           }
           
+          n.row <- function(data){
+            data <- data %>% 
+              select(paper_id) %>% 
+              left_join(paper_metadata %>% select(paper_id, field), by = "paper_id") %>% 
+              count(field)
+            total <- sum(data$n)
+            field <- "Total"
+            n <- total
+            # data$n <- paste0(data$n," (",
+            #                  format.round(100*data$n/sum(data$n),1),
+            #                  "%)")
+            data <- rbind(data,data.frame(field,n))
+            colnames <- data$field
+            data <- data.frame(t(rbind(data,data.frame(field,n))[,-1]))
+            colnames(data) <- colnames
+            data[c(fields.order,"Total")]
+          }
+          
           r1.data <- status %>% filter(p1_delivery)
           r2.data <- status %>% filter(RR)
           r3.data <- status %>% filter(bushel)
@@ -85,13 +159,13 @@
                              select(paper_id) %>% 
                              distinct() %>% 
                              semi_join(status %>% filter(RR), by = "paper_id")
-          r6.data <- repli_outcomes %>% 
+          r6.data <- repli_outcomes_orig %>% 
                              filter(repli_type != "original and secondary data") %>% 
                              filter(!is_covid) %>% 
                              select(paper_id) %>% 
                              distinct() %>% 
                              semi_join(status %>% filter(RR), by = "paper_id")
-          r7.data <- repli_outcomes %>%
+          r7.data <- repli_outcomes_orig %>%
                              filter(repli_type != "original and secondary data") %>% 
                              filter(!is_covid) %>% 
                              semi_join(status %>% filter(RR), by = "paper_id") %>% 
@@ -99,7 +173,7 @@
                              select(paper_id, claim_id, rr_id) %>% 
                              distinct() %>% 
                              select(paper_id)
-          r8.data <- repli_outcomes %>%
+          r8.data <- repli_outcomes_orig %>%
                              filter(repli_type != "original and secondary data") %>% 
                              filter(!is_covid) %>% 
                              semi_join(status %>% filter(RR), by = "paper_id") %>% 
@@ -109,6 +183,7 @@
           
           for (i in 1:8){
             assign(paste0("r",i),format.row(get(paste0("r",i,".data"))))
+            assign(paste0("r",i,".n"),n.row(get(paste0("r",i,".data"))))
             assign(paste0("r",i,".p"),p.row(get(paste0("r",i,".data"))))
             assign(paste0("r",i,".p.formatted"),
                    paste0(format.round(100*p.row(get(paste0("r",i,".data"))),0),"%")
@@ -116,6 +191,7 @@
           }
           
           table_2 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8)
+          table_2_n <- rbind(r1.n,r2.n,r3.n,r4.n,r5.n,r6.n,r7.n,r8.n)
           table_2_p <- rbind(r1.p,r2.p,r3.p,r4.p,r5.p,r6.p,r7.p,r8.p)
           table_2_p_formatted <- rbind(r1.p.formatted,r2.p.formatted,r3.p.formatted,r4.p.formatted,r5.p.formatted,r6.p.formatted,r7.p.formatted,r8.p.formatted)
           for (row in 1:nrow(table_2)){
@@ -136,8 +212,8 @@
         
         # Table 3
         {
-          fields.order <- c("Psychology And Health","Business","Sociology And Criminology",
-                            "Economics And Finance","Political Science","Education")
+          fields.order <- sort(c("Psychology And Health","Business","Sociology And Criminology",
+                            "Economics And Finance","Political Science","Education"))
           
           format.row <- function(data){
             data <- data %>% 
@@ -156,23 +232,52 @@
             colnames(data) <- colnames
             data[c(as.character(2009:2018),"Total")]
           }
+          n.row <- function(data){
+            data <- data %>% 
+              select(paper_id) %>% 
+              left_join(paper_metadata %>% select(paper_id, pub_year), by = "paper_id") %>% 
+              count(pub_year)
+            total <- sum(data$n)
+            pub_year <- "Total"
+            n <- total
+            data <- rbind(data,data.frame(pub_year,n))
+            colnames <- data$pub_year
+            data <- data.frame(t(rbind(data,data.frame(pub_year,n))[,-1]))
+            colnames(data) <- colnames
+            data[c(as.character(2009:2018),"Total")]
+          }
+          p.row <- function(data){
+            data <- data %>% 
+              select(paper_id) %>% 
+              left_join(paper_metadata %>% select(paper_id, pub_year), by = "paper_id") %>% 
+              count(pub_year)
+            total <- sum(data$n)
+            pub_year <- "Total"
+            n <- 1
+            data$n <- data$n/sum(data$n)
+            data <- rbind(data,data.frame(pub_year,n))
+            colnames <- data$pub_year
+            data <- data.frame(t(rbind(data,data.frame(pub_year,n))[,-1]))
+            colnames(data) <- colnames
+            data[c(as.character(2009:2018),"Total")]
+          }
           
-          r1 <- format.row(status %>% filter(p1_delivery))
-          r2 <- format.row(status %>% filter(RR))
-          r3 <- format.row(status %>% filter(bushel))
-          r4 <- format.row(status %>% filter(RR & !bushel))
-          r5 <- format.row(all_rr_attempts  %>%
+          r1.data <- (status %>% filter(p1_delivery))
+          r2.data <- (status %>% filter(RR))
+          r3.data <- (status %>% filter(bushel))
+          r4.data <- (status %>% filter(RR & !bushel))
+          r5.data <- (all_rr_attempts  %>%
                              filter(str_detect(type, "Replication")) %>%
                              select(paper_id) %>% 
                              distinct() %>% 
                              semi_join(status %>% filter(RR), by = "paper_id"))
-          r6 <- format.row(repli_outcomes %>% 
+          r6.data <- (repli_outcomes_orig %>% 
                              filter(repli_type != "original and secondary data") %>% 
                              filter(!is_covid) %>% 
                              select(paper_id) %>% 
                              distinct() %>% 
                              semi_join(status %>% filter(RR), by = "paper_id") )
-          r7 <- format.row(repli_outcomes %>%
+          r7.data <- (repli_outcomes_orig %>%
                              filter(repli_type != "original and secondary data") %>% 
                              filter(!is_covid) %>% 
                              semi_join(status %>% filter(RR), by = "paper_id") %>% 
@@ -181,8 +286,7 @@
                              distinct() %>% 
                              select(paper_id) )
           
-          
-          r8 <- format.row(repli_outcomes %>%
+          r8.data <- (repli_outcomes_orig %>%
                              filter(repli_type != "original and secondary data") %>% 
                              filter(!is_covid) %>% 
                              semi_join(status %>% filter(RR), by = "paper_id") %>% 
@@ -190,7 +294,15 @@
                              distinct() %>% 
                              select(paper_id))
           
+          for (i in 1:8){
+            assign(paste0("r",i),format.row(get(paste0("r",i,".data"))))
+            assign(paste0("r",i,".n"),n.row(get(paste0("r",i,".data"))))
+            assign(paste0("r",i,".p"),p.row(get(paste0("r",i,".data"))))
+          }
+          
           table_3 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8)
+          table_3_n <- rbind(r1.n,r2.n,r3.n,r4.n,r5.n,r6.n,r7.n,r8.n)
+          table_3_p <- rbind(r1.p,r2.p,r3.p,r4.p,r5.p,r6.p,r7.p,r8.p)
           for (row in 1:nrow(table_3)){
             for (col in 1:ncol(table_3)){
               assign(paste0("table_3_",row,"_",col),
@@ -220,8 +332,8 @@
           effects_combined <- merge(repli_effects,orig_effects,by="claim_id",all.x = TRUE,all.y = FALSE)
           
           effects_combined <- effects_combined %>%
-            filter(!is.na(repli_conv_r)) %>% 
-            filter(!is.na(orig_conv_r)) %>% 
+            filter(!is.na(repli_conv_r)) %>%
+            filter(!is.na(orig_conv_r)) %>%
             group_by(paper_id) %>%
             mutate(weight = 1/n())
             
@@ -527,6 +639,61 @@
                                              
       }
       
+      # Results: Replications completed by discipline and year in comparison with the sampling frame
+      {
+        p_rep_edu_initial <- 
+          paste0(format.round(100*table_2_n$Education[1]/table_2_n$Total[1],1),"% [n = ",table_2_n$Education[1],"/",table_2_n$Total[1],"]")
+        p_rep_edu_replis <- 
+          paste0(format.round(100*table_2_n$Education[6]/table_2_n$Total[6],1),"% [n = ",table_2_n$Education[6],"/",table_2_n$Total[6],"]")
+        
+        p_rep_polisci_initial <- 
+          paste0(format.round(100*table_2_n$`Political Science`[1]/table_2_n$Total[1],1),"% [n = ",table_2_n$`Political Science`[1],"/",table_2_n$Total[1],"]")
+        p_rep_polisci_replis <- 
+          paste0(format.round(100*table_2_n$`Political Science`[6]/table_2_n$Total[6],1),"% [n = ",table_2_n$`Political Science`[6],"/",table_2_n$Total[6],"]")
+        
+        p_rep_psych_initial <- 
+          paste0(format.round(100*table_2_n$`Psychology and Health`[1]/table_2_n$Total[1],1),"% [n = ",table_2_n$`Psychology and Health`[1],"/",table_2_n$Total[1],"]")
+        p_rep_psych_replis <- 
+          paste0(format.round(100*table_2_n$`Psychology and Health`[6]/table_2_n$Total[6],1),"% [n = ",table_2_n$`Psychology and Health`[6],"/",table_2_n$Total[6],"]")
+        p_rep_psych_final <- 
+          paste0(format.round(100*table_2_n$`Psychology and Health`[8]/table_2_n$Total[8],1),"% [n = ",table_2_n$`Psychology and Health`[8],"/",table_2_n$Total[8],"]")
+        
+        p_rep_business_initial <- 
+          paste0(format.round(100*table_2_n$Business[1]/table_2_n$Total[1],1),"% [n = ",table_2_n$Business[1],"/",table_2_n$Total[1],"]")
+        p_rep_business_final <- 
+          paste0(format.round(100*table_2_n$Business[8]/table_2_n$Total[8],1),"% [n = ",table_2_n$Business[8],"/",table_2_n$Total[8],"]")
+        
+        p_rep_2010_initial <- 
+          paste0(format.round(100*table_3_n$'2010'[1]/table_2_n$Total[1],1),"% [n = ",table_3_n$'2010'[1],"/",table_3_n$Total[1],"]")
+        p_rep_2010_final <- 
+          paste0(format.round(100*table_3_n$'2010'[8]/table_2_n$Total[8],1),"% [n = ",table_3_n$'2010'[8],"/",table_3_n$Total[8],"]")
+        
+        p_rep_2011_initial <- 
+          paste0(format.round(100*table_3_n$'2011'[1]/table_2_n$Total[1],1),"% [n = ",table_3_n$'2011'[1],"/",table_3_n$Total[1],"]")
+        p_rep_2011_final <- 
+          paste0(format.round(100*table_3_n$'2011'[8]/table_2_n$Total[8],1),"% [n = ",table_3_n$'2011'[8],"/",table_3_n$Total[8],"]")
+        
+        p_rep_2015_initial <- 
+          paste0(format.round(100*table_3_n$'2015'[1]/table_2_n$Total[1],1),"% [n = ",table_3_n$'2015'[1],"/",table_3_n$Total[1],"]")
+        p_rep_2015_final <- 
+          paste0(format.round(100*table_3_n$'2015'[8]/table_2_n$Total[8],1),"% [n = ",table_3_n$'2015'[8],"/",table_3_n$Total[8],"]")
+        
+        p_max_expectation_repli_completed_except_2015 <- paste0(format.round(100*max(
+          abs(table_3_p$"2009"[6]-.1),
+          abs(table_3_p$"2010"[6]-.1),
+          abs(table_3_p$"2011"[6]-.1),
+          abs(table_3_p$"2012"[6]-.1),
+          abs(table_3_p$"2013"[6]-.1),
+          abs(table_3_p$"2014"[6]-.1),
+          abs(table_3_p$"2016"[6]-.1),
+          abs(table_3_p$"2017"[6]-.1),
+          abs(table_3_p$"2018"[6]-.1)
+          ),1),"%")
+        p_repli_completed_2015 <- paste0(format.round(100*
+          abs(table_3_p$"2015"[6]),1),"%")
+        
+      }
+      
       # Results: General
       {
         n_claims <- length(unique(repli_outcomes_merged$claim_id))
@@ -627,13 +794,175 @@
 
       }
       
+      # Results: Evaluating replication success with a variety of binary assessments
+      {
+        # Prepare binary assessment data
+        {
+          repli_binary <- repli_outcomes[c("paper_id", "claim_id","repli_score_criteria_met",
+                                           df.binvars$binvars.raw)]
+          
+          binary.proportions <- 
+            do.call(rbind,lapply(df.binvars$binvars.raw,function(binary.var){
+              repli_binary_temp <- na.omit(repli_binary[c("paper_id",binary.var)])
+              repli_binary_temp <- repli_binary_temp %>%
+                group_by(paper_id) %>%
+                mutate(weight = 1/n())
+              
+              n_testable_claims <- nrow(repli_binary_temp)
+              p_testable_claims <- n_testable_claims/length(unique(repli_outcomes$claim_id))
+              n_passed_claims <- sum(repli_binary_temp[[binary.var]])
+              p_passed_temp <- binconf(n_passed_claims,n_testable_claims)
+              p_passed_claims <- p_passed_temp[1]
+              p_passed_CI_LB_claims <- p_passed_temp[2]
+              p_passed_CI_UB_claims <- p_passed_temp[3]
+              
+              
+              n_testable_papers <- length(unique((repli_binary_temp$paper_id)))
+              p_testable_papers <- n_testable_papers/length(unique(repli_outcomes$paper_id))
+              n_passed_papers <- sum(repli_binary_temp[[binary.var]]*repli_binary_temp$weight)
+              p_passed_temp <- cw.proportion(as.integer(repli_binary_temp[[binary.var]]),
+                                                repli_binary_temp$weight,repli_binary_temp$paper_id,iters)
+              p_passed_papers <- p_passed_temp$point.estimate
+              p_passed_CI_LB_papers <- p_passed_temp$CI.lb
+              p_passed_CI_UB_papers <- p_passed_temp$CI.ub
+              
+              data.frame(binary.var,
+                         n_testable_claims,p_testable_claims,n_passed_claims,p_passed_claims,p_passed_CI_LB_claims,p_passed_CI_UB_claims,
+                         n_testable_papers,p_testable_papers,n_passed_papers,p_passed_papers,p_passed_CI_LB_papers,p_passed_CI_UB_papers
+                         )
+            }))
+          
+        }
+        
+        n_binary_measures <- nrow(df.binvars)
+        
+        p_claims_binary_measures_measurable_min <- paste0(format.round(min(binary.proportions$p_testable_claims)*100,1),"%")
+        p_claims_binary_measures_measurable_max <- paste0(format.round(max(binary.proportions$p_testable_claims)*100,1),"%")
+        
+        p_papers_binary_measures_measurable_min <- paste0(format.round(min(binary.proportions$p_testable_papers)*100,1),"%")
+        p_papers_binary_measures_measurable_max <- paste0(format.round(max(binary.proportions$p_testable_papers)*100,1),"%")
+      
+        p_binary_passed_papers_min <- paste0(format.round(min(binary.proportions$p_passed_papers)*100,1),"%")
+        p_binary_passed_papers_max <- paste0(format.round(max(binary.proportions$p_passed_papers)*100,1),"%")
+        p_binary_passed_papers_median <- paste0(format.round(median(binary.proportions$p_passed_papers)*100,1),"%")
+        
+        p_binary_passed_claims_min <- paste0(format.round(min(binary.proportions$p_passed_claims)*100,1),"%")
+        p_binary_passed_claims_max <- paste0(format.round(max(binary.proportions$p_passed_claims)*100,1),"%")
+        
+        p_binary_passed_papers_MA <- paste0(format.round(binary.proportions[binary.proportions$binary.var=="repli_binary_meta_success",]$p_passed_papers*100,1),"%")
+        
+        p_binary_passed_papers_orig_wthn <- paste0(format.round(binary.proportions[binary.proportions$binary.var=="repli_binary_orig_wthn",]$p_passed_papers*100,1),"%")
+        p_binary_passed_papers_rep_wthn <- paste0(format.round(binary.proportions[binary.proportions$binary.var=="repli_binary_rep_wthn",]$p_passed_papers*100,1),"%")
+      
+        n_all_measures_claims <- nrow(na.omit(repli_binary))
+        
+        
+        # Generate correlations matrix
+        {
+          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+                                           df.binvars$binvars.raw)]
+          
+          # Summarize by proportions w/ CIs
+          repli_binary_binaries <- repli_binary[,3:ncol(repli_binary)]
+          repli_binary_binaries <- repli_binary_binaries[c(binvars.order)]
+          colnames(repli_binary_binaries) <- df.binvars$binvars.short
+          
+          # Generate a results matrix
+          repli_binary_cors <- matrix(NA,nrow=ncol(repli_binary_binaries),ncol=ncol(repli_binary_binaries))
+          rownames(repli_binary_cors) <- colnames (repli_binary_cors) <- colnames(repli_binary_binaries)
+          
+          get_wt_corr <- function(i.x,i.y){
+            df.cors <- repli_binary_binaries[,c(i.x,i.y)]
+            df.cors$paper_id <- repli_binary$paper_id
+            df.cors <- na.omit(df.cors)
+            df.cors <- df.cors %>%
+              group_by(paper_id) %>%
+              mutate(weight = 1/n())
+            
+            weightedCorr(as.integer(unlist(df.cors[,1])),as.integer(unlist(df.cors[,2])),weights=df.cors$weight,method="Pearson")
+          }
+          
+          # Get pairwise complete weighted correlations
+          invisible(lapply(1:nrow(repli_binary_cors),function(i){
+            lapply(1:(i),function(j){
+              if(i!=j){
+                repli_binary_cors[i,j] <<- get_wt_corr(i,j)
+              }
+            })
+          }))
+        }
+        cors.list <- c(na.omit(c(repli_binary_cors)))
+        
+        repli_binary_cors_intervals <- repli_binary_cors[c(df.binvars[df.binvars$binvars.group=="Contained within interval measures",]$binvars.short),c(df.binvars[df.binvars$binvars.group=="Contained within interval measures",]$binvars.short)]
+        cors_list_intervals <-  paste(format.round(sort(c(na.omit(c(repli_binary_cors_intervals)))),2),collapse=", ")
+        
+        repli_binary_cors_intervals_vs_non_interval <- c(c(na.omit(c(repli_binary_cors[c(df.binvars[df.binvars$binvars.group=="Contained within interval measures",]$binvars.short),c(df.binvars[df.binvars$binvars.group!="Contained within interval measures",]$binvars.short)]))),
+                                                         c(na.omit(c(repli_binary_cors[c(df.binvars[df.binvars$binvars.group!="Contained within interval measures",]$binvars.short),c(df.binvars[df.binvars$binvars.group=="Contained within interval measures",]$binvars.short)]))))
+        repli_binary_cors_intervals_vs_non_interval_median <- format.round(median(repli_binary_cors_intervals_vs_non_interval),2)
+        repli_binary_cors_intervals_vs_non_interval_min <- format.round(min(repli_binary_cors_intervals_vs_non_interval),2)
+        repli_binary_cors_intervals_vs_non_interval_max <- format.round(max(repli_binary_cors_intervals_vs_non_interval),2)
+        
+        binary_cors_median <- format.round(median(cors.list),2)
+        binary_cors_min <- format.round(min(cors.list),2)
+        binary_cors_max <- format.round(max(cors.list),2)
+        
+        df.repli_binary_calculatable <- repli_binary %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n())
+        
+        weights <- df.repli_binary_calculatable$weight
+        lapply(3:(ncol(df.repli_binary_calculatable)-1),function(i) {
+          df.repli_binary_calculatable[,i] <<- as.integer(!is.na(df.repli_binary_calculatable[,i])) * df.repli_binary_calculatable$weight
+        })
+
+        repli_binary_calculatable <- colSums(df.repli_binary_calculatable[,3:(ncol(df.repli_binary_calculatable)-1)])/sum(df.repli_binary_calculatable$weight)
+        
+        repli_binary_calculatable_min <- paste0(format.round(100*min(repli_binary_calculatable),1),"%")
+        repli_binary_calculatable_max <- paste0(format.round(100*max(repli_binary_calculatable),1),"%")
+        repli_binary_calculatable_median <- paste0(format.round(100*median(repli_binary_calculatable),1),"%")
+      }
+      
       # Results: Evaluating replication effect size against original effect size
       {
+        
+        all_effects <- repli_outcomes %>% 
+          filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
+          select(paper_id,report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
+                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
+          left_join(
+            orig_outcomes %>% 
+              select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
+              distinct(),
+            by = "claim_id"
+          ) %>% 
+          drop_na(repli_conv_r) %>% 
+          drop_na(orig_conv_r) %>% 
+          mutate(across(contains("orig"), abs)) %>% 
+          mutate(
+            across(
+              contains("repli"),
+              function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+            )
+          ) %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        abs_effect_smaller_n_claims <- sum(abs(all_effects$repli_conv_r) < abs(all_effects$orig_conv_r))
+        abs_effect_smaller_denom_claims <- sum(!is.na(all_effects$repli_conv_r) & !is.na(all_effects$orig_conv_r))
+        abs_effect_smaller_p_claims <- paste0(format.round(100*abs_effect_smaller_n_claims/abs_effect_smaller_denom_claims,1),"%")
+        
+        abs_effect_smaller_n_papers <- sum((abs(all_effects$repli_conv_r) < abs(all_effects$orig_conv_r))*all_effects$weight)
+        abs_effect_smaller_n_papers_formatted <- format.round(abs_effect_smaller_n_papers,1)
+        abs_effect_smaller_denom_papers <- sum(all_effects$weight)
+        abs_effect_smaller_p_papers <- paste0(format.round(100*abs_effect_smaller_n_papers/abs_effect_smaller_denom_papers,1),"%")
+        
         table_4_median_R_papers_neg_ratio <- 
-          paste0(format.round(100*(table_4_median_4_3-table_4_median_4_4)/table_4_median_4_3,1),"%")
+          paste0(format.round(100*(table_4_median_4_1-table_4_median_4_2)/table_4_median_4_1,1),"%")
         
         table_4_median_R_claims_neg_ratio <- 
-          paste0(format.round(100*(table_4_median_4_1-table_4_median_4_2)/table_4_median_4_1,1),"%")
+          paste0(format.round(100*(table_4_median_4_3-table_4_median_4_4)/table_4_median_4_3,1),"%")
       }
       
       # Results: Original and replication effects by discipline
@@ -644,6 +973,38 @@
         table_5_min_p_c2 <- paste0(format.round(min(100*table_5_p[,2]),1),"%")
         table_5_max_p_c2 <- paste0(format.round(max(100*table_5_p[,2]),1),"%")
         table_5_median_p_c2 <- paste0(format.round(median(100*table_5_p[,2]),1),"%")
+        
+        fields.order <- c("business","economics and finance","education","political science",
+                          "psychology and health","sociology and criminology")
+        
+        repli_effects <- repli_outcomes %>%
+          filter(!is_covid) %>%
+          filter(repli_version_of_record) %>%
+          select(report_id, claim_id,repli_sample_size_value, success = repli_score_criteria_met, repli_type,
+                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub, repli_effect_size_type, repli_effect_size_value) %>%
+          mutate(ser_effect = ifelse(str_detect(repli_effect_size_type, "ser_"), abs(repli_effect_size_value), NA)) %>%
+          mutate(across(contains("conv"), abs))
+        
+        orig_effects <- orig_outcomes %>%
+          semi_join(repli_effects, by = "claim_id") %>%
+          select(claim_id, paper_id,orig_sample_size_value, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub,
+                 orig_effect_size_type_repli, orig_effect_size_value_repli) %>%
+          mutate(ser_effect = ifelse(str_detect(orig_effect_size_type_repli, "ser_"), abs(orig_effect_size_value_repli), NA)) %>%
+          mutate(across(contains("conv"), abs)) %>%
+          mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>%
+          left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id")
+        
+        effects_combined <- merge(orig_effects,repli_effects,by="claim_id",all.x = TRUE,all.y = FALSE)
+        
+        effects_combined <- effects_combined %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        chisq.fields <- wtd.chi.sq(effects_combined$success,effects_combined$field,weight=effects_combined$weight)
+        chisq_success_fields_pvalue <- format.round(chisq.fields[3],2)
+        
+        
       }
       
       # Results: Original and replication effects by year of original publication
@@ -757,6 +1118,9 @@
           format.round(
             median_r_by_year[median_r_by_year$median.diff==max(median_r_by_year$median.diff),]$median.repli,2)
         
+        
+        chisq.years <- wtd.chi.sq(effects_combined$success,effects_combined$pub_year,weight=effects_combined$weight)
+        chisq_success_years_pvalue <- format.round(chisq.years[3],2)
       }
       
       # Results: Original and replication effects by new data or secondary data replication
@@ -853,6 +1217,16 @@
                                                               digits=1),"%")
       }
       
+      # The unbearable inscrutability of replication
+      {
+        pearson_r_measurable_psych_claims_n <- sum(!is.na(repli_outcomes_merged[repli_outcomes_merged$field=="Psychology and Health",]$repli_conv_r))
+        pearson_r_measurable_psych_claims_p <- paste0(format.round(
+          100*pearson_r_measurable_psych_claims_n/nrow(repli_outcomes_merged[repli_outcomes_merged$field=="Psychology and Health",]),1),"%")
+        
+        pearson_r_measurable_econ_claims_n <- sum(!is.na(repli_outcomes_merged[repli_outcomes_merged$field=="Economics and Finance",]$repli_conv_r))
+        pearson_r_measurable_econ_claims_p <- paste0(format.round(
+          100*pearson_r_measurable_econ_claims_n/nrow(repli_outcomes_merged[repli_outcomes_merged$field=="Economics and Finance",]),1),"%")
+      }
       # Archive
       if(FALSE){
         p_repli_stat_sig_claims_same_dir_wtd <- 
@@ -1383,7 +1757,6 @@
 
     }
     
-  
     # Clean up input values and export
     {
       rm(iters,orig_outcomes,repli_outcomes,repli_outcomes_merged)
@@ -1391,9 +1764,12 @@
     }
   }
 
-  figures <- function(repli_outcomes,orig_outcomes,paper_metadata,repli_binary){
+  figures <- function(repli_outcomes,orig_outcomes,paper_metadata,iters = 100){
     # Initialization and data preparation
     {
+      repli_outcomes <- repli_outcomes[repli_outcomes$repli_version_of_record,]
+      repli_outcomes <- repli_outcomes[!repli_outcomes$is_covid,]
+      
       fields.raw <-
         c("political science",
           "economics and finance",
@@ -1424,72 +1800,161 @@
           "Education")
       
       binvars.raw <- c("repli_score_criteria_met",
-                       "analyst","orig_wthn","rep_wthn","wthn_pi","meta_success",
-                       "sum_p","telescopes","bf_result","bayes_rep","bma_result","skep_p",
-                       "correspondence")
+                       "repli_binary_analyst",
+                       "repli_binary_orig_wthn",
+                       "repli_binary_rep_wthn",
+                       "repli_binary_wthn_pi",
+                       "repli_binary_meta_success",
+                       "repli_binary_sum_p",
+                       "repli_binary_telescopes",
+                       "repli_binary_bf_result",
+                       "repli_binary_bayes_rep",
+                       "repli_binary_bma_result",
+                       "repli_binary_skep_p",
+                       "repli_binary_correspondence")
       binvars.order <- binvars.raw
+      
       binvars.short <- c("Sig. + pattern",
-                       "Analyst interpretation",
-                       "Orig. in rep. CI",
-                       "Rep. in orig. CI",
-                       "Rep. in prediction interval",
-                       "Meta-analysis",
-                       "Sum of p-values",
-                       "Small telescopes",
-                       "Bayes factor",
-                       "Replication Bayes factor",
-                       "Bayesian meta-analysis",
-                       "Skeptical p-value",
-                       "Correspondence test")
-      df.binvars <- data.frame(binvars.raw,binvars.short)
+                         "Analyst interpretation",
+                         "Orig. in rep. CI",
+                         "Rep. in orig. CI",
+                         "Rep. in prediction interval",
+                         "Meta-analysis",
+                         "Sum of p-values",
+                         "Small telescopes",
+                         "Bayes factor",
+                         "Replication Bayes factor",
+                         "Bayesian meta-analysis",
+                         "Skeptical p-value",
+                         "Correspondence test")
+      binvars.group <- c("Statistic significance / p-value based measures",
+                         "SCORE specific",
+                         "Contained within interval measures",
+                         "Contained within interval measures",
+                         "Contained within interval measures",
+                         "Meta analysis based measures",
+                         "Statistic significance / p-value based measures",
+                         "Combined effect magnitude and uncertainty measures",
+                         "Combined effect magnitude and uncertainty measures",
+                         "Combined effect magnitude and uncertainty measures",
+                         "Meta analysis based measures",
+                         "Statistic significance / p-value based measures",
+                         "Combined effect magnitude and uncertainty measures")
+      
+      binvars.order <- c("repli_binary_analyst",
+                         "repli_score_criteria_met",
+                         "repli_binary_sum_p",
+                         "repli_binary_skep_p",
+                         "repli_binary_orig_wthn",
+                         "repli_binary_rep_wthn",
+                         "repli_binary_wthn_pi",
+                         "repli_binary_meta_success",
+                         "repli_binary_bma_result",
+                         "repli_binary_telescopes",
+                         "repli_binary_bf_result",
+                         "repli_binary_bayes_rep",
+                         "repli_binary_correspondence")
+      
+      df.binvars <- data.frame(binvars.raw,binvars.short,binvars.group)
+      df.binvars <- do.call(rbind,lapply(binvars.order,function(x) {
+        df.binvars[df.binvars$binvars.raw==x,]
+      }))
     }
     
     # Figure generation
     {
-      # Figure 1
+      # Figure 1: Replication success rates across 13 binary assessments for papers
       {
         # Data wrangling
         {
+          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+                                           df.binvars$binvars.raw)]
+          
           # Summarize by proportions w/ CIs
-            binary.varnames <- colnames(repli_binary)[3:ncol(repli_binary)]
-
-            binary.proportions <- 
-              do.call(rbind,lapply(binvars.raw,function(binary.var){
-                n <- sum(repli_binary[[binary.var]],na.rm=TRUE)
-                denom <- sum(!is.na(repli_binary[[binary.var]]))
-                n.text <- paste0("n=",n,"/",denom)
-              data.frame(binary.var,n,denom,n.text,
-                         binconf(sum(repli_binary[[binary.var]],na.rm=TRUE),sum(!is.na(repli_binary[[binary.var]]),na.rm=TRUE))
+          binary.proportions <- 
+            do.call(rbind,lapply(df.binvars$binvars.raw,function(binary.var){
+              repli_binary_temp <- na.omit(repli_binary[c("paper_id",binary.var)])
+              repli_binary_temp <- repli_binary_temp %>%
+                group_by(paper_id) %>%
+                mutate(weight = 1/n())
+              
+              n_testable_claims <- nrow(repli_binary_temp)
+              p_testable_claims <- n_testable_claims/length(unique(repli_outcomes$claim_id))
+              n_passed_claims <- sum(repli_binary_temp[[binary.var]])
+              p_passed_temp <- binconf(n_passed_claims,n_testable_claims)
+              p_passed_claims <- p_passed_temp[1]
+              p_passed_CI_LB_claims <- p_passed_temp[2]
+              p_passed_CI_UB_claims <- p_passed_temp[3]
+              
+              n_testable_papers <- length(unique((repli_binary_temp$paper_id)))
+              p_testable_papers <- n_testable_papers/length(unique(repli_outcomes$paper_id))
+              n_passed_papers <- sum(repli_binary_temp[[binary.var]]*repli_binary_temp$weight)
+              p_passed_temp <- cw.proportion(as.integer(repli_binary_temp[[binary.var]]),
+                                             repli_binary_temp$weight,repli_binary_temp$paper_id,iters)
+              p_passed_papers <- p_passed_temp$point.estimate
+              p_passed_CI_LB_papers <- p_passed_temp$CI.lb
+              p_passed_CI_UB_papers <- p_passed_temp$CI.ub
+              
+              data.frame(binary.var,
+                         n_testable_claims,p_testable_claims,n_passed_claims,p_passed_claims,p_passed_CI_LB_claims,p_passed_CI_UB_claims,
+                         n_testable_papers,p_testable_papers,n_passed_papers,p_passed_papers,p_passed_CI_LB_papers,p_passed_CI_UB_papers
               )
             }))
+          
+          binary.proportions$binary.var <- ordered(binary.proportions$binary.var,
+                                                   levels = binvars.raw,
+                                                   labels= binvars.short)
+          
             
-            
-            #binary.order.pointest <- binary.proportions[order(-binary.proportions$PointEst),]
-            binary.proportions$binary.var <- ordered(binary.proportions$binary.var,
-                                                     levels = binvars.raw,
-                                                     labels= binvars.short)
-            
-            # Reorder by size
-            binary.proportions <- binary.proportions[order(-binary.proportions$PointEst),]
-            binary.proportions$binary.var <- ordered(as.character(binary.proportions$binary.var),
-                                                     levels = binary.proportions$binary.var,
-                                                     labels= binary.proportions$binary.var)
-            
-            binary.proportions$num <- rev(1:nrow(binary.proportions))
-            
+          # Reorder by size
+          binary.proportions <- binary.proportions[order(-binary.proportions$p_passed_papers),]
+          binary.proportions$binary.var <- ordered(as.character(binary.proportions$binary.var),
+                                                   levels = binary.proportions$binary.var,
+                                                   labels= binary.proportions$binary.var)
+          
+          binary.proportions$num <- rev(1:nrow(binary.proportions))
+          
+          binary.proportions$n.text <- paste0("n=",format.round(binary.proportions$n_passed_papers,1),"/",binary.proportions$n_testable_papers)
+          
+          binary.proportions$num.claims <- rev(1:nrow(binary.proportions))
+          
+          binary.proportions$n.text.claims <- paste0("n=",format.round(binary.proportions$n_passed_claims,0),"/",binary.proportions$n_testable_claims)
         }
         
         # Chart generation
         {
           #ggplot(binary.proportions, aes(x=binary.var,y=PointEst)) + 
-          figure_1 <- ggplot(binary.proportions, aes(x=reorder(binary.var, -PointEst),y=PointEst)) + 
-            
+          figure_1 <- ggplot(binary.proportions, aes(x=reorder(binary.var, -p_passed_papers),y=p_passed_papers)) + 
             geom_bar(stat="identity",fill="grey90") +
             geom_text(aes(x=num,y=0.02,label=n.text),hjust=0,size=3)+
             funkyheatmap::geom_rounded_rect(
-              aes(xmin=num-.45,xmax=num+.45,ymin = Lower, ymax = Upper),
-              radius=unit(3, "points"),show.legend=FALSE,color="black",size=0,fill=palette_score_charts[1])+
-            geom_segment(aes(x=num-.45,xend=num+.45,y = PointEst, yend = PointEst))+
+              aes(xmin=num-.45,xmax=num+.45,ymin = p_passed_CI_LB_papers, ymax = p_passed_CI_UB_papers),
+              radius=unit(3, "points"),show.legend=FALSE,color="black",size=0,fill=palette_score_charts[7])+
+            geom_segment(aes(x=num-.45,xend=num+.45,y = p_passed_papers, yend = p_passed_papers),color="white")+
+            # geom_errorbar(aes(y=PointEst,ymin=Lower, ymax=Upper), width=.2)+
+            theme_minimal()+
+            scale_x_discrete(limits=rev(binary.proportions$binary.var))+
+            coord_flip()+
+            scale_y_continuous(expand=expansion(add = c(0, .05)),
+                               labels = scales::percent_format(),
+                               breaks=c(0,.25,.5,.75,1),
+                               limits=c(0,1))+
+            theme(legend.position = "none",
+                  legend.title=element_blank(),
+                  panel.border = element_blank(),
+                  panel.grid = element_blank(),
+                  axis.line = element_blank(),
+            )+
+            xlab("Binary success measure")+
+            ylab("Proportion successfully replicated according to measure")
+          
+          figure_1_claims <- ggplot(binary.proportions, aes(x=reorder(binary.var, -p_passed_claims),y=p_passed_claims)) + 
+            geom_bar(stat="identity",fill="grey90") +
+            geom_text(aes(x=num.claims,y=0.02,label=n.text.claims),hjust=0,size=3)+
+            funkyheatmap::geom_rounded_rect(
+              aes(xmin=num-.45,xmax=num+.45,ymin = p_passed_CI_LB_claims, ymax = p_passed_CI_UB_claims),
+              radius=unit(3, "points"),show.legend=FALSE,color="black",size=0,fill=palette_score_charts[7])+
+            geom_segment(aes(x=num.claims-.45,xend=num.claims+.45,y = p_passed_claims, yend = p_passed_claims),color="white")+
             # geom_errorbar(aes(y=PointEst,ymin=Lower, ymax=Upper), width=.2)+
             theme_minimal()+
             scale_x_discrete(limits=rev(binary.proportions$binary.var))+
@@ -1509,24 +1974,33 @@
         }
       }
       
-      # Figure 2
+      # (Depracated) Binary counts
       {
         # Data wrangling
         {
+          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+                                           df.binvars$binvars.raw)]
+          # Drop everything that doesn't have all measures
+          repli_binary <- na.omit(repli_binary)
+
+          
+          
           # Get repli binary results
           repli_binary_rowsums <- repli_binary[,3:ncol(repli_binary)]
           repli_binary_rowsums <- repli_binary_rowsums[c(binvars.raw)]
           colnames(repli_binary_rowsums) <- binvars.short
           
-          lapply(1:ncol(repli_binary_rowsums),function(x) {
+          invisible(lapply(1:ncol(repli_binary_rowsums),function(x) {
             repli_binary_rowsums[[colnames(repli_binary_rowsums[x])]] <<- as.integer(repli_binary_rowsums[[colnames(repli_binary_rowsums[x])]]) 
-          })
+          }))
           
           repli_binary_rowsums$binary_sums <- rowSums(repli_binary_rowsums,na.rm = TRUE)
           
-          vars.order <- colSums(repli_binary_rowsums,na.rm=TRUE)
-          vars.order <- vars.order[1:(length(vars.order)-1)]
-          vars.order <- names(vars.order[order(-vars.order)])
+          # vars.order <- colSums(repli_binary_rowsums,na.rm=TRUE)
+          # vars.order <- vars.order[1:(length(vars.order)-1)]
+          # vars.order <- names(vars.order[order(-vars.order)])
+          
+          vars.order <- as.character(binary.proportions$binary.var) # Pulled from Fig 1
           
           repli_binary_rowsums <- repli_binary_rowsums[c(vars.order,"binary_sums")]
           
@@ -1550,15 +2024,17 @@
         # Plot generation
         {
           bar_width <- 0.7
+          chart.palette <- c(palette_score_charts[7],"grey90")
+          
           
           bar.ind <- function(i.binvar,i.count){
             ggplot() + theme_nothing()+
               funkyheatmap::geom_rounded_rect(aes(xmin = (1-bar_width)/2, xmax = 1-(1-bar_width)/2,
                                                   ymin = 0, ymax = 1-(df.counts[[as.character(i.count)]][i.binvar+1]/df.counts[[as.character(i.count)]][1])),
-                                              fill=palette_score_charts[8],radius=.1)+
+                                              fill=chart.palette[1],radius=.1)+
               funkyheatmap::geom_rounded_rect(aes(xmin = (1-bar_width)/2, xmax = 1-(1-bar_width)/2,
                                                   ymax = 1, ymin = 1-(df.counts[[as.character(i.count)]][i.binvar+1]/df.counts[[as.character(i.count)]][1])),
-                                              fill=palette_score_charts[4],radius=.1)
+                                              fill=chart.palette[2],radius=.1)
           }
           rel.label.width <- 0.3
           
@@ -1624,178 +2100,192 @@
           }
           
           figure_2 <- plot_grid(title.row(),countlabels.row(),nlabels.row(),main.bar.plots,ncol=1,rel_heights = c(1,1,1,12))
-          figure_2
+          #figure_2
         }
 
       }
 
-      # Figure 3
+      # Figure 2: Correlation matrix among binary assessments of replication success across papers
       {
         # Data wrangling
         {
-          # Get pointest order
-          binary.varnames <- colnames(repli_binary)[3:ncol(repli_binary)]
-          
-          binary.proportions <- 
-            do.call(rbind,lapply(binvars.raw,function(binary.var){
-              n <- sum(repli_binary[[binary.var]],na.rm=TRUE)
-              denom <- sum(!is.na(repli_binary[[binary.var]]))
-              n.text <- paste0("n=",n,"/",denom)
-              data.frame(binary.var,n,denom,n.text,
-                         binconf(sum(repli_binary[[binary.var]],na.rm=TRUE),sum(!is.na(repli_binary[[binary.var]]),na.rm=TRUE))
-              )
-            }))
-          
-          binary.proportions$binary.var <- ordered(binary.proportions$binary.var,
-                                                   levels = binvars.raw,
-                                                   labels= binvars.short)
-          
-          # Reorder by size
-          binary.order.pointest <- binary.proportions[order(-binary.proportions$PointEst),]$binary.var
-          
-          
+          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+                                           df.binvars$binvars.raw)]
+
           # Summarize by proportions w/ CIs
-          repli_binary_cors <- repli_binary[,3:ncol(repli_binary)]
-          repli_binary_cors <- repli_binary_cors[c(binvars.order)]
-          colnames(repli_binary_cors) <- binvars.short
+          repli_binary_binaries <- repli_binary[,3:ncol(repli_binary)]
+          repli_binary_binaries <- repli_binary_binaries[c(binvars.order)]
+          colnames(repli_binary_binaries) <- df.binvars$binvars.short
           
-          # Reorder by size
-          repli_binary_cors <- repli_binary_cors[c(binary.order.pointest)]
+          # Generate a results matrix
+          repli_binary_cors <- matrix(NA,nrow=ncol(repli_binary_binaries),ncol=ncol(repli_binary_binaries))
+          rownames(repli_binary_cors) <- colnames (repli_binary_cors) <- colnames(repli_binary_binaries)
           
-          lapply(1:ncol(repli_binary_cors),function(x) {
-            repli_binary_cors[[colnames(repli_binary_cors[x])]] <<- as.integer(repli_binary_cors[[colnames(repli_binary_cors[x])]]) 
-          })
+          get_wt_corr <- function(i.x,i.y){
+            df.cors <- repli_binary_binaries[,c(i.x,i.y)]
+            df.cors$paper_id <- repli_binary$paper_id
+            df.cors <- na.omit(df.cors)
+            df.cors <- df.cors %>%
+              group_by(paper_id) %>%
+              mutate(weight = 1/n())
+            
+            weightedCorr(as.integer(unlist(df.cors[,1])),as.integer(unlist(df.cors[,2])),weights=df.cors$weight,method="Pearson")
+          }
           
+          # Get pairwise complete weighted correlations
+          for(i in 1:nrow(repli_binary_cors)){
+            for(j in 1:(i)){
+              if(i==j){
+                repli_binary_cors[i,j] <- 1
+              } else{
+                repli_binary_cors[j,i] <- get_wt_corr(i,j)
+                repli_binary_cors[i,j] <- NA
+              }
+            }
+          }
           
-          M <- cor(repli_binary_cors,use="complete.obs")
+          binvars.x <- rownames(repli_binary_cors)
+          binvars.y <- rownames(repli_binary_cors)
+          df.chart <- expand.grid(binvars.x=binvars.x, binvars.y=binvars.y)
+          df.chart$corr <-c(repli_binary_cors)
+          df.chart$upper_text_label <- str_sub(ifelse(is.na(df.chart$corr) | df.chart$binvars.x==df.chart$binvars.y,"",
+                                                      format.round(df.chart$corr,2)), 2, -1)
+          df.chart$corrs.all <- ifelse(is.na(df.chart$corr) | df.chart$binvars.x==df.chart$binvars.y,NA,
+                                       df.chart$corr)
           
         }
-        figure_3 <- corrplot.mixed(M, tl.col = 'black',lower = 'color',upper="number",col.lim=c(0,1),
-                                   tl.pos="lt",
-                                   #type="upper",
-                                   tl.cex=.5,cl.cex=.5,number.cex=.5,number.digits =2)
-      }
-      
-      # Figure 4
-      {
-        all_effects <- repli_outcomes %>% 
-          filter(!is_covid) %>% 
-          filter(repli_version_of_record) %>% 
-          select(report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
-                 repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
-          left_join(
-            orig_outcomes %>% 
-              select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
-              distinct(),
-            by = "claim_id"
-          ) %>% 
-          drop_na(repli_conv_r) %>% 
-          drop_na(orig_conv_r) %>% 
-          mutate(across(contains("orig"), abs)) %>% 
-          mutate(
-            across(
-              contains("repli"),
-              function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+        
+        # Chart generation
+        {
+          chart.palette <- palette_score_charts[7]
+          
+          top <- ggplot(df.chart, aes(x=binvars.x, y=binvars.y, fill= corr)) + 
+            geom_tile()+
+            geom_text(aes(x=binvars.y, y=binvars.x, label=upper_text_label),size=3,color="grey30")+
+            scale_x_discrete(position = "top") +
+            scale_y_discrete(limits=rev)+
+            theme_minimal()+
+            theme(
+              plot.title = element_blank(),
+              axis.title = element_blank(),
+              axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0,color="black"),
+              axis.text.y = element_text(color="black"),
+              legend.key.height= unit(1, 'cm'),
+              panel.grid = element_blank(),
+              legend.position="none"
+            ) +
+            scale_fill_gradient(low="white", high=chart.palette[1], limits=c(0, 1),na.value="white")
+          
+          df.chart$group <- "Distribution of\n all 144 correlations"
+          bottom <- ggplot(df.chart, aes(x=corrs.all,y=group,fill=..x..)) + 
+            #geom_density(fill=palette_score_charts[6])+
+            geom_density_ridges_gradient(linetype=0)+
+            scale_x_continuous(limits=c(0,1),breaks=seq(0,1,.1),expand=c(0,0))+
+            scale_y_discrete(expand=c(0,0))+
+            scale_fill_gradient( limits=c(0, 1),low="white", high=chart.palette[1])+
+            geom_vline(xintercept=c(0,1))+
+            #ylab("Distribution of\n all 144 correlations")+
+            # scale_y_discrete(limits=rev)+
+            theme_minimal()+
+            theme(
+              plot.title = element_blank(),
+              axis.title = element_blank(),
+              axis.text.y = element_text(angle = 0, vjust = 0, hjust=1 ,size=8),
+              axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0,size=6),
+              legend.key.height= unit(1, 'cm'),
+              panel.grid = element_blank(),
+              legend.position="none"
             )
-          )
+          
+          #bottom_row <- plot_grid(ggplot()+theme_nothing(),figure_3_bottom,ggplot()+theme_nothing(),nrow=1,rel_widths = c(1,2,1))
+          #figure_3 <- plot_grid(figure_3_top,bottom_row,ncol=1,rel_heights = c(5,1))
+          
+          figure_2 <- plot_grid(top,bottom,ncol=1,rel_heights = c(5,1),align = "v")
+        }
         
-        
-        p <- all_effects %>% 
-          ggplot(aes(x = orig_conv_r, y = repli_conv_r, color = success)) +
-          geom_point(alpha = 0.6, size = 3) +
-          geom_rug() +
-          scale_color_manual(labels = c("Failed", "Successful"),
-                             values = c("tomato3", "deepskyblue4")) +
-          #geom_abline(slope = 1, intercept = 0, linetype = "solid", color = "slategray") +
-          #geom_segment(aes(x=0,y=0,xend=1,yend=1), linetype = 2, color = "slategray") +
-          annotate("segment",x=0,y=0,xend=1,yend=1, linetype = 2, color = "slategray") +
-          annotate("segment",x=0,y=0,xend=1,yend=0, linetype = "solid", color = "black") +
-          annotate("segment",x=0,y=-.55,xend=0,yend=1, linetype = "solid", color = "black") +
-          xlim(0, 1) +
-          ylim(-0.55, 1) +
-          labs(
-            x = "Original",
-            y = "Replication",
-            color = "",
-            title = ""
-          ) +
-          theme_minimal()+
-          theme(
-            plot.title = element_blank(),
-            axis.title.x = element_text(size = 16),
-            axis.text.x = element_text(size = 14),
-            axis.title.y = element_text(size = 16),
-            axis.text.y = element_text(size = 14),
-            legend.text = element_text(size = 16),
-            panel.grid = element_blank(),
-            legend.position = "bottom"
-          )
-        
-        figure_4 <- ggMarginal(p, type = "density", groupFill = T)
       }
       
-      # Figure 5
+      # Figure 3: Scatterplot of Pearson’s R effect sizes for original (x-axis) and replication (y-axis) findings by papers.
       {
         # Data wrangling
         {
           all_effects <- repli_outcomes %>% 
             filter(!is_covid) %>% 
             filter(repli_version_of_record) %>% 
-            select(claim_id,repli_conv_r) %>% 
+            select(paper_id,report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
+                   repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
             left_join(
               orig_outcomes %>% 
-                select(paper_id,claim_id, orig_conv_r) %>% 
+                select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
                 distinct(),
               by = "claim_id"
             ) %>% 
             drop_na(repli_conv_r) %>% 
-            drop_na(orig_conv_r)%>%
+            drop_na(orig_conv_r) %>% 
+            mutate(across(contains("orig"), abs)) %>% 
+            mutate(
+              across(
+                contains("repli"),
+                function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+              )
+            ) %>%
             group_by(paper_id) %>%
-            mutate(weight=1/n())
-          
-          all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
-          all_effects$field <- str_to_title(all_effects$COS_pub_category)
-          all_effects$field <- str_to_title(all_effects$COS_pub_category)
-          all_effects$field <- str_replace_all(all_effects$field," ","\n")
-          all_effects$field <- str_replace_all(all_effects$field,"And","and")
-          group_order <- unique(all_effects$field)
-          all_effects$field <- ordered(all_effects$field,labels=group_order,levels=group_order)
-          
-          all_effects$pub_year <- ordered(all_effects$pub_year,
-                                          levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
-                                          labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
-          
-          # Convert to long
-          all_effects <- all_effects %>%
-            pivot_longer(cols=c(repli_conv_r,orig_conv_r))
-          
-          all_effects$name <- ordered(all_effects$name,
-                                      levels=c("orig_conv_r","repli_conv_r"),
-                                      labels=c("Original effect size","Replication effect size"))
-          
+            mutate(weight = 1/n()) %>%
+            ungroup()
         }
-        # Plot
+        
+        # Chart generation
         {
-          figure_5 <- ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name))+
-              geom_density_ridges(alpha=.6,scale = 0.9)+
-              theme_minimal()+
-              theme(legend.position = "bottom",
-                    legend.title=element_blank(),
-                    panel.border = element_blank(),
-                    panel.grid = element_blank(),
-                    axis.title=element_blank(),
-                    axis.text.y=element_text(vjust=0,face = "bold")
-                    #axis.text = element_blank(),
-                    #axis.line = element_blank(),
-                    #axis.ticks = element_blank()
-              ) +
-              scale_fill_manual(values=c(palette_score_charts[1],palette_score_charts[5]))+
-              xlim(-1,1)+
-              geom_vline(aes(xintercept=0),linetype=2)
-          }
+          #chart.palette <- c("tomato3", "deepskyblue4")
+          chart.palette <- c(palette_score_charts[2], palette_score_charts[1])
+          all_effects$weight.alpha <- all_effects$weight*.6
+        
+          figure_3 <- ggplot(data = all_effects, aes(x = orig_conv_r, y = repli_conv_r, color = success,weight=weight)) +
+            #geom_point(alpha = 0.6, size = 3) +
+            geom_point(aes(alpha = weight), size = 3) +
+            scale_alpha_continuous(range=c(.1,.6),guide="none")+
+            geom_rug() +
+            scale_color_manual(labels = c("Failed", "Successful"),
+                               values = chart.palette) +
+            annotate("segment",x=0,y=0,xend=1,yend=1, linetype = 2, color = "slategray") +
+            annotate("segment",x=0,y=0,xend=1,yend=0, linetype = "solid", color = "black") +
+            annotate("segment",x=0,y=-.55,xend=0,yend=1, linetype = "solid", color = "black") +
+            xlim(0, 1) +
+            ylim(-0.55, 1) +
+            labs(
+              x = "Original",
+              y = "Replication",
+              color = "",
+              title = ""
+            ) +
+            theme_minimal()+
+            theme(
+              plot.title = element_blank(),
+              axis.title.x = element_text(size = 16),
+              axis.text.x = element_text(size = 14),
+              axis.title.y = element_text(size = 16),
+              axis.text.y = element_text(size = 14),
+              legend.text = element_text(size = 16),
+              panel.grid = element_blank(),
+              legend.position = "bottom"
+            )+
+            guides(color = guide_legend(override.aes = list(linetype = 0)))+
+            geom_xsidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
+            geom_ysidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
+            theme(
+              ggside.panel.border = element_blank(),
+              ggside.panel.grid = element_blank(),
+              ggside.panel.background = element_blank(),
+              ggside.axis.text = element_blank(),
+              ggside.axis.ticks = element_blank(),
+              ggside.panel.scale = .3
+            )+
+            scale_fill_manual(labels = c("Failed", "Successful"),
+                               values = chart.palette)
+        }
       }
       
-      # Figure 6
+      # Figure 4: Distribution of Pearson’s R effect sizes across papers for original and replication findings by discipline
       {
         # Data wrangling
         {
@@ -1827,6 +2317,12 @@
                                           levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
                                           labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
           
+          # Create weighting scheme
+          all_effects <- all_effects %>%
+            group_by(paper_id) %>%
+            mutate(paper_count = n(),
+                   weight = 1/n())
+          
           # Convert to long
           all_effects <- all_effects %>%
             pivot_longer(cols=c(repli_conv_r,orig_conv_r))
@@ -1838,8 +2334,12 @@
         }
         # Plot
         {
-          figure_6 <- ggplot(data=all_effects,aes(x=value,y=field,fill=name))+
-            geom_density_ridges(alpha=.6,scale = 0.9)+
+          
+          chart.palette <- c(palette_score_charts[1], palette_score_charts[5])
+          alpha.level <- .6
+          
+          figure_4 <- ggplot(data=all_effects,aes(x=value,y=field,fill=name,weight=weight))+
+            geom_density_ridges(alpha=alpha.level,scale = 0.9)+
             theme_minimal()+
             theme(legend.position = "bottom",
                   legend.title=element_blank(),
@@ -1851,11 +2351,85 @@
                   #axis.line = element_blank(),
                   #axis.ticks = element_blank()
             ) +
-            scale_fill_manual(values=c(palette_score_charts[1],palette_score_charts[5]))+
+            scale_fill_manual(values=chart.palette)+
             xlim(-1,1)+
             geom_vline(aes(xintercept=0),linetype=2)
         }
       }
+      
+      # Figure 5: Distribution of Pearson’s R effect sizes across papers for original and replication findings by publication year
+      {
+        # Data wrangling
+        {
+          all_effects <- repli_outcomes %>% 
+            filter(!is_covid) %>% 
+            filter(repli_version_of_record) %>% 
+            select(claim_id,repli_conv_r) %>% 
+            left_join(
+              orig_outcomes %>% 
+                select(paper_id,claim_id, orig_conv_r) %>% 
+                distinct(),
+              by = "claim_id"
+            ) %>% 
+            drop_na(repli_conv_r) %>% 
+            drop_na(orig_conv_r)%>%
+            group_by(paper_id) %>%
+            mutate(weight=1/n())
+          
+          all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
+          all_effects$field <- str_to_title(all_effects$COS_pub_category)
+          all_effects$field <- str_to_title(all_effects$COS_pub_category)
+          all_effects$field <- str_replace_all(all_effects$field," ","\n")
+          all_effects$field <- str_replace_all(all_effects$field,"And","and")
+          group_order <- unique(all_effects$field)
+          all_effects$field <- ordered(all_effects$field,labels=group_order,levels=group_order)
+          
+          all_effects$pub_year <- ordered(all_effects$pub_year,
+                                          levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
+                                          labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
+          
+          # Create weighting scheme
+          all_effects <- all_effects %>%
+            group_by(paper_id) %>%
+            mutate(paper_count = n(),
+                   weight = 1/n())
+          
+          # Convert to long
+          all_effects <- all_effects %>%
+            pivot_longer(cols=c(repli_conv_r,orig_conv_r))
+          
+          all_effects$name <- ordered(all_effects$name,
+                                      levels=c("orig_conv_r","repli_conv_r"),
+                                      labels=c("Original effect size","Replication effect size"))
+          
+          
+        }
+        # Plot
+        {
+          
+          chart.palette <- c(palette_score_charts[1], palette_score_charts[5])
+          alpha.level <- .6
+          
+          figure_5 <- ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name,weight=weight))+
+              geom_density_ridges(alpha=alpha.level,scale = 0.9)+
+              theme_minimal()+
+              theme(legend.position = "bottom",
+                    legend.title=element_blank(),
+                    panel.border = element_blank(),
+                    panel.grid = element_blank(),
+                    axis.title=element_blank(),
+                    axis.text.y=element_text(vjust=0,face = "bold")
+                    #axis.text = element_blank(),
+                    #axis.line = element_blank(),
+                    #axis.ticks = element_blank()
+              ) +
+              scale_fill_manual(values=chart.palette)+
+              xlim(-1,1)+
+              geom_vline(aes(xintercept=0),linetype=2)
+          }
+      }
+      
+
     }
     
     # Export
@@ -1865,10 +2439,8 @@
         "figure_2"=figure_2,
         "figure_3"=figure_3,
         "figure_4"=figure_4,
-        "figure_5"=figure_5,
-        "figure_6"=figure_6))
+        "figure_5"=figure_5))
     }
-    
   }
 }
 
@@ -1897,7 +2469,9 @@ if(TRUE){
     library(wCorr)
     library(corrplot)
     library(cowplot)
-    library(ggridges)
+    library(ggridges) #note: using the github version, as the CRAN hasn't been pushed to get the weights functionality
+    library(ggside)
+    library(weights)
     
     drive_auth(Sys.getenv("google_oauth_email"))
     #drive_deauth()
@@ -1905,9 +2479,8 @@ if(TRUE){
     source(file="Analysis/common functions.R")
   }
   
-  
   # Load data
-  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts","repli_binary")
+  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
     #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -1927,12 +2500,11 @@ if(TRUE){
   tags <- gsub("\\[\\s*(.*?)\\s*\\]","",tags)
   
   # Generate stats
-  results_tagged_stats <- tagged_stats(iters = 20,
+  results_tagged_stats <- tagged_stats(iters = 1000,
                                        repli_outcomes=repli_outcomes,
                                        orig_outcomes=orig_outcomes,
                                        paper_metadata=paper_metadata,
-                                       all_rr_attempts=all_rr_attempts,
-                                       repli_binary=repli_binary)
+                                       all_rr_attempts=all_rr_attempts)
   
   # Generate list of tags
   values_text <- do.call(c,lapply(1:length(tags),function(x) {
@@ -1944,7 +2516,6 @@ if(TRUE){
     }
   }))
   
-  
   # Export
   ss <- "https://docs.google.com/spreadsheets/d/1uaR6vYAMVywk1liQeKRyRCDQcs--teFpRsWzHrvfg3s"
   range_delete(ss,range="A:H")
@@ -1952,36 +2523,41 @@ if(TRUE){
   
   # Generate figures
   if (1==1){
-    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata,repli_binary)
+    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata,iters=1000)
     
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 1.png",
       plot = generated_figures$figure_1,
       width = 3000,height = 1000,units = "px",bg="white"
     )
+    # ggsave(
+    #   "Analysis/Paper 5/Code and data/Figures/figure 1 claims.png",
+    #   plot = generated_figures$figure_1_claims,
+    #   width = 3000,height = 1000,units = "px",bg="white"
+    # )
+    # ggsave(
+    #   "Analysis/Paper 5/Code and data/Figures/figure 2.png",
+    #   plot = generated_figures$figure_2,
+    #   width = 2800,height = 1300,units = "px",bg="white"
+    # )
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 2.png",
       plot = generated_figures$figure_2,
-      width = 2800,height = 1300,units = "px",bg="white"
+      width = 2000,height = 2000,units = "px",bg="white"
     )
-    # ggsave(
-    #   "Analysis/Paper 5/Code and data/Figures/figure 3.png",
-    #   plot = generated_figures$figure_3,
-    #   width = 2000,height = 2000,units = "px",bg="white"
-    # )
+    ggsave(
+      "Analysis/Paper 5/Code and data/Figures/figure 3.png",
+      plot = generated_figures$figure_3,
+      width = 2000,height = 2000,units = "px",bg="white"
+    )
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 4.png",
       plot = generated_figures$figure_4,
-      width = 2000,height = 2000,units = "px",bg="white"
+      width = 2000,height = 1200,units = "px",bg="white"
     )
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 5.png",
       plot = generated_figures$figure_5,
-      width = 2000,height = 2000,units = "px",bg="white"
-    )
-    ggsave(
-      "Analysis/Paper 5/Code and data/Figures/figure 6.png",
-      plot = generated_figures$figure_6,
       width = 2000,height = 2000,units = "px",bg="white"
     )
   }
