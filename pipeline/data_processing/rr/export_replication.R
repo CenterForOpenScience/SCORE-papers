@@ -59,7 +59,9 @@ merge_repli_input <- function(rr_outcomes_dataset_p1,
               relationship = "many-to-many")
   
   rbind(p1_rr, p2_repli, repli_cases) %>%
-    left_join(repli_effective, by = "unique_report_id")
+    left_join(repli_effective, by = "unique_report_id") %>%
+    # Changes needed in a field that exists in repli_outcomes only
+    add_column(new_is_ml = NA_character_)
   
 }
 
