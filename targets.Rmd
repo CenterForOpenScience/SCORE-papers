@@ -123,6 +123,16 @@ list(
              read_google_csv(publications_file,
                              publications_moddate)),
   
+  # Publications Changelog
+  tar_target(pub_changelog_file,
+             "1CM0wbYnRvBMIyDVFzvwxw3GVH_uRJ3BXRtdwlxTmS1A"),
+  tar_target(pub_changelog_moddate,
+             get_google_mod_date(pub_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(pub_changelog,
+             load_changelog(pub_changelog_file,
+                            pub_changelog_moddate)),
+  
   #SCORE TOP factor scoring sheet
   # TOP factor info
   tar_target(top_factor_file,
@@ -646,8 +656,12 @@ Paper metadata.
 
 ```{targets processed-papers}
 list(
+  tar_target(pubs_updated,
+             update_pubs(publications_raw,
+                         pub_changelog)),
+  
   tar_target(publications,
-             transform_pubs(publications_raw,
+             transform_pubs(pubs_updated,
                             top_factor)),
   
   tar_target(paper_metadata,

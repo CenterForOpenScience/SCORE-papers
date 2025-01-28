@@ -124,9 +124,22 @@ create_id_key <- function(covid_ta2,
 
 }
 
-transform_pubs <- function(publications_raw,
+update_pubs <- function(publications_raw,
+                        pub_changelog) {
+  
+  publications_raw <- add_column(publications_raw,
+                                 pub_stat_version = 1)
+  
+  apply_changelog(publications_raw,
+                  pub_changelog,
+                  "ISSN") %>%
+    select(-c(pub_stat_version))
+  
+}
+
+transform_pubs <- function(pubs_updated,
                            top_factor) {
-  publications_raw %>%
+  pubs_updated %>%
     mutate(
       # We want both the 10 field and 6 field versions for supplement and 
       # analysis, respectively

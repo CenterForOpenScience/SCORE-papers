@@ -86,9 +86,15 @@ create_repli_analytic <- function(repli_export,
         "no target" ~ "not performed",
         "lab target" ~ "lab power analysis"
       ),
-      is_manylabs = case_match(rr_is_manylabs,
-                               "non_ml" ~ FALSE,
-                               .default = TRUE),
+      is_manylabs = case_when(
+        rr_is_manylabs == "non_ml" ~ "not manylabs",
+        !is.na(new_is_ml) ~ new_is_ml,
+        .default = "is manylabs"
+      ),
+        # case_match(rr_is_manylabs,
+        #                        "non_ml" ~ FALSE,
+        #                        .default = TRUE),
+
       manylabs_type = case_match(rr_is_manylabs,
                                  "ml_aggregation" ~ "aggregation",
                                  "ml_count" ~ "count",
