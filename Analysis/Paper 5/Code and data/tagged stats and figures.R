@@ -2,7 +2,7 @@
 # Functions (also readable by external sources)
 {
   # Create an object that contains the tagged stats
-  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts,repli_binary,generate_binary_data=FALSE){
+  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts,repli_binary,status,generate_binary_data=FALSE){
   
     # Data preparation
     {
@@ -676,25 +676,49 @@
         
         # Table 7
         {
-          fields.order <- sort(c("Psychology And Health","Business","Sociology And Criminology",
-                                 "Economics And Finance","Political Science","Education"))
+          fields.order <- sort(c("Psychology and Health","Business","Sociology and Criminology",
+                                 "Economics and Finance","Political Science","Education"))
           
-          table.data <- repli_outcomes %>%
-            group_by(paper_id) %>%
-            mutate(weight = 1/n())
-          
-          generate_row <- function(field){
-            field <- fields.order[1]
+          table_7 <- do.call(rbind,lapply(fields.order,function(field_selected) {
+            #field_selected <- fields.order[1]
             
-            c1 <- repli_outcomes %>%
+            table.data <- repli_outcomes_merged %>%
+              filter(field==field_selected) %>%
               group_by(paper_id) %>%
               mutate(weight = 1/n())
-              
-              
-              nrow(repli_outcomes[repli_outcomes$repli_type=="new data" & ,]$repli_type
             
+            c1 <- paste0(format.round(
+              100*sum(as.integer(table.data$repli_type=="new data")*table.data$weight)/
+                sum(table.data$weight),1),"%")
             
-          }
+            c2 <- paste0(format.round(
+              100*sum(as.integer(table.data$repli_type=="secondary data")*table.data$weight)/
+                sum(table.data$weight),1),"%")
+            
+            table.data <- repli_outcomes_merged %>%
+              filter(field==field_selected,
+                     !is.na(repli_power_for_75_effect)) %>%
+              group_by(paper_id) %>%
+              mutate(weight = 1/n())
+            c3 <- paste0(format.round(
+              100*weighted.median(table.data$repli_power_for_75_effect,table.data$weight),1),"%")
+            
+            table.data <- repli_outcomes_merged %>%
+              filter(field==field_selected,
+                     !is.na(rr_power_75_original_effect_design)) %>%
+              group_by(paper_id) %>%
+              mutate(weight = 1/n())
+            c4 <- paste0(format.round(
+              100*weighted.median(table.data$rr_power_75_original_effect_design,table.data$weight),1),"%")
+            
+            data.frame(c1,c2,c3,c4)
+          }))
+          
+          for (row in 1:nrow(table_7)){
+            for (col in 1:ncol(table_7)){
+              assign(paste0("table_7_",row,"_",col),
+                     table_7[row,col])
+            }}
         }
       }
       
@@ -774,6 +798,45 @@
         p_repli_completed_2015 <- paste0(format.round(100*
           abs(table_3_p$"2015"[6]),1),"%")
         
+        n_claims_init_sample_p1 <- nrow(status %>% filter(p1_delivery))
+        
+        n_papers_p1_repli_completed <- length(unique(repli_outcomes[repli_outcomes$type_internal!="p2",]$paper_id))
+        
+        n_claims_eligible_repli <- nrow(status %>% filter(RR))
+        
+        n_claims_eligible_repli_multi_claim <- nrow(status %>% filter(bushel))
+        
+        n_claims_eligible_repli_single_claim <- n_claims_eligible_repli-n_claims_eligible_repli_multi_claim
+        
+        n_claims_init_sample_p2 <- nrow(status %>% filter(p2_delivery))
+        
+        n_claims_repli_p2 <- nrow(repli_outcomes %>% filter(type_internal=="p2"))
+        
+        repli_binary_score_p1 <-
+          na.omit(merge(repli_binary[c("paper_id","claim_id","repli_score_criteria_met")],
+                repli_outcomes[c("claim_id","type_internal")],
+                by="claim_id",all.x=TRUE,all.y=FALSE)) %>%
+          filter(type_internal!="p2") %>% 
+          group_by(paper_id) %>% 
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        p_repli_success_score_criteria_met_p1 <- paste0(format.round(
+          100*sum(repli_binary_score_p1$repli_score_criteria_met*repli_binary_score_p1$weight)/
+          sum(repli_binary_score_p1$weight),1),"%")
+        
+        repli_binary_score_p2 <-
+          na.omit(merge(repli_binary[c("paper_id","claim_id","repli_score_criteria_met")],
+                        repli_outcomes[c("claim_id","type_internal")],
+                        by="claim_id",all.x=TRUE,all.y=FALSE)) %>%
+          filter(type_internal=="p2") %>% 
+          group_by(paper_id) %>% 
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        p_repli_success_score_criteria_met_p2 <- paste0(format.round(
+          100*sum(repli_binary_score_p2$repli_score_criteria_met*repli_binary_score_p2$weight)/
+            sum(repli_binary_score_p2$weight),1),"%")
       }
       
       # Results: General
@@ -1346,6 +1409,37 @@
           assign(paste0("field_",i,"_highest_p_secondary_data"),secondary_repli_by_field$field[i])
           assign(paste0("p_",i,"_highest_p_secondary_data"),secondary_repli_by_field$p.formatted.combined[i])
         }
+        
+        repli_outcomes_nd <- repli_outcomes[repli_outcomes$repli_type=="new data",] %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        repli_outcomes_sd <- repli_outcomes[repli_outcomes$repli_type=="secondary data",] %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        median_power_100_effect_new_data_papers <- 
+          paste0(format.round(100*weighted.median(repli_outcomes_nd$rr_power_100_original_effect,repli_outcomes_nd$weight,na.rm=TRUE),1),"%")
+        median_power_100_effect_new_data_claims <- 
+          paste0(format.round(100*median(repli_outcomes_nd$rr_power_100_original_effect,na.rm=TRUE),1),"%")
+        
+        median_power_100_effect_secondary_data_papers <- 
+          paste0(format.round(100*weighted.median(repli_outcomes_sd$rr_power_100_original_effect,repli_outcomes_sd$weight,na.rm=TRUE),1),"%")
+        median_power_100_effect_secondary_data_claims <- 
+          paste0(format.round(100*median(repli_outcomes_sd$rr_power_100_original_effect,na.rm=TRUE),1),"%")
+        
+        mean_power_100_effect_new_data_papers <- 
+          paste0(format.round(100*weighted.mean(repli_outcomes_nd$rr_power_100_original_effect,repli_outcomes_nd$weight,na.rm=TRUE),1),"%")
+        mean_power_100_effect_new_data_claims <- 
+          paste0(format.round(100*mean(repli_outcomes_nd$rr_power_100_original_effect,na.rm=TRUE),1),"%")
+        
+        mean_power_100_effect_secondary_data_papers <- 
+          paste0(format.round(100*weighted.mean(repli_outcomes_sd$rr_power_100_original_effect,repli_outcomes_sd$weight,na.rm=TRUE),1),"%")
+        mean_power_100_effect_secondary_data_claims <- 
+          paste0(format.round(100*mean(repli_outcomes_sd$rr_power_100_original_effect,na.rm=TRUE),1),"%")
+        
 
       }
       
@@ -2145,7 +2239,8 @@ if(TRUE){
                                        orig_outcomes=orig_outcomes,
                                        paper_metadata=paper_metadata,
                                        all_rr_attempts=all_rr_attempts,
-                                       repli_binary=repli_binary)
+                                       repli_binary=repli_binary,
+                                       status=status)
   
   # Generate list of tags
   values_text <- do.call(c,lapply(1:length(tags),function(x) {
