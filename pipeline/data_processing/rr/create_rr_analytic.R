@@ -212,6 +212,7 @@ create_repli_analytic <- function(repli_export,
               rr_stat_version,
               pdf_filename,
               rr_pearsons_r_defined,
+              new_is_ml,
               # These two, previously repli_pearsons_r_ub and 
               # repli_pearsons_r_lb, appear not to actually be used
               pi_ub_pearson,
