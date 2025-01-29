@@ -2,91 +2,119 @@
 # Functions (also readable by external sources)
 {
   # Create an object that contains the tagged stats
-  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts){
+  tagged_stats <- function(iters = 100,repli_outcomes,orig_outcomes,paper_metadata,all_rr_attempts,repli_binary,generate_binary_data=FALSE){
   
     # Data preparation
     {
+      # Set defaults for convenience
+      {
+        if (!exists("iters")){ iters <- 100}
+        if (!exists("generate_binary_data")){ generate_binary_data <- FALSE}
+      }
+      
       # Trim out non-version of record lines and non-COVID entries
-      repli_outcomes_orig <- repli_outcomes
+      {
+        repli_outcomes_orig <- repli_outcomes
+        
+        repli_outcomes <- repli_outcomes[repli_outcomes$repli_version_of_record,]
+        repli_outcomes <- repli_outcomes[!repli_outcomes$is_covid,]
+      }
       
-      repli_outcomes <- repli_outcomes[repli_outcomes$repli_version_of_record,]
-      repli_outcomes <- repli_outcomes[!repli_outcomes$is_covid,]
+      # Get paper metadata information
+      {
+        paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year")]
+        paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
+        paper_metadata$field <- str_replace(paper_metadata$field,"And","and")
+        
+        orig_outcomes <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
+        
+        repli_outcomes_merged <- merge(repli_outcomes,orig_outcomes[,!(names(orig_outcomes) %in% c("paper_id"))],
+                                       by="claim_id",all.x=TRUE,all.y=FALSE)
+        orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
+        repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
+        repli_outcomes_merged <- repli_outcomes_merged %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
+      }
       
-      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year")]
-      paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
-      paper_metadata$field <- str_replace(paper_metadata$field,"And","and")
+      # Generate binary data. Note: generate_binary_data flag by default is set 
+      # to FALSE, which pulls the binary data precalculated from the data pipeline.
+      # If set to TRUE, the code will run to generate the binary success measures
+      # from scratch. This is time consuming, but will produce identical results)
+      {
+        if(generate_binary_data==TRUE ){
+          # FILL IN WITH code from Andrew
+          
+        } else {
+          # Switch to paper_id / claim_id coding
+          repli_binary <- merge(repli_outcomes[c("paper_id","claim_id","report_id","repli_score_criteria_met")],
+                                repli_binary,all.x = FALSE,all.y=TRUE,by="report_id")
+          repli_binary$report_id <- NULL
+        }
+        
+      }
       
-      orig_outcomes <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
-      
-      repli_outcomes_merged <- merge(repli_outcomes,orig_outcomes[,!(names(orig_outcomes) %in% c("paper_id"))],
-                                     by="claim_id",all.x=TRUE,all.y=FALSE)
-      orig_outcomes <- orig_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
-      repli_outcomes <- repli_outcomes %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
-      repli_outcomes_merged <- repli_outcomes_merged %>% group_by(paper_id) %>% mutate(weight = 1/n()) %>% ungroup()
-      
-      #paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
-      
-      binvars.raw <- c("repli_score_criteria_met",
-                       "repli_binary_analyst",
-                       "repli_binary_orig_wthn",
-                       "repli_binary_rep_wthn",
-                       "repli_binary_wthn_pi",
-                       "repli_binary_meta_success",
-                       "repli_binary_sum_p",
-                       "repli_binary_telescopes",
-                       "repli_binary_bf_result",
-                       "repli_binary_bayes_rep",
-                       "repli_binary_bma_result",
-                       "repli_binary_skep_p",
-                       "repli_binary_correspondence")
-      binvars.order <- binvars.raw
-      
-      binvars.short <- c("Sig. + pattern",
-                         "Analyst interpretation",
-                         "Orig. in rep. CI",
-                         "Rep. in orig. CI",
-                         "Rep. in prediction interval",
-                         "Meta-analysis",
-                         "Sum of p-values",
-                         "Small telescopes",
-                         "Bayes factor",
-                         "Replication Bayes factor",
-                         "Bayesian meta-analysis",
-                         "Skeptical p-value",
-                         "Correspondence test")
-      binvars.group <- c("Statistic significance / p-value based measures",
-                         "SCORE specific",
-                         "Contained within interval measures",
-                         "Contained within interval measures",
-                         "Contained within interval measures",
-                         "Meta analysis based measures",
-                         "Statistic significance / p-value based measures",
-                         "Combined effect magnitude and uncertainty measures",
-                         "Combined effect magnitude and uncertainty measures",
-                         "Combined effect magnitude and uncertainty measures",
-                         "Meta analysis based measures",
-                         "Statistic significance / p-value based measures",
-                         "Combined effect magnitude and uncertainty measures")
-      
-      binvars.order <- c("repli_binary_analyst",
-                         "repli_score_criteria_met",
-                         "repli_binary_sum_p",
-                         "repli_binary_skep_p",
+      # Generate names for binary measures
+      {
+        binvars.raw <- c("repli_score_criteria_met",
+                         "repli_binary_analyst",
                          "repli_binary_orig_wthn",
                          "repli_binary_rep_wthn",
                          "repli_binary_wthn_pi",
                          "repli_binary_meta_success",
-                         "repli_binary_bma_result",
+                         "repli_binary_sum_p",
                          "repli_binary_telescopes",
                          "repli_binary_bf_result",
                          "repli_binary_bayes_rep",
+                         "repli_binary_bma_result",
+                         "repli_binary_skep_p",
                          "repli_binary_correspondence")
-      
-      df.binvars <- data.frame(binvars.raw,binvars.short,binvars.group,binvars.order)
-      df.binvars <- do.call(rbind,lapply(binvars.order,function(x) {
-        df.binvars[df.binvars$binvars.raw==x,]
-      }))
-      
+        binvars.order <- binvars.raw
+        
+        binvars.short <- c("Sig. + pattern",
+                           "Analyst interpretation",
+                           "Orig. in rep. CI",
+                           "Rep. in orig. CI",
+                           "Rep. in prediction interval",
+                           "Meta-analysis",
+                           "Sum of p-values",
+                           "Small telescopes",
+                           "Bayes factor",
+                           "Replication Bayes factor",
+                           "Bayesian meta-analysis",
+                           "Skeptical p-value",
+                           "Correspondence test")
+        binvars.group <- c("Statistic significance / p-value based measures",
+                           "SCORE specific",
+                           "Contained within interval measures",
+                           "Contained within interval measures",
+                           "Contained within interval measures",
+                           "Meta analysis based measures",
+                           "Statistic significance / p-value based measures",
+                           "Combined effect magnitude and uncertainty measures",
+                           "Combined effect magnitude and uncertainty measures",
+                           "Combined effect magnitude and uncertainty measures",
+                           "Meta analysis based measures",
+                           "Statistic significance / p-value based measures",
+                           "Combined effect magnitude and uncertainty measures")
+        
+        binvars.order <- c("repli_binary_analyst",
+                           "repli_score_criteria_met",
+                           "repli_binary_sum_p",
+                           "repli_binary_skep_p",
+                           "repli_binary_orig_wthn",
+                           "repli_binary_rep_wthn",
+                           "repli_binary_wthn_pi",
+                           "repli_binary_meta_success",
+                           "repli_binary_bma_result",
+                           "repli_binary_telescopes",
+                           "repli_binary_bf_result",
+                           "repli_binary_bayes_rep",
+                           "repli_binary_correspondence")
+        
+        df.binvars <- data.frame(binvars.raw,binvars.short,binvars.group,binvars.order)
+        df.binvars <- do.call(rbind,lapply(binvars.order,function(x) {
+          df.binvars[df.binvars$binvars.raw==x,]
+        }))
+      }
     }
     
     # Stats
@@ -140,9 +168,6 @@
             total <- sum(data$n)
             field <- "Total"
             n <- total
-            # data$n <- paste0(data$n," (",
-            #                  format.round(100*data$n/sum(data$n),1),
-            #                  "%)")
             data <- rbind(data,data.frame(field,n))
             colnames <- data$field
             data <- data.frame(t(rbind(data,data.frame(field,n))[,-1]))
@@ -150,36 +175,31 @@
             data[c(fields.order,"Total")]
           }
           
-          r1.data <- status %>% filter(p1_delivery)
-          r2.data <- status %>% filter(RR)
+          r1.data <- status %>% filter(p1_delivery | p2_delivery)
+          r2.data <- status %>% filter(RR | p2_delivery)
           r3.data <- status %>% filter(bushel)
-          r4.data <- status %>% filter(RR & !bushel)
-          r5.data <- all_rr_attempts  %>%
-                             filter(str_detect(type, "Replication")) %>%
-                             select(paper_id) %>% 
-                             distinct() %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id")
-          r6.data <- repli_outcomes_orig %>% 
-                             filter(repli_type != "original and secondary data") %>% 
-                             filter(!is_covid) %>% 
-                             select(paper_id) %>% 
-                             distinct() %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id")
+          r4.data <- status %>% filter((p2_delivery | RR) & !bushel)
+          r5.data <- all_rr_attempts %>% 
+            filter(str_detect(type, "Replication")) %>%
+            select(paper_id) %>% 
+            distinct() %>% 
+            semi_join(status %>% filter(p1_delivery | p2_delivery), by = "paper_id")
+          r6.data <-  repli_outcomes_orig %>% 
+            filter(repli_type != "original and secondary data") %>% 
+            filter(!is_covid) %>% 
+            select(paper_id) %>% 
+            distinct()
           r7.data <- repli_outcomes_orig %>%
-                             filter(repli_type != "original and secondary data") %>% 
-                             filter(!is_covid) %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id") %>% 
-                             filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
-                             select(paper_id, claim_id, rr_id) %>% 
-                             distinct() %>% 
-                             select(paper_id)
-          r8.data <- repli_outcomes_orig %>%
-                             filter(repli_type != "original and secondary data") %>% 
-                             filter(!is_covid) %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id") %>% 
-                             select(paper_id, claim_id) %>% 
-                             distinct() %>% 
-                             select(paper_id)
+            filter(repli_type != "original and secondary data") %>% 
+            filter(!is_covid) %>% 
+            filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
+            select(paper_id, claim_id, rr_id) %>% 
+            distinct() 
+          r8.data <-  repli_outcomes_orig %>%
+            filter(repli_type != "original and secondary data") %>% 
+            filter(!is_covid) %>% 
+            select(paper_id, claim_id) %>% 
+            distinct()
           
           for (i in 1:8){
             assign(paste0("r",i),format.row(get(paste0("r",i,".data"))))
@@ -262,37 +282,31 @@
             data[c(as.character(2009:2018),"Total")]
           }
           
-          r1.data <- (status %>% filter(p1_delivery))
-          r2.data <- (status %>% filter(RR))
-          r3.data <- (status %>% filter(bushel))
-          r4.data <- (status %>% filter(RR & !bushel))
-          r5.data <- (all_rr_attempts  %>%
-                             filter(str_detect(type, "Replication")) %>%
-                             select(paper_id) %>% 
-                             distinct() %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id"))
-          r6.data <- (repli_outcomes_orig %>% 
-                             filter(repli_type != "original and secondary data") %>% 
-                             filter(!is_covid) %>% 
-                             select(paper_id) %>% 
-                             distinct() %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id") )
-          r7.data <- (repli_outcomes_orig %>%
-                             filter(repli_type != "original and secondary data") %>% 
-                             filter(!is_covid) %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id") %>% 
-                             filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
-                             select(paper_id, claim_id, rr_id) %>% 
-                             distinct() %>% 
-                             select(paper_id) )
-          
-          r8.data <- (repli_outcomes_orig %>%
-                             filter(repli_type != "original and secondary data") %>% 
-                             filter(!is_covid) %>% 
-                             semi_join(status %>% filter(RR), by = "paper_id") %>% 
-                             select(paper_id, claim_id) %>% 
-                             distinct() %>% 
-                             select(paper_id))
+          r1.data <- status %>% filter(p1_delivery | p2_delivery)
+          r2.data <- status %>% filter(RR | p2_delivery)
+          r3.data <- status %>% filter(bushel)
+          r4.data <- status %>% filter((p2_delivery | RR) & !bushel)
+          r5.data <- all_rr_attempts %>% 
+            filter(str_detect(type, "Replication")) %>%
+            select(paper_id) %>% 
+            distinct() %>% 
+            semi_join(status %>% filter(p1_delivery | p2_delivery), by = "paper_id")
+          r6.data <-  repli_outcomes_orig %>% 
+            filter(repli_type != "original and secondary data") %>% 
+            filter(!is_covid) %>% 
+            select(paper_id) %>% 
+            distinct()
+          r7.data <- repli_outcomes_orig %>%
+            filter(repli_type != "original and secondary data") %>% 
+            filter(!is_covid) %>% 
+            filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
+            select(paper_id, claim_id, rr_id) %>% 
+            distinct() 
+          r8.data <-  repli_outcomes_orig %>%
+            filter(repli_type != "original and secondary data") %>% 
+            filter(!is_covid) %>% 
+            select(paper_id, claim_id) %>% 
+            distinct()
           
           for (i in 1:8){
             assign(paste0("r",i),format.row(get(paste0("r",i,".data"))))
@@ -496,14 +510,17 @@
             filter(!is_covid) %>%
             filter(repli_version_of_record) %>%
             select(report_id, claim_id,repli_sample_size_value, success = repli_score_criteria_met, repli_type,
-                   repli_conv_r, repli_conv_r_lb, repli_conv_r_ub, repli_effect_size_type, repli_effect_size_value) %>%
+                   repli_conv_r, repli_conv_r_lb, repli_conv_r_ub, repli_effect_size_type, repli_effect_size_value,
+                   rr_power_100_original_effect,rr_power_100_original_effect_design,
+                   repli_power_for_75_effect,rr_power_75_original_effect_design,) %>%
             mutate(ser_effect = ifelse(str_detect(repli_effect_size_type, "ser_"), abs(repli_effect_size_value), NA)) %>%
             mutate(across(contains("conv"), abs))
           
           orig_effects <- orig_outcomes %>%
             semi_join(repli_effects, by = "claim_id") %>%
             select(claim_id, paper_id,orig_sample_size_value, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub,
-                   orig_effect_size_type_repli, orig_effect_size_value_repli) %>%
+                   orig_effect_size_type_repli, orig_effect_size_value_repli,
+                   orig_power_for_75_effect) %>%
             mutate(ser_effect = ifelse(str_detect(orig_effect_size_type_repli, "ser_"), abs(orig_effect_size_value_repli), NA)) %>%
             mutate(across(contains("conv"), abs)) %>%
             mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>%
@@ -613,6 +630,71 @@
             }
           }
           rm(r1,r2,r3,r4)
+          
+          # Add rows 5 and 6
+          
+          table_6_5_13.data <- repli_outcomes %>%
+            filter(!is.na(repli_power_for_75_effect),
+                   repli_type=="new data") %>%
+            group_by(paper_id) %>%
+            mutate(weight = 1/n()) %>%
+            ungroup()
+          
+          table_6_5_1 <- format.round(weighted.median(table_6_5_13.data$repli_power_for_75_effect,table_6_5_13.data$weight),2)
+          table_6_5_3 <- format.round(median(table_6_5_13.data$repli_power_for_75_effect),2)
+          
+          table_6_5_24.data <- repli_outcomes %>%
+            filter(!is.na(rr_power_75_original_effect_design),
+                   repli_type=="new data") %>%
+            group_by(paper_id) %>%
+            mutate(weight = 1/n()) %>%
+            ungroup()
+          
+          table_6_5_2 <- format.round(weighted.median(table_6_5_24.data$rr_power_75_original_effect_design,table_6_5_24.data$weight),2)
+          table_6_5_4 <- format.round(median(table_6_5_24.data$rr_power_75_original_effect_design),2)
+          
+          table_6_6_13.data <- repli_outcomes %>%
+            filter(!is.na(repli_power_for_75_effect),
+                   repli_type=="secondary data") %>%
+            group_by(paper_id) %>%
+            mutate(weight = 1/n()) %>%
+            ungroup()
+          
+          table_6_6_1 <- format.round(weighted.median(table_6_6_13.data$repli_power_for_75_effect,table_6_6_13.data$weight),2)
+          table_6_6_3 <- format.round(median(table_6_6_13.data$repli_power_for_75_effect),2)
+          
+          table_6_6_24.data <- repli_outcomes %>%
+            filter(!is.na(rr_power_75_original_effect_design),
+                   repli_type=="secondary data") %>%
+            group_by(paper_id) %>%
+            mutate(weight = 1/n()) %>%
+            ungroup()
+          
+          table_6_6_2 <- format.round(weighted.median(table_6_6_24.data$rr_power_75_original_effect_design,table_6_6_24.data$weight),2)
+          table_6_6_4 <- format.round(median(table_6_6_24.data$rr_power_75_original_effect_design),2)
+        }
+        
+        # Table 7
+        {
+          fields.order <- sort(c("Psychology And Health","Business","Sociology And Criminology",
+                                 "Economics And Finance","Political Science","Education"))
+          
+          table.data <- repli_outcomes %>%
+            group_by(paper_id) %>%
+            mutate(weight = 1/n())
+          
+          generate_row <- function(field){
+            field <- fields.order[1]
+            
+            c1 <- repli_outcomes %>%
+              group_by(paper_id) %>%
+              mutate(weight = 1/n())
+              
+              
+              nrow(repli_outcomes[repli_outcomes$repli_type=="new data" & ,]$repli_type
+            
+            
+          }
         }
       }
       
@@ -790,6 +872,75 @@
           format.text.percent(sum(as.numeric(!is.na(repli_outcomes$repli_p_value) & repli_outcomes$repli_p_value > 0.05)),
                               n_claims)
         
+        df.power <- repli_outcomes %>%
+          filter(!is.na(rr_power_100_original_effect)) %>% group_by(paper_id) %>% 
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        median_power_100_effect <- paste0(format.round(
+          100*weighted.median(df.power$rr_power_100_original_effect,df.power$weight),
+          digits=1),"%")
+        
+        p_repli_50_power_for_100_effect <- 
+          paste0(format.round(
+            100*
+              sum(as.integer(df.power$rr_power_100_original_effect >=.5) * df.power$weight)/
+              sum( df.power$weight),
+            digits=1),"%")
+        p_repli_75_power_for_100_effect <- 
+          paste0(format.round(
+            100*
+              sum(as.integer(df.power$rr_power_100_original_effect >=.75) * df.power$weight)/
+              sum( df.power$weight),
+            digits=1),"%")
+        
+        df.power <- repli_outcomes[!is.na(repli_outcomes$repli_power_for_50_effect),] %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n())
+        
+        p_repli_90_power_for_50_effect <- 
+          paste0(format.round(
+            100*
+              sum(as.integer(df.power$repli_power_for_50_effect >=.9) * df.power$weight)/
+              sum( df.power$weight),
+            digits=1),"%")
+        
+        df.power <- repli_outcomes[!is.na(repli_outcomes$repli_power_for_75_effect),] %>%
+          group_by(paper_id) %>%
+          mutate(weight = 1/n())
+        
+        p_repli_90_power_for_75_effect <- 
+          paste0(format.round(
+            100*
+              sum(as.integer(df.power$repli_power_for_75_effect >=.9) * df.power$weight)/
+              sum( df.power$weight),
+            digits=1),"%")
+        
+        df.power <- repli_outcomes %>%
+          filter(!is.na(rr_power_100_original_effect_design)) %>% group_by(paper_id) %>% 
+          mutate(weight = 1/n()) %>%
+          ungroup()
+        
+        median_power_100_effect_design <- paste0(format.round(
+          100*weighted.median(df.power$rr_power_100_original_effect_design,df.power$weight),
+          digits=1),"%")
+        
+        p_repli_50_power_for_100_effect_design <- 
+          paste0(format.round(
+            100*
+              sum(as.integer(df.power$rr_power_100_original_effect_design >=.5) * df.power$weight)/
+              sum( df.power$weight),
+            digits=1),"%")
+        p_repli_75_power_for_100_effect_design <- 
+          paste0(format.round(
+            100*
+              sum(as.integer(df.power$rr_power_100_original_effect_design >=.75) * df.power$weight)/
+              sum( df.power$weight),
+            digits=1),"%")
+        
+        
+        rm(df.power)
+        
         
 
       }
@@ -798,8 +949,6 @@
       {
         # Prepare binary assessment data
         {
-          repli_binary <- repli_outcomes[c("paper_id", "claim_id","repli_score_criteria_met",
-                                           df.binvars$binvars.raw)]
           
           binary.proportions <- 
             do.call(rbind,lapply(df.binvars$binvars.raw,function(binary.var){
@@ -859,8 +1008,8 @@
         
         # Generate correlations matrix
         {
-          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-                                           df.binvars$binvars.raw)]
+          # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+          #                                  df.binvars$binvars.raw)]
           
           # Summarize by proportions w/ CIs
           repli_binary_binaries <- repli_binary[,3:ncol(repli_binary)]
@@ -1066,6 +1215,7 @@
                           digits=1,na.rm = FALSE,format.percent = TRUE
           )$formatted.text
         
+        
         pearsons_r_papers_orig_v_repli_same_dir <- 
           bootstrap.clust(data=effects_combined[(effects_combined$repli_conv_r>=0)==(effects_combined$repli_conv_r>=0),],
                         FUN=function(x) {
@@ -1201,20 +1351,7 @@
       
       # Discussion
       {
-        p_repli_50_power_for_100_effect <- paste0(format.round(100*
-                                                                 sum(repli_outcomes$power_for_effect_size=="50% for 100%",na.rm = TRUE)/
-                                                                 sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
-                                                               digits=1),"%")
         
-        p_repli_90_power_for_50_effect <- paste0(format.round(100*
-                                                                sum(repli_outcomes$power_for_effect_size=="90% for 50%",na.rm = TRUE)/
-                                                                sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
-                                                              digits=1),"%")
-        
-        p_repli_90_power_for_75_effect <- paste0(format.round(100*
-                                                                sum(repli_outcomes$power_for_effect_size=="90% for 75%",na.rm = TRUE)/
-                                                                sum(!is.na(repli_outcomes$power_for_effect_size),na.rm = TRUE),
-                                                              digits=1),"%")
       }
       
       # The unbearable inscrutability of replication
@@ -1227,533 +1364,6 @@
         pearson_r_measurable_econ_claims_p <- paste0(format.round(
           100*pearson_r_measurable_econ_claims_n/nrow(repli_outcomes_merged[repli_outcomes_merged$field=="Economics and Finance",]),1),"%")
       }
-      # Archive
-      if(FALSE){
-        p_repli_stat_sig_claims_same_dir_wtd <- 
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==TRUE,
-                                          w=x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_effect_size_smaller_v_orig_business <- "Pending effect size decisions"
-        
-        n_effect_size_smaller_v_orig_business <- "Pending effect size decisions"
-        
-        p_effect_size_smaller_v_orig_econ <- "Pending effect size decisions"
-        
-        n_effect_size_smaller_v_orig_econ <- "Pending effect size decisions"
-        
-        p_effect_size_smaller_v_orig_edu <- "Pending effect size decisions"
-        
-        n_effect_size_smaller_v_orig_edu <- "Pending effect size decisions"
-        
-        p_effect_size_smaller_v_orig_polisci <- "Pending effect size decisions"
-        
-        n_effect_size_smaller_v_orig_polisci <- "Pending effect size decisions"
-        
-        p_effect_size_smaller_v_orig_psych <- "Pending effect size decisions"
-        
-        n_effect_size_smaller_v_orig_psych <- "Pending effect size decisions"
-        
-        p_effect_size_smaller_v_orig_soc <- "Pending effect size decisions"
-        
-        n_effect_size_smaller_v_orig_soc <- "Pending effect size decisions"
-        
-        n_journals_business <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="business",]$publication_standard))
-        
-        n_journals_econ <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="economics and finance",]$publication_standard))
-        
-        n_journals_edu <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="education",]$publication_standard))
-        
-        n_journals_polisci <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="political science",]$publication_standard))
-        
-        n_journals_psych <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="psychology and health",]$publication_standard))
-        
-        n_journals_soc <- length(unique(repli_outcomes_merged[repli_outcomes_merged$COS_pub_category=="sociology and criminology",]$publication_standard))
-        
-        n_papers_initial_sample <- "Pending paper process data pipeline"
-        
-        n_papers_randomly_selected <- "Pending paper process data pipeline"
-        
-        n_papers_eligible <- "Pending paper process data pipeline"
-        
-        n_papers_matched_with_researchers <- "Pending paper process data pipeline"
-        
-        n_replis_started_from_draft	 <- "Pending paper process data pipeline"
-        
-        n_papers_repli_started_from_draft	 <- "Pending paper process data pipeline"
-        
-        p_replis_of_eligible_from_draft <- "Pending paper process data pipeline"
-        
-        n_repli_designs_reviewed_and_prereged <- "Pending paper process data pipeline"
-        
-        p_repli_designs_reviewed_and_prereged <- "Pending paper process data pipeline"
-        
-        n_replis_completed <- "Pending paper process data pipeline"
-        
-        n_replis_started <- "Pending paper process data pipeline"
-        
-        p_replis_completed <- "Pending paper process data pipeline"
-        
-        n_papers_single_claim <- "Pending paper process data pipeline"
-        
-        n_papers_multi_claim <- "Pending paper process data pipeline"
-        
-        n_papers_multi_repli_single_claim_same_protocol <- "Pending paper process data pipeline"
-        
-        n_papers_multi_repli_single_claim_diff_protocol <- "Pending paper process data pipeline"
-        
-        n_repli_hybrid <- "Pending paper process data pipeline"
-        
-        n_replis_completed_from_draft <- "Pending paper process data pipeline"
-        
-        n_repli_total <- "Pending paper process data pipeline"
-        
-        n_replis_papers_started_from_draft <- "Pending paper process data pipeline"
-        
-        p_repli_stat_sig_claims_any_dir <- 
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            mean(x$repli_p_value <= 0.05)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_stat_sig_claims_any_dir_wtd <- 
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_p_value <= 0.05,
-                                          w=x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        n_repli_stat_sig_claims_same_dir <- sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_criteria_met==TRUE)
-        
-        p_repli_stat_sig_claims_opposite_dir_wtd <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==FALSE,w=x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        n_repli_stat_sig_claims_opposite_dir <-
-          sum(repli_outcomes$repli_p_value <= 0.05 & repli_outcomes$repli_pattern_criteria_met==FALSE)
-        
-        p_repli_stat_sig_claims_opposite_dir <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==FALSE,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_null_sig_claims_or_opposite_dir_wtd <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_p_value > 0.05 | x$repli_pattern_criteria_met==FALSE,w=x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_null_sig_claims_or_opposite_dir_wtd <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_p_value > 0.05 | x$repli_pattern_criteria_met==FALSE,w=x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        n_repli_null_sig_claims_or_opposite_dir <- sum(repli_outcomes$repli_p_value > 0.05 | repli_outcomes$repli_pattern_criteria_met==FALSE)
-        
-        p_repli_null_sig_claims_or_opposite_dir <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            mean(x$repli_p_value > 0.05 | x$repli_pattern_criteria_met==FALSE,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        repli_outcomes_merged_pvals <- repli_outcomes_merged[!is.na(repli_outcomes_merged$orig_p_value) & !is.na(repli_outcomes_merged$repli_p_value),]
-        
-        zcurve.summary <- summary(zcurve(p = repli_outcomes_merged_pvals$orig_p_value))
-        p_expected_repli_rate_claims	<- format.text.CI(point.estimate = zcurve.summary$coefficients[1,1],
-                                                       CI.lb = zcurve.summary$coefficients[1,2],
-                                                       CI.ub = zcurve.summary$coefficients[1,3],
-                                                       digits=1,alpha=.05,
-                                                       format.percent = TRUE)
-        
-        n_claims_with_pvalues <- nrow(repli_outcomes_merged_pvals)
-        
-        n_expected_repli_stat_sig_claims <- format.text.CI(
-          zcurve.summary$coefficients[1,1]*n_claims_with_pvalues,
-          zcurve.summary$coefficients[1,2]*n_claims_with_pvalues,
-          zcurve.summary$coefficients[1,3]*n_claims_with_pvalues,
-          digits=1)
-        
-        p_repli_stat_sig_claims_with_pvals_any_dir <- 
-          bootstrap.clust(data=repli_outcomes_merged_pvals,
-                          FUN=function(x) {
-                            mean(x$repli_p_value <= 0.05)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_p_value"),
-                          alpha=.05,tails="two-tailed",iters=1000,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        rm(zcurve.summary,repli_outcomes_merged_pvals)
-        
-        p_orig_ES_within_repli_ES_wtd <- 
-          bootstrap.clust(data=repli_outcomes_merged,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$orig_effect_size_value_repli >= x$repli_effect_size_ci_lb & 
-                                            x$orig_effect_size_value_repli <= x$repli_effect_size_ci_ub,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("orig_effect_size_value_repli","repli_effect_size_ci_lb","repli_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_orig_ES_within_repli_ES <- 
-          bootstrap.clust(data=repli_outcomes_merged,
-                          FUN=function(x) {
-                            mean(x$orig_effect_size_value_repli >= x$repli_effect_size_ci_lb & 
-                                   x$orig_effect_size_value_repli <= x$repli_effect_size_ci_ub,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("orig_effect_size_value_repli","repli_effect_size_ci_lb","repli_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_orig_ES_outside_repli_ES_orig_larger_wtd <-  
-          bootstrap.clust(data=repli_outcomes_merged[repli_outcomes_merged$orig_effect_size_value_repli < repli_outcomes_merged$repli_effect_size_ci_lb | 
-                                                       repli_outcomes_merged$orig_effect_size_value_repli > repli_outcomes_merged$repli_effect_size_ci_ub,],
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$orig_effect_size_value_repli > x$repli_effect_size_ci_ub,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("orig_effect_size_value_repli","repli_effect_size_ci_lb","repli_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_orig_ES_outside_repli_ES_orig_smaller_wtd <-  
-          bootstrap.clust(data=repli_outcomes_merged[repli_outcomes_merged$orig_effect_size_value_repli < repli_outcomes_merged$repli_effect_size_ci_lb | 
-                                                       repli_outcomes_merged$orig_effect_size_value_repli > repli_outcomes_merged$repli_effect_size_ci_ub,],
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$orig_effect_size_value_repli < x$repli_effect_size_ci_lb,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("orig_effect_size_value_repli","repli_effect_size_ci_lb","repli_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_ES_within_orig_ES_wtd <- 
-          bootstrap.clust(data=repli_outcomes_merged,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_effect_size_value >= x$orig_effect_size_ci_lb & 
-                                            x$repli_effect_size_value <= x$orig_effect_size_ci_ub,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_effect_size_value","orig_effect_size_ci_lb","orig_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_ES_within_orig_ES <- 
-          bootstrap.clust(data=repli_outcomes_merged,
-                          FUN=function(x) {
-                            mean(x$repli_effect_size_value >= x$orig_effect_size_ci_lb & 
-                                   x$repli_effect_size_value <= x$orig_effect_size_ci_ub,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_effect_size_value","orig_effect_size_ci_lb","orig_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_ES_outside_orig_ES_repli_larger_wtd <-  
-          bootstrap.clust(data=repli_outcomes_merged[repli_outcomes_merged$repli_effect_size_value < repli_outcomes_merged$orig_effect_size_ci_lb | 
-                                                       repli_outcomes_merged$repli_effect_size_value > repli_outcomes_merged$orig_effect_size_ci_ub,],
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_effect_size_value > x$orig_effect_size_ci_ub,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_effect_size_value","orig_effect_size_ci_lb","orig_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_ES_outside_orig_ES_repli_smaller_wtd <-  
-          bootstrap.clust(data=repli_outcomes_merged[repli_outcomes_merged$repli_effect_size_value < repli_outcomes_merged$orig_effect_size_ci_lb | 
-                                                       repli_outcomes_merged$repli_effect_size_value > repli_outcomes_merged$orig_effect_size_ci_ub,],
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_effect_size_value < x$orig_effect_size_ci_lb,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_effect_size_value","orig_effect_size_ci_lb","orig_effect_size_ci_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        n_repli_ES_within_orig_ES <- sum(
-          repli_outcomes_merged$repli_effect_size_value >= repli_outcomes_merged$orig_effect_size_ci_lb & 
-            repli_outcomes_merged$repli_effect_size_value <= repli_outcomes_merged$orig_effect_size_ci_ub,na.rm=TRUE)
-        
-        p_repli_ES_within_orig_PI_ES_wtd <-
-          bootstrap.clust(data=repli_outcomes_merged,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(x$repli_effect_size_value >= x$repli_effect_size_pi_lb & 
-                                            x$repli_effect_size_value <= x$repli_effect_size_pi_ub,
-                                          x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_effect_size_value","repli_effect_size_pi_lb","repli_effect_size_pi_ub"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        n_orig_ES_within_repli_ES <- sum(
-          repli_outcomes_merged$orig_effect_size_value_repli >= repli_outcomes_merged$repli_effect_size_ci_lb & 
-            repli_outcomes_merged$orig_effect_size_value_repli <= repli_outcomes_merged$repli_effect_size_ci_ub,na.rm=TRUE)
-        
-        n_orig_ES_and_repli_ES <- sum(!is.na(repli_outcomes_merged$orig_effect_size_value_repli) & 
-                                        !is.na(repli_outcomes_merged$repli_effect_size_value))
-        
-        p_repli_stat_sig_claims_same_dir <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            mean(x$repli_p_value <= 0.05 & x$repli_pattern_criteria_met==TRUE,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        median_orig_sample_size_wtd <- weighted.median(orig_outcomes$orig_sample_size_value,w=orig_outcomes$weight,na.rm = TRUE)
-        
-        SD_orig_sample_size_wtd <- round(sqrt(Hmisc::wtd.var(orig_outcomes$orig_sample_size_value,weights=orig_outcomes$weight)),0)
-        
-        median_repli_sample_size_wtd <- weighted.median(repli_outcomes$repli_sample_size_value,w=repli_outcomes$weight,na.rm = TRUE)
-        
-        SD_repli_sample_size_wtd <- round(sqrt(Hmisc::wtd.var(repli_outcomes$repli_sample_size_value,weights=repli_outcomes$weight)),0)
-        
-        figure_effect_size_comparison <- "Pending figure"
-        
-        n_figure_x_left	 <- "Pending figure"
-        
-        n_figure_x_right	 <- "Pending figure"
-        
-        papers_pearsons_estimatable_repli <- unique(repli_outcomes[!is.na(repli_outcomes$repli_pearsons_r_value),]$paper_id)
-        papers_pearsons_estimatable_orig <- unique(orig_outcomes[!is.na(orig_outcomes$orig_pearsons_r_value),]$paper_id)
-        papers_pearsons_estimatable_orig_and_repli <- papers_pearsons_estimatable_repli[papers_pearsons_estimatable_repli %in% papers_pearsons_estimatable_orig]
-        
-        n_papers_orig_and_repli_pearsons_estimatable <- length(papers_pearsons_estimatable_orig_and_repli)
-        
-        orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable <- ifelse(orig_outcomes$paper_id %in% papers_pearsons_estimatable_orig_and_repli & !is.na(orig_outcomes$orig_pearsons_r_value),
-                                                                             orig_outcomes$paper_id,NA)
-        
-        orig_outcomes <- orig_outcomes %>%
-          group_by(paper_id_orig_and_repli_pearsons_estimatable) %>%
-          mutate(weight.estimatable = 1/n()) %>%
-          ungroup()
-        
-        median_orig_pearsons_both_estimatable_wtd <- round(weighted.median(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$orig_pearsons_r_value,
-                                                                           orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight.estimatable,na.rm=TRUE),3)
-        
-        SD_orig_pearsons_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$orig_pearsons_r_value,
-                                                                           orig_outcomes[!is.na(orig_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight.estimatable,na.rm=TRUE)),3)
-        
-        repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable <- ifelse(repli_outcomes$paper_id %in% papers_pearsons_estimatable_orig_and_repli & !is.na(repli_outcomes$repli_pearsons_r_value),
-                                                                              repli_outcomes$paper_id,NA)
-        
-        repli_outcomes <- repli_outcomes %>%
-          group_by(paper_id_orig_and_repli_pearsons_estimatable) %>%
-          mutate(weight.estimatable = 1/n()) %>% 
-          ungroup()
-        
-        median_repli_pearsons_both_estimatable_wtd <- round(weighted.median(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$repli_pearsons_r_value,
-                                                                            repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight.estimatable,na.rm=TRUE),3)
-        
-        SD_repli_pearsons_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$repli_pearsons_r_value,
-                                                                            repli_outcomes[!is.na(repli_outcomes$paper_id_orig_and_repli_pearsons_estimatable),]$weight.estimatable,na.rm=TRUE)),3)
-        
-        repli_outcomes_merged$repli_pearsons_ratio_v_orig <- repli_outcomes_merged$repli_pearsons_r_value/repli_outcomes_merged$orig_pearsons_r_value
-        
-        p_median_pearsons_neg_ratio_v_orig_wtd <- 
-          bootstrap.clust(data=repli_outcomes_merged[],
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.median(1-x$repli_pearsons_ratio_v_orig,x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_pearsons_ratio_v_orig"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        repli_outcomes_SER <- repli_outcomes[repli_outcomes$repli_effect_size_type=="ser_method",]
-        orig_outcomes_SER <- orig_outcomes[orig_outcomes$orig_effect_size_type_repli=="ser_method" & !is.na(orig_outcomes$orig_effect_size_type_repli),]
-        repli_outcomes_SER_merged <- merge(repli_outcomes_SER,orig_outcomes_SER[,!(names(orig_outcomes_SER) %in% c("paper_id"))],
-                                           by="claim_id",all.x=TRUE,all.y=FALSE)
-        
-        papers_SER_estimatable_repli <- unique(repli_outcomes_SER[!is.na(repli_outcomes_SER$repli_effect_size_value),]$paper_id)
-        papers_SER_estimatable_orig <- unique(orig_outcomes_SER[!is.na(orig_outcomes_SER$orig_effect_size_value_repli),]$paper_id)
-        papers_SER_estimatable_orig_and_repli <- papers_SER_estimatable_repli[papers_SER_estimatable_repli %in% papers_SER_estimatable_orig]
-        
-        n_papers_orig_and_repli_SER_estimatable <- length(papers_SER_estimatable_orig_and_repli)
-        
-        orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable <- ifelse(orig_outcomes_SER$paper_id %in% papers_SER_estimatable_orig_and_repli & !is.na(orig_outcomes_SER$orig_effect_size_value_repli),
-                                                                            orig_outcomes_SER$paper_id,NA)
-        
-        orig_outcomes_SER <- orig_outcomes_SER %>% 
-          group_by(paper_id_orig_and_repli_SER_estimatable) %>% 
-          mutate(weight.estimatable = 1/n())
-        
-        median_orig_SER_both_estimatable_wtd <- round(
-          weighted.median(abs(orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$orig_effect_size_value_repli),
-                          orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight.estimatable,na.rm=TRUE),
-          3)
-        
-        SD_orig_SER_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(
-          abs(orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$orig_effect_size_value_repli),
-          orig_outcomes_SER[!is.na(orig_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight.estimatable,na.rm=TRUE)),
-          2)
-        
-        repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable <- ifelse(repli_outcomes_SER$paper_id %in% papers_SER_estimatable_orig_and_repli & !is.na(repli_outcomes_SER$repli_effect_size_value),
-                                                                             repli_outcomes_SER$paper_id,NA)
-        
-        repli_outcomes_SER <- repli_outcomes_SER %>% 
-          group_by(paper_id_orig_and_repli_SER_estimatable) %>% 
-          mutate(weight.estimatable = 1/n())
-        
-        median_repli_SER_both_estimatable_wtd <- round(
-          weighted.median(abs(repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$repli_effect_size_value),
-                          repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight.estimatable,na.rm=TRUE),
-          2)
-        
-        SD_repli_SER_both_estimatable_wtd <- round(sqrt(Hmisc::wtd.var(
-          abs(repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$repli_effect_size_value),
-          repli_outcomes_SER[!is.na(repli_outcomes_SER$paper_id_orig_and_repli_SER_estimatable),]$weight.estimatable,na.rm=TRUE)),
-          2)
-        
-        repli_outcomes_SER_merged$repli_SER_ratio_v_orig <- abs(repli_outcomes_SER_merged$repli_effect_size_value)/abs(repli_outcomes_SER_merged$orig_effect_size_value_repli)
-        
-        p_median_SER_neg_ratio_v_orig_wtd <- 
-          bootstrap.clust(data=repli_outcomes_SER_merged,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.median(1-x$repli_SER_ratio_v_orig,x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_SER_ratio_v_orig"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_neg_ratio_all_ES_repli_vs_orig <- "Pending discussion, probably drop"
-        
-        
-        ratio_repli_stat_sig_same_dir_new_data_vs_secondary <- 
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            mean(x[x$repli_type=="new data",]$repli_p_value<=.05 & x[x$repli_type=="new data",]$repli_pattern_criteria_met==TRUE,na.rm=TRUE)/
-                              mean(x[x$repli_type=="secondary data",]$repli_p_value<=.05 & x[x$repli_type=="secondary data",]$repli_pattern_criteria_met==TRUE,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("repli_type","repli_p_value","repli_pattern_criteria_met"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=FALSE,digits=1
-          )$formatted.text
-        
-        #Replication attempts using new data were X times as likely to have replications that were statistically significant and in the same direction with those replications using secondary data.
-        
-        n_repli_stat_sig_claims <- sum(repli_outcomes$repli_p_value <= 0.05)
-        
-        p_repli_stat_sig_claims <- 
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            mean(as.numeric(x$repli_p_value <= 0.05),na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("claim_id","repli_p_value"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_repli_stat_sig_claims_wtd <-
-          bootstrap.clust(data=repli_outcomes,
-                          FUN=function(x) {
-                            x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
-                            weighted.mean(as.numeric(x$repli_p_value <= 0.05),w=x$weight,na.rm=TRUE)
-                          },
-                          clustervar = "paper_id",
-                          keepvars=c("paper_id","claim_id","repli_p_value"),
-                          alpha=.05,tails="two-tailed",iters=iters,
-                          format.percent=TRUE,digits=1
-          )$formatted.text
-        
-        p_replication_rate_success_field_max <- "Pending paper process data pipeline"
-        
-        p_findings_within_1_SD <- "Pending discussion, probably drop"
-        
-        p_findings_within_2_SD <- "Pending discussion, probably drop"
-        
-        p_repli_orig_author_reviewed <- "Pending paper process data pipeline"
-        
-        
-      }
 
     }
     
@@ -1764,101 +1374,132 @@
     }
   }
 
-  figures <- function(repli_outcomes,orig_outcomes,paper_metadata,iters = 100){
+  figures <- function(repli_outcomes,orig_outcomes,paper_metadata,repli_binary,iters = 100){
     # Initialization and data preparation
     {
-      repli_outcomes <- repli_outcomes[repli_outcomes$repli_version_of_record,]
-      repli_outcomes <- repli_outcomes[!repli_outcomes$is_covid,]
       
-      fields.raw <-
-        c("political science",
-          "economics and finance",
-          "sociology and criminology",
-          "psychology and health",
-          "business",
-          "education")
-      fields.format.2.row <- 
-        c("Political\nScience",
-          "Economics\nand Finance",
-          "Sociology and\nCriminology",
-          "Psychology\nand Health",
-          "Business",
-          "Education")
-      fields.format.3.row <- 
-        c("Political\nScience",
-          "Economics\nand\nFinance",
-          "Sociology\nand\nCriminology",
-          "Psychology\nand\nHealth",
-          "Business",
-          "Education")
-      fields.abbreviated <- 
-        c("Political Science",
-          "Economics",
-          "Sociology",
-          "Psychology",
-          "Business",
-          "Education")
+      # Set defaults for convenience
+      {
+        if (!exists("iters")){ iters <- 100}
+        if (!exists("generate_binary_data")){ generate_binary_data <- FALSE}
+      }
       
-      binvars.raw <- c("repli_score_criteria_met",
-                       "repli_binary_analyst",
-                       "repli_binary_orig_wthn",
-                       "repli_binary_rep_wthn",
-                       "repli_binary_wthn_pi",
-                       "repli_binary_meta_success",
-                       "repli_binary_sum_p",
-                       "repli_binary_telescopes",
-                       "repli_binary_bf_result",
-                       "repli_binary_bayes_rep",
-                       "repli_binary_bma_result",
-                       "repli_binary_skep_p",
-                       "repli_binary_correspondence")
-      binvars.order <- binvars.raw
+      # Trim out non-version of record lines and non-COVID entries
+      {
+        repli_outcomes_orig <- repli_outcomes
+        
+        repli_outcomes <- repli_outcomes[repli_outcomes$repli_version_of_record,]
+        repli_outcomes <- repli_outcomes[!repli_outcomes$is_covid,]
+      }
       
-      binvars.short <- c("Sig. + pattern",
-                         "Analyst interpretation",
-                         "Orig. in rep. CI",
-                         "Rep. in orig. CI",
-                         "Rep. in prediction interval",
-                         "Meta-analysis",
-                         "Sum of p-values",
-                         "Small telescopes",
-                         "Bayes factor",
-                         "Replication Bayes factor",
-                         "Bayesian meta-analysis",
-                         "Skeptical p-value",
-                         "Correspondence test")
-      binvars.group <- c("Statistic significance / p-value based measures",
-                         "SCORE specific",
-                         "Contained within interval measures",
-                         "Contained within interval measures",
-                         "Contained within interval measures",
-                         "Meta analysis based measures",
-                         "Statistic significance / p-value based measures",
-                         "Combined effect magnitude and uncertainty measures",
-                         "Combined effect magnitude and uncertainty measures",
-                         "Combined effect magnitude and uncertainty measures",
-                         "Meta analysis based measures",
-                         "Statistic significance / p-value based measures",
-                         "Combined effect magnitude and uncertainty measures")
+      # Generate binary data. Note: generate_binary_data flag by default is set 
+      # to FALSE, which pulls the binary data precalculated from the data pipeline.
+      # If set to TRUE, the code will run to generate the binary success measures
+      # from scratch. This is time consuming, but will produce identical results)
+      {
+        if(generate_binary_data==TRUE ){
+          # FILL IN WITH code from Andrew
+          
+        } else {
+          # Switch to paper_id / claim_id coding
+          repli_binary <- merge(repli_outcomes[c("paper_id","claim_id","report_id","repli_score_criteria_met")],
+                                repli_binary,all.x = FALSE,all.y=TRUE,by="report_id")
+          repli_binary$report_id <- NULL
+        }
+      }
       
-      binvars.order <- c("repli_binary_analyst",
-                         "repli_score_criteria_met",
-                         "repli_binary_sum_p",
-                         "repli_binary_skep_p",
+      # Set binary measures variable names
+      {
+        fields.raw <-
+          c("political science",
+            "economics and finance",
+            "sociology and criminology",
+            "psychology and health",
+            "business",
+            "education")
+        fields.format.2.row <- 
+          c("Political\nScience",
+            "Economics\nand Finance",
+            "Sociology and\nCriminology",
+            "Psychology\nand Health",
+            "Business",
+            "Education")
+        fields.format.3.row <- 
+          c("Political\nScience",
+            "Economics\nand\nFinance",
+            "Sociology\nand\nCriminology",
+            "Psychology\nand\nHealth",
+            "Business",
+            "Education")
+        fields.abbreviated <- 
+          c("Political Science",
+            "Economics",
+            "Sociology",
+            "Psychology",
+            "Business",
+            "Education")
+        
+        binvars.raw <- c("repli_score_criteria_met",
+                         "repli_binary_analyst",
                          "repli_binary_orig_wthn",
                          "repli_binary_rep_wthn",
                          "repli_binary_wthn_pi",
                          "repli_binary_meta_success",
-                         "repli_binary_bma_result",
+                         "repli_binary_sum_p",
                          "repli_binary_telescopes",
                          "repli_binary_bf_result",
                          "repli_binary_bayes_rep",
+                         "repli_binary_bma_result",
+                         "repli_binary_skep_p",
                          "repli_binary_correspondence")
-      
-      df.binvars <- data.frame(binvars.raw,binvars.short,binvars.group)
-      df.binvars <- do.call(rbind,lapply(binvars.order,function(x) {
-        df.binvars[df.binvars$binvars.raw==x,]
-      }))
+        binvars.order <- binvars.raw
+        
+        binvars.short <- c("Sig. + pattern",
+                           "Analyst interpretation",
+                           "Orig. in rep. CI",
+                           "Rep. in orig. CI",
+                           "Rep. in prediction interval",
+                           "Meta-analysis",
+                           "Sum of p-values",
+                           "Small telescopes",
+                           "Bayes factor",
+                           "Replication Bayes factor",
+                           "Bayesian meta-analysis",
+                           "Skeptical p-value",
+                           "Correspondence test")
+        binvars.group <- c("Statistic significance / p-value based measures",
+                           "SCORE specific",
+                           "Contained within interval measures",
+                           "Contained within interval measures",
+                           "Contained within interval measures",
+                           "Meta analysis based measures",
+                           "Statistic significance / p-value based measures",
+                           "Combined effect magnitude and uncertainty measures",
+                           "Combined effect magnitude and uncertainty measures",
+                           "Combined effect magnitude and uncertainty measures",
+                           "Meta analysis based measures",
+                           "Statistic significance / p-value based measures",
+                           "Combined effect magnitude and uncertainty measures")
+        
+        binvars.order <- c("repli_binary_analyst",
+                           "repli_score_criteria_met",
+                           "repli_binary_sum_p",
+                           "repli_binary_skep_p",
+                           "repli_binary_orig_wthn",
+                           "repli_binary_rep_wthn",
+                           "repli_binary_wthn_pi",
+                           "repli_binary_meta_success",
+                           "repli_binary_bma_result",
+                           "repli_binary_telescopes",
+                           "repli_binary_bf_result",
+                           "repli_binary_bayes_rep",
+                           "repli_binary_correspondence")
+        
+        df.binvars <- data.frame(binvars.raw,binvars.short,binvars.group)
+        df.binvars <- do.call(rbind,lapply(binvars.order,function(x) {
+          df.binvars[df.binvars$binvars.raw==x,]
+        }))
+      }
     }
     
     # Figure generation
@@ -1867,8 +1508,8 @@
       {
         # Data wrangling
         {
-          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-                                           df.binvars$binvars.raw)]
+          # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+          #                                  df.binvars$binvars.raw)]
           
           # Summarize by proportions w/ CIs
           binary.proportions <- 
@@ -1975,13 +1616,13 @@
       }
       
       # (Depracated) Binary counts
-      {
+      if(FALSE){
         # Data wrangling
         {
-          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-                                           df.binvars$binvars.raw)]
-          # Drop everything that doesn't have all measures
-          repli_binary <- na.omit(repli_binary)
+          # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+          #                                  df.binvars$binvars.raw)]
+          # # Drop everything that doesn't have all measures
+          # repli_binary <- na.omit(repli_binary)
 
           
           
@@ -2109,8 +1750,8 @@
       {
         # Data wrangling
         {
-          repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-                                           df.binvars$binvars.raw)]
+          # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
+          #                                  df.binvars$binvars.raw)]
 
           # Summarize by proportions w/ CIs
           repli_binary_binaries <- repli_binary[,3:ncol(repli_binary)]
@@ -2480,12 +2121,11 @@ if(TRUE){
   }
   
   # Load data
-  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts")
+  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata","status","all_rr_attempts","repli_binary")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
     #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
   }
-  
   
   # Pull paper to find what tags are in paper
   paper_text <- drive_read_string(file=googledrive::as_id("1mauNAwu0eZfvh5-5p44wnKz8NQL-5Tm_bAyZNseTONo"),
@@ -2504,7 +2144,8 @@ if(TRUE){
                                        repli_outcomes=repli_outcomes,
                                        orig_outcomes=orig_outcomes,
                                        paper_metadata=paper_metadata,
-                                       all_rr_attempts=all_rr_attempts)
+                                       all_rr_attempts=all_rr_attempts,
+                                       repli_binary=repli_binary)
   
   # Generate list of tags
   values_text <- do.call(c,lapply(1:length(tags),function(x) {
@@ -2523,7 +2164,7 @@ if(TRUE){
   
   # Generate figures
   if (1==1){
-    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata,iters=1000)
+    generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata,repli_binary,iters=1000)
     
     ggsave(
       "Analysis/Paper 5/Code and data/Figures/figure 1.png",
