@@ -91,17 +91,27 @@ create_repli_analytic <- function(repli_export,
         !is.na(new_is_ml) ~ new_is_ml,
         .default = "is manylabs"
       ),
-        # case_match(rr_is_manylabs,
-        #                        "non_ml" ~ FALSE,
-        #                        .default = TRUE),
-
       manylabs_type = case_match(rr_is_manylabs,
                                  "ml_aggregation" ~ "aggregation",
                                  "ml_count" ~ "count",
                                  "ml_instance_primary" ~ "instance_primary",
                                  "non_ml" ~ NA,
                                  .default = rr_is_manylabs),
+      type_internal = case_when(
+        is_covid == TRUE ~ "covid",
+        rr_id %in% type_bushel$rr_id ~ "bushel",
+        paper_id %in% type_p1$paper_id ~ "p1",
+        paper_id %in% type_p2$paper_id ~ "p2"
+      ),
+      single_trace_equivalent = case_when(
+        type_internal == "bushel" & claim_id %in% single_equiv$claim_id ~ TRUE,
+        .default = FALSE
+      ),
       repli_version_of_record = case_when(
+        # bushel replications that get used in separate many-labs aggregations
+        # shouldn't be VOR
+        single_trace_equivalent == TRUE & is_manylabs != "not manylabs" ~ FALSE,
+        # otherwise use the normal VOR filtering scheme
         (unique_report_id %in% repli_vor$unique_report_id) ~ TRUE,
         .default = FALSE
       ),
@@ -124,16 +134,6 @@ create_repli_analytic <- function(repli_export,
         rr_pearsons_r_defined,
         "yes" ~ TRUE,
         "no" ~ FALSE
-      ),
-      type_internal = case_when(
-        is_covid == TRUE ~ "covid",
-        rr_id %in% type_bushel$rr_id ~ "bushel",
-        paper_id %in% type_p1$paper_id ~ "p1",
-        paper_id %in% type_p2$paper_id ~ "p2"
-      ),
-      single_trace_equivalent = case_when(
-        type_internal == "bushel" & claim_id %in% single_equiv$claim_id ~ TRUE,
-        .default = FALSE
       ),
       across(all_of(factors), as.factor),
       rr_statistic_type_reported = case_match(
