@@ -658,6 +658,92 @@ list(
 )
 ```
 
+### Auxiliary Datasets
+
+```{targets aux-data}
+list(
+  # Non-significant bushels
+  # Coding out significant vs non-significant bushel claims
+  tar_target(non_significant_bushels_gsheet,
+             "1C89wRO_dZ1_qq9Ow0RpaWK2jWteloo9zPS9pW9VdbP0"),
+  tar_target(non_significant_bushels_moddate,
+             get_google_mod_date(non_significant_bushels_gsheet),
+             cue = tar_cue("always")),
+  tar_target(non_significant_bushels,
+             read_google_sheet(non_significant_bushels_gsheet,
+                               non_significant_bushels_moddate,
+                               sheet = "claims")),
+  
+  # RR attrition 
+  # All replication and reproduction projects that were matched with a team. 
+  tar_target(rr_attrition_gsheet,
+             "1EyUGgw8uGaCIP9nLXKh3IwqqU4DoAM4ZV6K5i1dOTHo"),
+  tar_target(rr_attrition_moddate,
+             get_google_mod_date(rr_attrition_gsheet),
+             cue = tar_cue("always")),
+  tar_target(rr_attrition,
+             read_google_sheet(rr_attrition_gsheet,
+                               rr_attrition_moddate,
+                               sheet = "sourced",
+                               drop_cols = "indicator")),
+  
+  # Never sourced
+  # Reasons why non-matched papers were not plausible for replication
+  tar_target(never_sourced_gsheet,
+             "1OVfv_dDsfAeBOtx9-IaTNgPJv5-OFaHS4cK45aYsBpo"),
+  tar_target(never_sourced_moddate,
+             get_google_mod_date(never_sourced_gsheet),
+             cue = tar_cue("always")),
+  tar_target(never_sourced,
+             read_google_sheet(never_sourced_gsheet,
+                               never_sourced_moddate,
+                               sheet = "never_sourced",
+                               drop_cols = c("paper_link", "confidence"))),
+  
+  # Alternative Power Coding
+  tar_target(ser_vs_traditional_gsheet,
+             "1hGT5cEnadMVocvu-9LnfnFfZRZadYCjjPiFy41zwxWw"),
+  tar_target(ser_vs_traditional_moddate,
+             get_google_mod_date(ser_vs_traditional_gsheet),
+             cue = tar_cue("always")),
+  
+  ## Traditional
+  tar_target(traditional_power,
+             read_google_sheet(ser_vs_traditional_gsheet,
+                               ser_vs_traditional_moddate,
+                               sheet = "traditional")),
+  ## SER
+  tar_target(ser_power,
+             read_google_sheet(ser_vs_traditional_gsheet,
+                               ser_vs_traditional_moddate,
+                               sheet = "ser")),
+  
+  # Full Dates
+  # Start and end dates of projects
+  tar_target(full_dates_file,
+             "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
+  tar_target(full_dates_moddate,
+             get_google_mod_date(full_dates_file),
+             cue = tar_cue("always")),
+  tar_target(full_dates,
+             read_google_csv(full_dates_file,
+                             full_dates_moddate,
+                             col_types = c("cccDDD"))),
+  
+  # Preregistration Indicators
+  # Whether the original paper mentions preregistration
+  tar_target(prereg_indicators_file,
+             "1fOO4EoOkM8uswzgFczBlArsHbrf2KFeE"),
+  tar_target(prereg_indicators_moddate,
+             get_google_mod_date(prereg_indicators_file),
+             cue = tar_cue("always")),
+  tar_target(prereg_indicators,
+             read_google_csv(prereg_indicators_file,
+                             prereg_indicators_moddate,
+                             col_types = c("clcd")))
+)
+```
+
 ## Processed Data
 
 Paper metadata.

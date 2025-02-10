@@ -134,7 +134,8 @@ read_google_tsv <- function(file_id,
 
 read_google_sheet <- function(file_id, 
                               mod_date,
-                              sheet = NULL) {
+                              sheet = NULL,
+                              drop_cols = NULL) {
   
   # This triggers tar_make() to load data if the modification date has
   # changed since last run
@@ -144,7 +145,8 @@ read_google_sheet <- function(file_id,
   
   file_id %>%
     read_sheet(sheet = sheet) %>%
-    mutate(across(where(is.list), as.character))
+    mutate(across(where(is.list), as.character)) %>%
+    select(-any_of(drop_cols))
   
 }
 
