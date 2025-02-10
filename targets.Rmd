@@ -100,7 +100,15 @@ list(
   tar_target(all_metadata_filled,
              read_google_tsv(all_metadata_filled_file,
                              all_metadata_filled_moddate)),
-  
+  # CR_metadata_prepool.csv
+  tar_target(CR_metadata_prepool_file,
+             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
+  tar_target(CR_metadata_prepool_moddate,
+             get_google_mod_date(CR_metadata_prepool_file),
+             cue = tar_cue("always")),
+  tar_target(CR_metadata_prepool,
+             read_google_csv(CR_metadata_prepool_file,
+                             CR_metadata_prepool_moddate)),
   # covid_metadata.tsv
   # Data about COVID papers
   tar_target(covid_metadata_file,
