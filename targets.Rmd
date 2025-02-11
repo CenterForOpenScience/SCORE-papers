@@ -213,6 +213,27 @@ list(
              read_google_tsv(stitched_claims_file,
                              stitched_claims_moddate)),
   
+  # P1 claims
+  tar_target(tagtable_p1_file,
+             "1NmhTX53-SWsMpIbgZpm2bWm1SzRq071F"),
+  tar_target(tagtable_p1_moddate,
+             get_google_mod_date(tagtable_p1_file),
+             cue = tar_cue("always")),
+  tar_target(tagtable_p1,
+             read_google_tsv(tagtable_p1_file,
+                             tagtable_p1_moddate)),
+  
+  # P2 claims
+  tar_target(tagtable_p2_CES_file,
+             "1Lr2SXHO261GaifluZSZ1kl7OjjbnHrqe"),
+  tar_target(tagtable_p2_CES_moddate,
+             get_google_mod_date(tagtable_p2_CES_file),
+             cue = tar_cue("always")),
+  tar_target(tagtable_p2_CES,
+             read_google_tsv(tagtable_p2_CES_file,
+                             tagtable_p2_CES_moddate)),
+  
+  
   # original_variables/ ----
   # https://drive.google.com/drive/folders/1egHC9oK1GXGPCgGuWsaSF6lLO9Z38XD_
   
