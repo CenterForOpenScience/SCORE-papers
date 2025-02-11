@@ -305,6 +305,16 @@ list(
              read_google_csv(rr_projects_file,
                              rr_projects_moddate)),
   
+  # Replication case exclusions
+  tar_target(repli_case_exclusions_gsheet,
+             "17cyjatTcqN36_vZ_IvWtcr4n2Ep-KlKJ-PS3K-q6wdU"),
+  tar_target(repli_case_exclusions_mod_date,
+             get_google_mod_date(repli_case_exclusions_gsheet),
+             cue = tar_cue("always")), 
+  tar_target(repli_case_exclusions,
+             read_google_sheet(repli_case_exclusions_gsheet,
+                               repli_case_exclusions_mod_date)),
+  
   ## changes/ ----
   # repli_input_changelog (Google Sheet)
   tar_target(repli_input_changelog_file,
@@ -794,13 +804,14 @@ list(
   # Create replication analytic dataset
   tar_target(repli_outcomes,
              create_repli_analytic(repli_export,
-                                  rr_attempts_minted,
-                                  rr_statistics_output_p2,
-                                  status,
-                                  stitched_claims,
-                                  effectsize_outcome,
-                                  orig_outcomes,
-                                  paper_metadata)),
+                                   rr_attempts_minted,
+                                   rr_statistics_output_p2,
+                                   status,
+                                   stitched_claims,
+                                   effectsize_outcome,
+                                   orig_outcomes,
+                                   paper_metadata,
+                                   repli_case_exclusions)),
 
   tar_target(repli_binary,
              calculate_repli_binary(repli_outcomes,

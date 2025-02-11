@@ -6,7 +6,8 @@ create_repli_analytic <- function(repli_export,
                                   stitched_claims,
                                   effectsize_outcome,
                                   orig_outcomes,
-                                  paper_metadata) {
+                                  paper_metadata,
+                                  repli_case_exclusions) {
   
   # Determine what delivery each RR was from
   type_p1 <- status %>%
@@ -235,6 +236,7 @@ create_repli_analytic <- function(repli_export,
               lor_conversion)) %>%
     rename(repli_conv_r = cos_r,
            repli_conv_r_lb = cos_r_lb,
-           repli_conv_r_ub = cos_r_ub)
+           repli_conv_r_ub = cos_r_ub) %>%
+    filter(!(report_id %in% repli_case_exclusions$report_id))
   
 }
