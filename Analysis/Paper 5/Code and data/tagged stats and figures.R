@@ -5,6 +5,7 @@
   tagged_stats <- function(iters = 100,
                            repli_outcomes,orig_outcomes,paper_metadata,
                            all_rr_attempts,repli_binary,status,publications,
+                           non_significant_bushels,
                            generate_binary_data=FALSE){
   
     # Data preparation
@@ -2535,7 +2536,8 @@ if(TRUE){
   
   # Load data
   objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
-                       "status","all_rr_attempts","repli_binary","publications")
+                       "status","all_rr_attempts","repli_binary","publications",
+                       "non_significant_bushels")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
     #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -2560,7 +2562,7 @@ if(TRUE){
                                        paper_metadata=paper_metadata,
                                        all_rr_attempts=all_rr_attempts,
                                        repli_binary=repli_binary,
-                                       status=status,
+                                       status=status,non_significant_bushels=non_significant_bushels,
                                        publications=publications)
 
   # Generate list of tags
