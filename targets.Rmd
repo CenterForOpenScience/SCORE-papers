@@ -73,45 +73,13 @@ tar_source(files = "pipeline")
 
 # Targets
 
-## Load in Raw Data
+Most raw data files will have three targets associated with them - one for their ID on Google Drive or OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
 
-Load in the raw data files from Google Drive and the OSF. Most raw data files will have three targets associated with them - one for their ID on Google Drive or OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
+## Publication-level Metadata
 
-### Google Drive
-
-#### COS SCORE Data
-
-The [COS SCORE Data](https://drive.google.com/drive/folders/0AA9FavlM9wvFUk9PVA) Google Drive contains most of the raw data files produced by COS. 
-
-```{targets raw-cos-score-data}
+``` {targets publications}
 list(
-  # All within the "raw" folder
-  
-  # paper_level/ ----
-  # https://drive.google.com/drive/folders/1G9ymQeRuxdQ95TOuXm0PZH3ELz4S944m
-  
-  # all_metadata_filled.tsv
-  # Data about the papers from both Web of Science and CrossRef
-  tar_target(all_metadata_filled_file,
-             "1W-sNolZQegujz82TU2RKe0tfCvofrhm1"),
-  tar_target(all_metadata_filled_moddate,
-             get_google_mod_date(all_metadata_filled_file),
-             cue = tar_cue("always")),
-  tar_target(all_metadata_filled,
-             read_google_tsv(all_metadata_filled_file,
-                             all_metadata_filled_moddate)),
-  
-  # covid_metadata.tsv
-  # Data about COVID papers
-  tar_target(covid_metadata_file,
-             "1coSF-yytg1uNvboJ90qWWjrlJMGzjfMu"),
-  tar_target(covid_metadata_moddate,
-             get_google_mod_date(covid_metadata_file),
-             cue = tar_cue("always")),
-  tar_target(covid_metadata,
-             read_google_tsv(covid_metadata_file,
-                             covid_metadata_moddate)),
-  
+  # Raw data ----
   # publications.csv
   # Journal-level data for all articles
   tar_target(publications_file,
@@ -133,7 +101,7 @@ list(
              load_changelog(pub_changelog_file,
                             pub_changelog_moddate)),
   
-  #SCORE TOP factor scoring sheet
+  # SCORE TOP factor scoring sheet
   # TOP factor info
   tar_target(top_factor_file,
              "1hDpl8wHE7RRh9rksO1izx-hRtnjaW9u471yV0scHBnA"),
@@ -144,6 +112,72 @@ list(
              read_google_sheet(top_factor_file,
                                top_factor_moddate,
                                sheet = "From TopFactor website")),
+  
+  # Processed Data ----
+  ## Update and Transform Data ----
+  tar_target(pubs_updated,
+             transform_pubs(publications_raw,
+                            pub_changelog)),
+  
+  ## Merge Data ----
+  # Merge publication data with top factor information
+  tar_target(publications,
+             left_join(pubs_updated,
+                       top_factor,
+                       by = join_by(publication_standard == Journal)))
+  
+)
+```
+
+## Paper-level Metadata
+
+```{targets papers}
+list(
+  # Raw Data ----
+  # all_metadata_filled.tsv
+  # Data about the papers from both Web of Science and CrossRef
+  tar_target(all_metadata_filled_file,
+             "1W-sNolZQegujz82TU2RKe0tfCvofrhm1"),
+  tar_target(all_metadata_filled_moddate,
+             get_google_mod_date(all_metadata_filled_file),
+             cue = tar_cue("always")),
+  tar_target(all_metadata_filled,
+             read_google_tsv(all_metadata_filled_file,
+                             all_metadata_filled_moddate)),
+
+  # covid_metadata.tsv
+  # Data about COVID papers
+  tar_target(covid_metadata_file,
+             "1coSF-yytg1uNvboJ90qWWjrlJMGzjfMu"),
+  tar_target(covid_metadata_moddate,
+             get_google_mod_date(covid_metadata_file),
+             cue = tar_cue("always")),
+  tar_target(covid_metadata_raw,
+             read_google_tsv(covid_metadata_file,
+                             covid_metadata_moddate)),
+  
+  # status.csv
+  # Canonical source for sub-samples of the data
+  # Does not contain COVID papers
+  tar_target(status_file,
+             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
+  tar_target(status_moddate,
+             get_google_mod_date(status_file),
+             cue = tar_cue("always")),
+  tar_target(status,
+             read_google_csv(status_file,
+                             status_moddate)),
+  
+  ## Raw data with unknown use ----
+  # CR_metadata_prepool.csv
+  tar_target(CR_metadata_prepool_file,
+             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
+  tar_target(CR_metadata_prepool_moddate,
+             get_google_mod_date(CR_metadata_prepool_file),
+             cue = tar_cue("always")),
+  tar_target(CR_metadata_prepool,
+             read_google_csv(CR_metadata_prepool_file,
+                             CR_metadata_prepool_moddate)),
   
   # p2_id_key.csv
   # Links cannonical paper ID to the IDs used by other teams
@@ -157,18 +191,38 @@ list(
              read_google_csv(p2_id_key_file,
                              p2_id_key_moddate)),
   
-  # status.csv
-  # Canonical source for subsamples of the data
-  # Does not contain COVID papers
-  tar_target(status_file,
-             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
-  tar_target(status_moddate,
-             get_google_mod_date(status_file),
-             cue = tar_cue("always")),
-  tar_target(status,
-             read_google_csv(status_file,
-                             status_moddate)),
+  # Processed Data ----
+  ## Transform Data ----
+  # Metadata for covid papers was collected separately from other papers
+  # Reconcile differences for merging
+  tar_target(covid_metadata,
+             transform_covid_metadata(covid_metadata_raw)),
   
+  tar_target(non_covid_metadata,
+             transform_paper_metadata(all_metadata_filled, status)),
+  
+  ## Merge Data ----
+  tar_target(paper_metadata,
+             merge_paper_metadata(non_covid_metadata,
+                                  covid_metadata,
+                                  publications))
+  
+)
+```
+
+
+### Claims
+
+### Google Drive
+
+#### COS SCORE Data
+
+The [COS SCORE Data](https://drive.google.com/drive/folders/0AA9FavlM9wvFUk9PVA) Google Drive contains most of the raw data files produced by COS. 
+
+```{targets raw-cos-score-data}
+list(
+  # All within the "raw" folder
+
   # claim_extraction/ ----
   # https://drive.google.com/drive/folders/1DowEarJ3t167Jxqjtm5o81PCG3qp2Kz3
   
@@ -204,6 +258,27 @@ list(
   tar_target(stitched_claims,
              read_google_tsv(stitched_claims_file,
                              stitched_claims_moddate)),
+  
+  # P1 claims
+  tar_target(tagtable_p1_file,
+             "1NmhTX53-SWsMpIbgZpm2bWm1SzRq071F"),
+  tar_target(tagtable_p1_moddate,
+             get_google_mod_date(tagtable_p1_file),
+             cue = tar_cue("always")),
+  tar_target(tagtable_p1,
+             read_google_tsv(tagtable_p1_file,
+                             tagtable_p1_moddate)),
+  
+  # P2 claims
+  tar_target(tagtable_p2_CES_file,
+             "1Lr2SXHO261GaifluZSZ1kl7OjjbnHrqe"),
+  tar_target(tagtable_p2_CES_moddate,
+             get_google_mod_date(tagtable_p2_CES_file),
+             cue = tar_cue("always")),
+  tar_target(tagtable_p2_CES,
+             read_google_tsv(tagtable_p2_CES_file,
+                             tagtable_p2_CES_moddate)),
+  
   
   # original_variables/ ----
   # https://drive.google.com/drive/folders/1egHC9oK1GXGPCgGuWsaSF6lLO9Z38XD_
@@ -296,6 +371,16 @@ list(
   tar_target(rr_projects_raw,
              read_google_csv(rr_projects_file,
                              rr_projects_moddate)),
+  
+  # Replication case exclusions
+  tar_target(repli_case_exclusions_gsheet,
+             "17cyjatTcqN36_vZ_IvWtcr4n2Ep-KlKJ-PS3K-q6wdU"),
+  tar_target(repli_case_exclusions_mod_date,
+             get_google_mod_date(repli_case_exclusions_gsheet),
+             cue = tar_cue("always")), 
+  tar_target(repli_case_exclusions,
+             read_google_sheet(repli_case_exclusions_gsheet,
+                               repli_case_exclusions_mod_date)),
   
   ## changes/ ----
   # repli_input_changelog (Google Sheet)
@@ -650,27 +735,93 @@ list(
 )
 ```
 
-## Processed Data
+### Auxiliary Datasets
 
-Paper metadata.
-
-```{targets processed-papers}
+```{targets aux-data}
 list(
-  tar_target(pubs_updated,
-             update_pubs(publications_raw,
-                         pub_changelog)),
+  # Non-significant bushels
+  # Coding out significant vs non-significant bushel claims
+  tar_target(non_significant_bushels_gsheet,
+             "1C89wRO_dZ1_qq9Ow0RpaWK2jWteloo9zPS9pW9VdbP0"),
+  tar_target(non_significant_bushels_moddate,
+             get_google_mod_date(non_significant_bushels_gsheet),
+             cue = tar_cue("always")),
+  tar_target(non_significant_bushels,
+             read_google_sheet(non_significant_bushels_gsheet,
+                               non_significant_bushels_moddate,
+                               sheet = "claims")),
   
-  tar_target(publications,
-             transform_pubs(pubs_updated,
-                            top_factor)),
+  # RR sourced 
+  # All replication and reproduction projects that were matched with a team. 
+  tar_target(rr_sourced_gsheet,
+             "1EyUGgw8uGaCIP9nLXKh3IwqqU4DoAM4ZV6K5i1dOTHo"),
+  tar_target(rr_sourced_moddate,
+             get_google_mod_date(rr_sourced_gsheet),
+             cue = tar_cue("always")),
+  tar_target(rr_sourced,
+             read_google_sheet(rr_sourced_gsheet,
+                               rr_sourced_moddate,
+                               sheet = "sourced",
+                               drop_cols = "indicator")),
   
-  tar_target(paper_metadata,
-             merge_paper_metadata(all_metadata_filled,
-                                 publications,
-                                 covid_metadata,
-                                 status))
+  # Never sourced
+  # Reasons why non-matched papers were not plausible for replication
+  tar_target(never_sourced_gsheet,
+             "1OVfv_dDsfAeBOtx9-IaTNgPJv5-OFaHS4cK45aYsBpo"),
+  tar_target(never_sourced_moddate,
+             get_google_mod_date(never_sourced_gsheet),
+             cue = tar_cue("always")),
+  tar_target(never_sourced,
+             read_google_sheet(never_sourced_gsheet,
+                               never_sourced_moddate,
+                               sheet = "never_sourced",
+                               drop_cols = c("paper_link", "confidence"))),
+  
+  # Alternative Power Coding
+  tar_target(ser_vs_traditional_gsheet,
+             "1hGT5cEnadMVocvu-9LnfnFfZRZadYCjjPiFy41zwxWw"),
+  tar_target(ser_vs_traditional_moddate,
+             get_google_mod_date(ser_vs_traditional_gsheet),
+             cue = tar_cue("always")),
+  
+  ## Traditional
+  tar_target(traditional_power,
+             read_google_sheet(ser_vs_traditional_gsheet,
+                               ser_vs_traditional_moddate,
+                               sheet = "traditional")),
+  ## SER
+  tar_target(ser_power,
+             read_google_sheet(ser_vs_traditional_gsheet,
+                               ser_vs_traditional_moddate,
+                               sheet = "ser")),
+  
+  # Full Dates
+  # Start and end dates of projects
+  tar_target(full_dates_file,
+             "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
+  tar_target(full_dates_moddate,
+             get_google_mod_date(full_dates_file),
+             cue = tar_cue("always")),
+  tar_target(full_dates,
+             read_google_csv(full_dates_file,
+                             full_dates_moddate,
+                             col_types = c("cccDDD"))),
+  
+  # Preregistration Indicators
+  # Whether the original paper mentions preregistration
+  tar_target(prereg_indicators_file,
+             "1fOO4EoOkM8uswzgFczBlArsHbrf2KFeE"),
+  tar_target(prereg_indicators_moddate,
+             get_google_mod_date(prereg_indicators_file),
+             cue = tar_cue("always")),
+  tar_target(prereg_indicators,
+             read_google_csv(prereg_indicators_file,
+                             prereg_indicators_moddate,
+                             col_types = c("clcd")))
 )
 ```
+
+## Processed Data
 
 Replications/Reproductions variables data. QC'ed and merged.
 
@@ -700,13 +851,14 @@ list(
   # Create replication analytic dataset
   tar_target(repli_outcomes,
              create_repli_analytic(repli_export,
-                                  rr_attempts_minted,
-                                  rr_statistics_output_p2,
-                                  status,
-                                  stitched_claims,
-                                  effectsize_outcome,
-                                  orig_outcomes,
-                                  paper_metadata)),
+                                   rr_attempts_minted,
+                                   rr_statistics_output_p2,
+                                   status,
+                                   stitched_claims,
+                                   effectsize_outcome,
+                                   orig_outcomes,
+                                   paper_metadata,
+                                   repli_case_exclusions)),
 
   tar_target(repli_binary,
              calculate_repli_binary(repli_outcomes,
