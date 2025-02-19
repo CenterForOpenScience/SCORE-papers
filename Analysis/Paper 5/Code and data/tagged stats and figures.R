@@ -75,7 +75,7 @@
         binvars.order <- binvars.raw
         
         binvars.full.text <- c("Statistical signifance + pattern",
-                           "Analyst interpretation",
+                           "Subjective interpretation",
                            "Original effect in replication's CI",
                            "Replication effect in original's CI",
                            "Replication effect in prediction interval",
@@ -1007,7 +1007,19 @@
         
         rm(df.power)
         
+        n_bushel_claims_selected <- nrow(non_significant_bushels)
         
+        n_bushel_claims_selected_sig <- non_significant_bushels %>%
+          filter(nonsig != "T") %>% nrow()
+        
+        p_bushel_claims_selected_sig <- paste0(format.round(
+          100*n_bushel_claims_selected_sig/n_bushel_claims_selected,1),"%")
+        
+        non_significant_bushels %>%
+          count(nonsig != "T") %>%
+          mutate(prop = n/sum(n)) %>%
+          filter(`nonsig != "T"`) %>%
+          pull(prop)
 
       }
       
@@ -1552,7 +1564,10 @@
           count(rep_attempt) %>%
           nrow()
         
-        n_repli_attempt_started <- "MISSING"
+        n_repli_attempt_started <- all_rr_attempts %>%
+          filter(field != "covid") %>%
+          filter(str_detect(type, "Replication")) %>%
+          pull(rr_id) %>% unique() %>% length()
         
         n_repli_claims_same_protocol <- repli_outcomes_orig %>%
           filter(!is_covid) %>%
@@ -1669,7 +1684,7 @@
         binvars.order <- binvars.raw
         
         binvars.full.text <- c("Statistical signifance + pattern",
-                           "Analyst interpretation",
+                           "Subjective interpretation",
                            "Original effect in replication's CI",
                            "Replication effect in original's CI",
                            "Replication effect in prediction interval",
@@ -2102,12 +2117,12 @@
             # geom_point(aes(alpha = weight),size=3) +
             # scale_alpha_continuous(range=c(.1,.6),guide="none")+
               
-            # geom_point(aes(size = weight),alpha=.6) +
-            # scale_size_continuous(range=c(.5,3),guide="none")+
-
-            geom_point(aes(alpha = weight,size = weight)) +
+            geom_point(aes(size = weight),alpha=.6, stroke=NA) +
             scale_size_continuous(range=c(.5,3),guide="none")+
-            scale_alpha_continuous(range=c(.1,.6),guide="none")+
+
+            # geom_point(aes(alpha = weight,size = weight)) +
+            # scale_size_continuous(range=c(.5,3),guide="none")+
+            # scale_alpha_continuous(range=c(.1,.6),guide="none")+
               
             geom_rug() +
             scale_color_manual(labels = c("Failed", "Successful"),
@@ -2134,7 +2149,7 @@
               panel.grid = element_blank(),
               legend.position = "bottom"
             )+
-            guides(color = guide_legend(override.aes = list(linetype = 0)))+
+            guides(color = guide_legend(override.aes = list(linetype = 0,size=6)))+
             geom_xsidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
             geom_ysidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
             theme(
@@ -2217,9 +2232,12 @@
             # geom_point(aes(alpha = weight), size = 3) +
             # scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
-            geom_point(aes(alpha = weight,size = weight)) +
+            # geom_point(aes(alpha = weight,size = weight)) +
+            # scale_size_continuous(range=c(.5,3),guide="none")+
+            # scale_alpha_continuous(range=c(.1,.6),guide="none")+
+            
+            geom_point(aes(size = weight),alpha=.6, stroke=NA) +
             scale_size_continuous(range=c(.5,3),guide="none")+
-            scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
             geom_rug() +
             scale_color_manual(labels = c("Failed", "Successful"),
@@ -2266,9 +2284,12 @@
             # geom_point(aes(alpha = weight), size = 3) +
             # scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
-            geom_point(aes(alpha = weight,size = weight)) +
+            # geom_point(aes(alpha = weight,size = weight)) +
+            # scale_size_continuous(range=c(.5,3),guide="none")+
+            # scale_alpha_continuous(range=c(.1,.6),guide="none")+
+            
+            geom_point(aes(size = weight),alpha=.6, stroke=NA) +
             scale_size_continuous(range=c(.5,3),guide="none")+
-            scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
             geom_rug() +
             scale_color_manual(labels = c("Failed", "Successful"),
@@ -2485,6 +2506,39 @@
       #     }
       # }
       
+      # Supplement Fig 1
+      {
+        supp_figure_1 <- repli_outcomes %>% 
+          filter(!is_covid & repli_type != "original and secondary data") %>% # exclude covid and hybrids 
+          filter(is_manylabs == "not manylabs" | manylabs_type != "aggregation") %>% 
+          group_by(claim_id, rr_id) %>% 
+          arrange(desc(repli_sample_size_value)) %>% # exclude stage 1 when stage 2 is available
+          slice(1) %>% 
+          ungroup() %>% 
+          mutate(p2 = nchar(rr_id) > 4) %>%
+          mutate(type = select(., c(p2, repli_type)) %>% apply(1, function(x) str_c(x, collapse = "_"))) %>% 
+          select(report_id, type, power = repli_power_for_75_effect) %>% 
+          mutate(power = round(power*100, 0)) %>% 
+          drop_na() %>% 
+          ggplot(aes(x = power, fill = type)) +
+          geom_density(alpha = 0.5) +
+          scale_fill_manual(values = c("tomato", "deepskyblue", "tomato4", "deepskyblue4"), 
+                            labels = c("P1 new data", "P1 secondary data", "P2 new data", "P2 secondary data")) +
+          labs(
+            x = "Power (%)",
+            y = "",
+            fill = ""
+          ) +
+          theme_light() +
+          theme(
+            axis.text.y = element_blank(),
+            legend.position = "bottom",
+            panel.border = element_blank(),
+            panel.grid = element_blank(),
+            axis.ticks.y = element_blank()
+          )
+      }
+      
 
     }
     
@@ -2494,7 +2548,8 @@
         "figure_1"=figure_1,
         "figure_2"=figure_2,
         "figure_3"=figure_3,
-        "figure_4"=figure_4))
+        "figure_4"=figure_4,
+        "supp_figure_1"=supp_figure_1))
     }
   }
 }

@@ -11,7 +11,8 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
     
     # Trim out non-version of record entries (and save original version)
       repro_outcomes_inc_vor <- repro_outcomes
-      repro_outcomes <- repro_outcomes[!is.na(repro_outcomes$repro_version_of_record)&repro_outcomes$repro_version_of_record=="T",]
+      repro_outcomes <- repro_outcomes[!is.na(repro_outcomes$repro_version_of_record)&
+                                         repro_outcomes$repro_version_of_record=="T",]
     
     # Merge in paper metadata
       paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year","is_covid")]
