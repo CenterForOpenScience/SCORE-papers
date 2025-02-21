@@ -11,7 +11,8 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
     
     # Trim out non-version of record entries (and save original version)
       repro_outcomes_inc_vor <- repro_outcomes
-      repro_outcomes <- repro_outcomes[!is.na(repro_outcomes$repro_version_of_record)&repro_outcomes$repro_version_of_record=="T",]
+      repro_outcomes <- repro_outcomes[!is.na(repro_outcomes$repro_version_of_record)&
+                                         repro_outcomes$repro_version_of_record=="T",]
     
     # Merge in paper metadata
       paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year","is_covid")]
@@ -443,11 +444,24 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
         (n_papers_open_data_and_code_econ_polisci/n_papers_econ_polisci)/
           (n_papers_open_data_and_code_non_econ_polisci/n_papers_non_econ_polisci)
       },clustervar="paper_id",iters=iters)$formatted.text
-
+      
+      n_min_pr_edu_by_year <- min(table(pr_outcomes_modified[pr_outcomes_modified$field=="Education",]$pub_year))
+      n_max_pr_edu_by_year <- max(table(pr_outcomes_modified[pr_outcomes_modified$field=="Education",]$pub_year))
     }
     
     # Assessing outcome reproducibility
     {
+      n_pr_papers_author_gen_data <- nrow(all_rr_attempts %>%
+                   semi_join(status %>% filter(RR), by = "paper_id") %>%
+                   filter(str_detect(all_types, "Source Data Reproduction")) %>%
+                   select(paper_id) %>%
+                   bind_rows(
+                     pr_outcomes %>%
+                       filter(!covid & OA_data_shared != "no") %>%
+                       select(paper_id)
+                   ) %>%
+                   distinct())
+      
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
       n_papers_OR <- length(unique(repro_outcomes_OR$paper_id))
@@ -486,6 +500,9 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
     
     # Outcome reproducibility assessments in comparison with the sampling frame
     {
+      
+      
+      
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
       n_papers_completed_outcome_test <- length(unique(repro_outcomes_OR$paper_id))
@@ -550,6 +567,8 @@ tagged_stats <- function(iters = 100,repro_outcomes,pr_outcomes,orig_outcomes,pa
     # Outcome reproducibility assessments
     {
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
+      
+      repro_outcomes
       
       n_papers_OR_added_SDR <- length(unique(repro_outcomes_OR[repro_outcomes_OR$repro_type=="Source Data Reproduction",]$paper_id))
       

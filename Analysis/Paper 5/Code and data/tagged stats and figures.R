@@ -5,8 +5,21 @@
   tagged_stats <- function(iters = 100,
                            repli_outcomes,orig_outcomes,paper_metadata,
                            all_rr_attempts,repli_binary,status,publications,
+                           non_significant_bushels,rr_sourced,repli_export,
                            generate_binary_data=FALSE){
   
+    # Temporary load data for convenience
+    {
+      # Load data
+      objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
+                           "status","all_rr_attempts","repli_binary","publications",
+                           "non_significant_bushels","rr_sourced","repli_export","repli_case_exclusions")
+      for(i in 1:length(objects_to_load)){
+        assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+        #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+      }
+    }
+    
     # Data preparation
     {
       # Set defaults for convenience
@@ -74,7 +87,7 @@
         binvars.order <- binvars.raw
         
         binvars.full.text <- c("Statistical signifance + pattern",
-                           "Analyst interpretation",
+                           "Subjective interpretation",
                            "Original effect in replication's CI",
                            "Replication effect in original's CI",
                            "Replication effect in prediction interval",
@@ -121,7 +134,7 @@
       }
     }
     
-    # Stats
+    # Main section stats
     {
       # Tables
       {
@@ -1006,7 +1019,19 @@
         
         rm(df.power)
         
+        n_bushel_claims_selected <- nrow(non_significant_bushels)
         
+        n_bushel_claims_selected_sig <- non_significant_bushels %>%
+          filter(nonsig != "T") %>% nrow()
+        
+        p_bushel_claims_selected_sig <- paste0(format.round(
+          100*n_bushel_claims_selected_sig/n_bushel_claims_selected,1),"%")
+        
+        non_significant_bushels %>%
+          count(nonsig != "T") %>%
+          mutate(prop = n/sum(n)) %>%
+          filter(`nonsig != "T"`) %>%
+          pull(prop)
 
       }
       
@@ -1551,7 +1576,10 @@
           count(rep_attempt) %>%
           nrow()
         
-        n_repli_attempt_started <- "MISSING"
+        n_repli_attempt_started <- all_rr_attempts %>%
+          filter(field != "covid") %>%
+          filter(str_detect(type, "Replication")) %>%
+          pull(rr_id) %>% unique() %>% length()
         
         n_repli_claims_same_protocol <- repli_outcomes_orig %>%
           filter(!is_covid) %>%
@@ -1579,6 +1607,182 @@
       }
 
     }
+    
+    # Supplement stats
+    {
+      # Attrition of replication attempts selected in Phase 1
+      {
+        n_papers_repl_team_ident_but_not_complete <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          nrow()
+        
+        n_papers_repli_never_started <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          anti_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>% nrow()
+        
+        p_papers_repli_never_started <- paste0(format.round(
+          100*n_papers_repli_never_started/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_OSF_no_prereg <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(is.na(registered) & is.na(prereg) & !part) %>%
+          nrow()
+          
+        p_papers_repli_OSF_no_prereg <- paste0(format.round(
+          100*n_papers_repli_OSF_no_prereg/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_prereg_started_not_finished <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(part) %>%
+          nrow()
+        
+        p_papers_repli_prereg_started_not_finished <- paste0(format.round(
+          100*n_papers_repli_prereg_started_not_finished/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_completed_prereg <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(prereg & !registered) %>%
+          nrow()
+        
+        p_papers_repli_completed_prereg <- paste0(format.round(
+          100*n_papers_repli_completed_prereg/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_registered_study <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(prereg & !registered) %>%
+          nrow()
+        
+        p_papers_repli_registered_study <- paste0(format.round(
+          100*n_papers_repli_registered_study/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+      }
+      
+      # Non-random selection and no attrition of replications selected in Phase 2
+      {
+        n_papers_p2_repli_completed_nd <- 
+          repli_outcomes %>%
+          filter(type_internal == "p2") %>%
+          filter(repli_type == "new data") %>%
+          nrow()
+        
+        n_papers_p2_repli_completed_sd <- 
+          repli_outcomes %>%
+          filter(type_internal == "p2") %>%
+          filter(repli_type == "secondary data") %>%
+          nrow()
+      }
+      
+      # Excluded cases
+      {
+        id_excluded_case_orig_negative <-  repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Non-significant original findings") %>%
+          pull(paper_id) %>%
+          unique()
+      }
+    }
+    
     
     # Clean up input values and export
     {
@@ -1668,7 +1872,7 @@
         binvars.order <- binvars.raw
         
         binvars.full.text <- c("Statistical signifance + pattern",
-                           "Analyst interpretation",
+                           "Subjective interpretation",
                            "Original effect in replication's CI",
                            "Replication effect in original's CI",
                            "Replication effect in prediction interval",
@@ -2101,12 +2305,12 @@
             # geom_point(aes(alpha = weight),size=3) +
             # scale_alpha_continuous(range=c(.1,.6),guide="none")+
               
-            # geom_point(aes(size = weight),alpha=.6) +
-            # scale_size_continuous(range=c(.5,3),guide="none")+
-
-            geom_point(aes(alpha = weight,size = weight)) +
+            geom_point(aes(size = weight),alpha=.6, stroke=NA) +
             scale_size_continuous(range=c(.5,3),guide="none")+
-            scale_alpha_continuous(range=c(.1,.6),guide="none")+
+
+            # geom_point(aes(alpha = weight,size = weight)) +
+            # scale_size_continuous(range=c(.5,3),guide="none")+
+            # scale_alpha_continuous(range=c(.1,.6),guide="none")+
               
             geom_rug() +
             scale_color_manual(labels = c("Failed", "Successful"),
@@ -2133,7 +2337,7 @@
               panel.grid = element_blank(),
               legend.position = "bottom"
             )+
-            guides(color = guide_legend(override.aes = list(linetype = 0)))+
+            guides(color = guide_legend(override.aes = list(linetype = 0,size=6)))+
             geom_xsidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
             geom_ysidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
             theme(
@@ -2216,9 +2420,12 @@
             # geom_point(aes(alpha = weight), size = 3) +
             # scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
-            geom_point(aes(alpha = weight,size = weight)) +
+            # geom_point(aes(alpha = weight,size = weight)) +
+            # scale_size_continuous(range=c(.5,3),guide="none")+
+            # scale_alpha_continuous(range=c(.1,.6),guide="none")+
+            
+            geom_point(aes(size = weight),alpha=.6, stroke=NA) +
             scale_size_continuous(range=c(.5,3),guide="none")+
-            scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
             geom_rug() +
             scale_color_manual(labels = c("Failed", "Successful"),
@@ -2265,9 +2472,12 @@
             # geom_point(aes(alpha = weight), size = 3) +
             # scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
-            geom_point(aes(alpha = weight,size = weight)) +
+            # geom_point(aes(alpha = weight,size = weight)) +
+            # scale_size_continuous(range=c(.5,3),guide="none")+
+            # scale_alpha_continuous(range=c(.1,.6),guide="none")+
+            
+            geom_point(aes(size = weight),alpha=.6, stroke=NA) +
             scale_size_continuous(range=c(.5,3),guide="none")+
-            scale_alpha_continuous(range=c(.1,.6),guide="none")+
             
             geom_rug() +
             scale_color_manual(labels = c("Failed", "Successful"),
@@ -2484,6 +2694,39 @@
       #     }
       # }
       
+      # Supplement Fig 1
+      {
+        supp_figure_1 <- repli_outcomes %>% 
+          filter(!is_covid & repli_type != "original and secondary data") %>% # exclude covid and hybrids 
+          filter(is_manylabs == "not manylabs" | manylabs_type != "aggregation") %>% 
+          group_by(claim_id, rr_id) %>% 
+          arrange(desc(repli_sample_size_value)) %>% # exclude stage 1 when stage 2 is available
+          slice(1) %>% 
+          ungroup() %>% 
+          mutate(p2 = nchar(rr_id) > 4) %>%
+          mutate(type = select(., c(p2, repli_type)) %>% apply(1, function(x) str_c(x, collapse = "_"))) %>% 
+          select(report_id, type, power = repli_power_for_75_effect) %>% 
+          mutate(power = round(power*100, 0)) %>% 
+          drop_na() %>% 
+          ggplot(aes(x = power, fill = type)) +
+          geom_density(alpha = 0.5) +
+          scale_fill_manual(values = c("tomato", "deepskyblue", "tomato4", "deepskyblue4"), 
+                            labels = c("P1 new data", "P1 secondary data", "P2 new data", "P2 secondary data")) +
+          labs(
+            x = "Power (%)",
+            y = "",
+            fill = ""
+          ) +
+          theme_light() +
+          theme(
+            axis.text.y = element_blank(),
+            legend.position = "bottom",
+            panel.border = element_blank(),
+            panel.grid = element_blank(),
+            axis.ticks.y = element_blank()
+          )
+      }
+      
 
     }
     
@@ -2493,7 +2736,8 @@
         "figure_1"=figure_1,
         "figure_2"=figure_2,
         "figure_3"=figure_3,
-        "figure_4"=figure_4))
+        "figure_4"=figure_4,
+        "supp_figure_1"=supp_figure_1))
     }
   }
 }
@@ -2535,7 +2779,8 @@ if(TRUE){
   
   # Load data
   objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
-                       "status","all_rr_attempts","repli_binary","publications")
+                       "status","all_rr_attempts","repli_binary","publications",
+                       "non_significant_bushels","rr_sourced")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
     #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -2561,6 +2806,8 @@ if(TRUE){
                                        all_rr_attempts=all_rr_attempts,
                                        repli_binary=repli_binary,
                                        status=status,
+                                       non_significant_bushels=non_significant_bushels,
+                                       rr_sourced=rr_sourced,
                                        publications=publications)
 
   # Generate list of tags
