@@ -79,7 +79,7 @@ Most raw data files will have three targets associated with them - one for their
 
 ``` {targets publications}
 list(
-  # Raw data ----
+  # Raw ----
   # publications.csv
   # Journal-level data for all articles
   tar_target(publications_file,
@@ -113,13 +113,13 @@ list(
                                top_factor_moddate,
                                sheet = "From TopFactor website")),
   
-  # Processed Data ----
-  ## Update and Transform Data ----
+  # Processed ----
+  ## Update and Transform ----
   tar_target(pubs_updated,
              transform_pubs(publications_raw,
                             pub_changelog)),
   
-  ## Merge Data ----
+  ## Merge ----
   # Merge publication data with top factor information
   tar_target(publications,
              left_join(pubs_updated,
@@ -133,7 +133,7 @@ list(
 
 ```{targets papers}
 list(
-  # Raw Data ----
+  # Raw ----
   # all_metadata_filled.tsv
   # Data about the papers from both Web of Science and CrossRef
   tar_target(all_metadata_filled_file,
@@ -191,8 +191,8 @@ list(
              read_google_csv(p2_id_key_file,
                              p2_id_key_moddate)),
   
-  # Processed Data ----
-  ## Transform Data ----
+  # Processed ----
+  ## Transform ----
   # Metadata for covid papers was collected separately from other papers
   # Reconcile differences for merging
   tar_target(covid_metadata,
@@ -201,7 +201,7 @@ list(
   tar_target(non_covid_metadata,
              transform_paper_metadata(all_metadata_filled, status)),
   
-  ## Merge Data ----
+  ## Merge ----
   tar_target(paper_metadata,
              merge_paper_metadata(non_covid_metadata,
                                   covid_metadata,
@@ -210,35 +210,28 @@ list(
 )
 ```
 
+## Original Articles
 
 ### Claims
 
-### Google Drive
-
-#### COS SCORE Data
-
-The [COS SCORE Data](https://drive.google.com/drive/folders/0AA9FavlM9wvFUk9PVA) Google Drive contains most of the raw data files produced by COS. 
-
-```{targets raw-cos-score-data}
+```{targets claims}
 list(
-  # All within the "raw" folder
-
-  # claim_extraction/ ----
-  # https://drive.google.com/drive/folders/1DowEarJ3t167Jxqjtm5o81PCG3qp2Kz3
-  
-  # finalized_claim4_table.tsv
-  # REDUNDANT WITH STITCHED CLAIMS - REMOVE
-  tar_target(finalized_claim4_file,
-             "17hohLFjMb0moxYpcFRb9-26Ei1QLFUgq"),
-  tar_target(finalized_claim4_moddate,
-             get_google_mod_date(finalized_claim4_file),
-             cue = tar_cue("always")),
-  tar_target(finalized_claim4_table,
-             read_google_tsv(finalized_claim4_file,
-                             finalized_claim4_moddate)),
+  # Raw ----
+  # # finalized_claim4_table.tsv
+  # # REDUNDANT WITH STITCHED CLAIMS - REMOVE
+  # # Current use: create id list
+  # tar_target(finalized_claim4_file,
+  #            "17hohLFjMb0moxYpcFRb9-26Ei1QLFUgq"),
+  # tar_target(finalized_claim4_moddate,
+  #            get_google_mod_date(finalized_claim4_file),
+  #            cue = tar_cue("always")),
+  # tar_target(finalized_claim4_table,
+  #            read_google_tsv(finalized_claim4_file,
+  #                            finalized_claim4_moddate)),
   
   # tagtable_covid_p1.tsv
   # Claims extracted from phase 1 COVID papers with canonical paper IDs
+  # Needed in orig to denote covid papers, and for IDs in PR
   tar_target(tagtable_covid_p1_file,
              "1lc2P9N2RPXR2YZB6_Zh1E8eXNiRdm50t"),
   tar_target(tagtable_covid_p1_moddate,
@@ -279,10 +272,63 @@ list(
              read_google_tsv(tagtable_p2_CES_file,
                              tagtable_p2_CES_moddate)),
   
+  # covid_ta2.csv
+  # Claims extracted from phase 1 COVID papers with paper IDs for TA2
+  tar_target(covid_ta2_osf,
+             "yr3w8"),
+  tar_target(covid_ta2_mod_date, 
+             get_osf_mod_date(covid_ta2_osf),
+             cue = tar_cue("always")), 
+  tar_target(covid_ta2,
+             load_osf_csv(covid_ta2_osf,
+                          covid_ta2_mod_date)),
   
-  # original_variables/ ----
-  # https://drive.google.com/drive/folders/1egHC9oK1GXGPCgGuWsaSF6lLO9Z38XD_
+  # # SCORE_csv.csv
+  # # Phase 1 Extracted Claims
+  # # Remove?
+  # tar_target(SCORE_csv_osf,
+  #            "9qt6d"),
+  # tar_target(SCORE_csv_mod_date, 
+  #            get_osf_mod_date(SCORE_csv_osf),
+  #            cue = tar_cue("always")), 
+  # tar_target(SCORE_csv,
+  #            load_osf_csv(SCORE_csv_osf,
+  #                         SCORE_csv_mod_date)),
   
+  # # SCORE_CVD2.csv
+  # # Phase 2 extracted claims with paper IDs for TA2
+  # # Remove?
+  # tar_target(SCORE_CVD2_osf,
+  #            "du5mt"),
+  # tar_target(SCORE_CVD2_mod_date, 
+  #            get_osf_mod_date(SCORE_CVD2_osf),
+  #            cue = tar_cue("always")), 
+  # tar_target(SCORE_CVD2,
+  #            load_osf_csv(SCORE_CVD2_osf,
+  #                         SCORE_CVD2_mod_date)),
+  
+  # Processed ----
+  tar_target(claims_p1,
+             transform_p1_ces(tagtable_p1)),
+  
+  tar_target(claims_covid,
+             transform_covid_ces(tagtable_covid_p1)),
+  
+  tar_target(claims_p2,
+             transform_p2_ces(tagtable_p2_CES)),
+  
+  ## Merge
+  tar_target(extracted_claims,
+             rbind(claims_p1,
+                   claims_covid,
+                   claims_p2))
+  
+)
+```
+
+### Original Variables
+```{targets original-variables}
+list(
   # orig_statistics_dataset_p1.tsv
   tar_target(orig_statistics_p1_file,
              "1TLm9loSU8n3pSRoz0ugekJ6VfSiS792p"),
@@ -348,7 +394,6 @@ list(
              read_google_tsv(original_inftest_file,
                              original_inftest_moddate)),
   
-  ## changes/ ----
   # orig_input_changelog (Google Sheet)
   tar_target(orig_input_changelog_file,
              "1M8H_76ajxwdhVuuSyIo18BxRrJbMF3hXpAkzYY39g2k"),
@@ -358,6 +403,57 @@ list(
   tar_target(orig_input_changelog,
              load_changelog(orig_input_changelog_file,
                             orig_input_changelog_moddate)),
+  
+  # SCORE-P2-103: Original variables coding form (Responses)
+  tar_target(orig_vars_qa_gsheet,
+             "1_rgG3r318tpsakc8wSA0dMAYJ--pkiybVq5s9dfek6M"),
+  tar_target(orig_vars_qa_mod_date,
+             get_google_mod_date(orig_vars_qa_gsheet),
+             cue = tar_cue("always")), 
+  tar_target(orig_vars_qa,
+             read_google_sheet(orig_vars_qa_gsheet,
+                               orig_vars_qa_mod_date)),
+  
+  # Added SCORE variables - Gsheet
+  tar_target(effectsize_gsheet,
+             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
+  tar_target(effectsize_moddate,
+             get_google_mod_date(effectsize_gsheet),
+             cue = tar_cue("always")),
+  
+  # Added SCORE variables - Original
+  tar_target(effectsize_orig,
+             read_google_sheet(effectsize_gsheet,
+                               effectsize_moddate,
+                               sheet = "original")),
+  
+  # orig_statistics_output_p2.tsv
+  tar_target(orig_statistics_output_p2_osf,
+             "hk63r"),
+  tar_target(orig_statistics_output_p2_mod_date, 
+             get_osf_mod_date(orig_statistics_output_p2_osf),
+             cue = tar_cue("always")), 
+  tar_target(
+    orig_statistics_output_p2,
+    load_osf_tsv(orig_statistics_output_p2_osf,
+                 orig_statistics_output_p2_mod_date,
+                 quote = "\\\"")
+  )
+  
+)
+```
+
+
+### Google Drive
+
+#### COS SCORE Data
+
+The [COS SCORE Data](https://drive.google.com/drive/folders/0AA9FavlM9wvFUk9PVA) Google Drive contains most of the raw data files produced by COS. 
+
+```{targets raw-cos-score-data}
+list(
+
+  
   
   # rr_variables/ ----
   # https://drive.google.com/drive/folders/1iWRIuMxv9uqQdJqRmXtbyQh3wcItBBo7
@@ -468,15 +564,7 @@ Data files from the [SCORE](https://drive.google.com/drive/folders/0AHots-bNz56y
 
 ```{targets raw-score}
 list(
-  # SCORE-P2-103: Original variables coding form (Responses)
-  tar_target(orig_vars_qa_gsheet,
-             "1_rgG3r318tpsakc8wSA0dMAYJ--pkiybVq5s9dfek6M"),
-  tar_target(orig_vars_qa_mod_date,
-             get_google_mod_date(orig_vars_qa_gsheet),
-             cue = tar_cue("always")), 
-  tar_target(orig_vars_qa,
-             read_google_sheet(orig_vars_qa_gsheet,
-                               orig_vars_qa_mod_date)),
+  
   
   # Complex Bushel
   tar_target(complex_bushel_gsheet,
@@ -558,12 +646,7 @@ list(
                                repro_vor_moddate,
                                sheet = "repro_version_of_record")),
   
-  # Added SCORE variables - Gsheet
-  tar_target(effectsize_gsheet,
-             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
-  tar_target(effectsize_moddate,
-             get_google_mod_date(effectsize_gsheet),
-             cue = tar_cue("always")),
+  
   
   # Added SCORE variables - Replication
   tar_target(effectsize_repli,
@@ -571,11 +654,7 @@ list(
                                effectsize_moddate,
                                sheet = "replication")),
   
-  # Added SCORE variables - Original
-  tar_target(effectsize_orig,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "original")),
+  
   
   # Added SCORE variables - Outcomes
   tar_target(effectsize_outcome,
@@ -587,48 +666,7 @@ list(
 
 ### OSF Projects
 
-Data from OSF Projects. 
 
-#### Public for TA2
-
-Data found in the [Public for TA2](https://osf.io/um7kc/) OSF Project.
-
-```{targets raw-public-ta2}
-list(
-  # covid_ta2.csv
-  # Claims extracted from phase 1 COVID papers with paper IDs for TA2
-  tar_target(covid_ta2_osf,
-             "yr3w8"),
-  tar_target(covid_ta2_mod_date, 
-             get_osf_mod_date(covid_ta2_osf),
-             cue = tar_cue("always")), 
-  tar_target(covid_ta2,
-             load_osf_csv(covid_ta2_osf,
-                          covid_ta2_mod_date)),
-  
-  # SCORE_csv.csv
-  # Phase 1 Extracted Claims
-  tar_target(SCORE_csv_osf,
-             "9qt6d"),
-  tar_target(SCORE_csv_mod_date, 
-             get_osf_mod_date(SCORE_csv_osf),
-             cue = tar_cue("always")), 
-  tar_target(SCORE_csv,
-             load_osf_csv(SCORE_csv_osf,
-                          SCORE_csv_mod_date)),
-  
-  # SCORE_CVD2.csv
-  # Phase 2 extracted claims with paper IDs for TA2
-  tar_target(SCORE_CVD2_osf,
-             "du5mt"),
-  tar_target(SCORE_CVD2_mod_date, 
-             get_osf_mod_date(SCORE_CVD2_osf),
-             cue = tar_cue("always")), 
-  tar_target(SCORE_CVD2,
-             load_osf_csv(SCORE_CVD2_osf,
-                          SCORE_CVD2_mod_date))
-)
-```
 
 #### SCORE-Phase 1 RR and original article analyses
 
@@ -636,18 +674,7 @@ Data from the OSF Project [SCORE-Phase 1 RR and original article analyses](https
 
 ```{targets raw-phase1-rr}
 list(
-  # orig_statistics_output_p2.tsv
-  tar_target(orig_statistics_output_p2_osf,
-             "hk63r"),
-  tar_target(orig_statistics_output_p2_mod_date, 
-             get_osf_mod_date(orig_statistics_output_p2_osf),
-             cue = tar_cue("always")), 
-  tar_target(
-    orig_statistics_output_p2,
-    load_osf_tsv(orig_statistics_output_p2_osf,
-                 orig_statistics_output_p2_mod_date,
-                 quote = "\\\"")
-  ),
+  
   
   # rr_statistics_output_p2.txt
   tar_target(rr_statistics_output_p2_osf,
@@ -676,11 +703,11 @@ list(
              extend_rr_projects(rr_projects_raw,
                                 repli_cases_projects)),
 
-  tar_target(valid_ids,
-             create_id_list(status,
-                            tagtable_covid_p1,
-                            finalized_claim4_table,
-                            rr_projects)),
+  # tar_target(valid_ids,
+  #            create_id_list(status,
+  #                           tagtable_covid_p1,
+  #                           finalized_claim4_table,
+  #                           rr_projects)),
   # Temp rr project list
   tar_target(all_rr_attempts_gsheet,
              "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),

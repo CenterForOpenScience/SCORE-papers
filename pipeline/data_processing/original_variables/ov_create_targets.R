@@ -12,7 +12,7 @@ export_orig <- function(orig_statistics_output_p2,
 
   orig_extended <- transform_orig_output(orig_statistics_output_p2)
 
-  merge_orig_input(orig_statistics_dataset_p1,
+  test <- merge_orig_input(orig_statistics_dataset_p1,
                    original_inftest_dataset,
                    orig_statistics_manual_data_entry,
                    orig_vars_qa,
@@ -66,7 +66,11 @@ export_orig <- function(orig_statistics_output_p2,
     relocate(data_source_priority, .after = original_data_source) %>%
     distinct(unique_claim_id, .keep_all = TRUE) %>%
     select(-c(data_source_priority)) %>%
-    left_join(orig_extended, join_by(paper_id, claim_id))
+    left_join(orig_extended, join_by(paper_id, claim_id)) %>%
+    # REMOVE REMOVE REMOVE
+    rows_update(tibble(unique_claim_id = "Eb2N_single-trace",
+                       original_effect_size_value_statsteam = 0.00353),
+                by = "unique_claim_id")
 
 }
 
