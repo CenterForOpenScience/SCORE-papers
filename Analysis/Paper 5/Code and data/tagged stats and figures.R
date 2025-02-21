@@ -5,9 +5,21 @@
   tagged_stats <- function(iters = 100,
                            repli_outcomes,orig_outcomes,paper_metadata,
                            all_rr_attempts,repli_binary,status,publications,
-                           non_significant_bushels,
+                           non_significant_bushels,rr_sourced,repli_export,
                            generate_binary_data=FALSE){
   
+    # Temporary load data for convenience
+    {
+      # Load data
+      objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
+                           "status","all_rr_attempts","repli_binary","publications",
+                           "non_significant_bushels","rr_sourced","repli_export","repli_case_exclusions")
+      for(i in 1:length(objects_to_load)){
+        assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
+        #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
+      }
+    }
+    
     # Data preparation
     {
       # Set defaults for convenience
@@ -122,7 +134,7 @@
       }
     }
     
-    # Stats
+    # Main section stats
     {
       # Tables
       {
@@ -1596,6 +1608,182 @@
 
     }
     
+    # Supplement stats
+    {
+      # Attrition of replication attempts selected in Phase 1
+      {
+        n_papers_repl_team_ident_but_not_complete <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          nrow()
+        
+        n_papers_repli_never_started <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          anti_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>% nrow()
+        
+        p_papers_repli_never_started <- paste0(format.round(
+          100*n_papers_repli_never_started/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_OSF_no_prereg <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(is.na(registered) & is.na(prereg) & !part) %>%
+          nrow()
+          
+        p_papers_repli_OSF_no_prereg <- paste0(format.round(
+          100*n_papers_repli_OSF_no_prereg/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_prereg_started_not_finished <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(part) %>%
+          nrow()
+        
+        p_papers_repli_prereg_started_not_finished <- paste0(format.round(
+          100*n_papers_repli_prereg_started_not_finished/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_completed_prereg <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(prereg & !registered) %>%
+          nrow()
+        
+        p_papers_repli_completed_prereg <- paste0(format.round(
+          100*n_papers_repli_completed_prereg/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+        
+        n_papers_repli_registered_study <- rr_sourced %>%
+          filter(type == "replication") %>%
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>%
+          anti_join(repli_export, by = "paper_id") %>%
+          select(paper_id) %>%
+          distinct() %>%
+          semi_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          left_join(
+            all_rr_attempts %>%
+              filter(field != "covid") %>%
+              filter(str_detect(type, "Replication")),
+            by = "paper_id"
+          ) %>%
+          mutate(
+            registered = !outcome & results_available == "no" & (!is.na(registrations) | prereg_completion == "approve"),
+            prereg = !outcome & results_available == "no" & is.na(registrations) & prereg_completion == "complete",
+            part = !outcome & results_available == "no" & is.na(registrations) & prereg_completion %in% c("near-complete", "partial", "minimal"),
+          ) %>%
+          filter(prereg & !registered) %>%
+          nrow()
+        
+        p_papers_repli_registered_study <- paste0(format.round(
+          100*n_papers_repli_registered_study/n_papers_repl_team_ident_but_not_complete,1
+        ),"%")
+      }
+      
+      # Non-random selection and no attrition of replications selected in Phase 2
+      {
+        n_papers_p2_repli_completed_nd <- 
+          repli_outcomes %>%
+          filter(type_internal == "p2") %>%
+          filter(repli_type == "new data") %>%
+          nrow()
+        
+        n_papers_p2_repli_completed_sd <- 
+          repli_outcomes %>%
+          filter(type_internal == "p2") %>%
+          filter(repli_type == "secondary data") %>%
+          nrow()
+      }
+      
+      # Excluded cases
+      {
+        id_excluded_case_orig_negative <-  repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Non-significant original findings") %>%
+          pull(paper_id) %>%
+          unique()
+      }
+    }
+    
+    
     # Clean up input values and export
     {
       rm(iters,orig_outcomes,repli_outcomes,repli_outcomes_merged)
@@ -2592,7 +2780,7 @@ if(TRUE){
   # Load data
   objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
                        "status","all_rr_attempts","repli_binary","publications",
-                       "non_significant_bushels")
+                       "non_significant_bushels","rr_sourced")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
     #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -2617,7 +2805,9 @@ if(TRUE){
                                        paper_metadata=paper_metadata,
                                        all_rr_attempts=all_rr_attempts,
                                        repli_binary=repli_binary,
-                                       status=status,non_significant_bushels=non_significant_bushels,
+                                       status=status,
+                                       non_significant_bushels=non_significant_bushels,
+                                       rr_sourced=rr_sourced,
                                        publications=publications)
 
   # Generate list of tags
