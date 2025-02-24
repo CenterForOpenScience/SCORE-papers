@@ -1780,6 +1780,65 @@
           filter(exclude_reason == "Non-significant original findings") %>%
           pull(paper_id) %>%
           unique()
+        
+        id_excluded_sample_size_too_small <- repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Incomplete or insufficient data collection") %>%
+          pull(paper_id) %>%
+          unique() %>%
+          str_c(., collapse = ", ")
+        
+        n_excluded_power_all_approach_nd <- repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Power/sample size issue") %>%
+          left_join(repli_export %>% select(rr_id, rr_type_internal) %>% distinct(), by = "rr_id") %>%
+          filter(rr_type_internal == "Direct Replication") %>%
+          nrow()
+        
+        id_excluded_power_all_approach_nd <- repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Power/sample size issue") %>%
+          left_join(repli_export %>% select(rr_id, rr_type_internal) %>% distinct(), by = "rr_id") %>%
+          filter(rr_type_internal == "Direct Replication") %>%
+          pull(paper_id) %>%
+          unique() %>%
+          str_c(., collapse = ", ")
+        
+        n_excluded_power_all_approach_sd <-  repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Power/sample size issue") %>%
+          left_join(repli_export %>% select(rr_id, rr_type_internal) %>% distinct(), by = "rr_id") %>%
+          filter(rr_type_internal == "Data Analytic Replication") %>%
+          nrow()
+        
+        id_excluded_power_all_approach_sd <- repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          filter(exclude_reason == "Power/sample size issue") %>%
+          left_join(repli_export %>% select(rr_id, rr_type_internal) %>% distinct(), by = "rr_id") %>%
+          filter(rr_type_internal == "Data Analytic Replication") %>%
+          pull(paper_id) %>%
+          unique() %>%
+          str_c(., collapse = ", ")
+        
+        n_claims_excluded <- repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          nrow()
+        
+        n_papers_excluded <- repli_case_exclusions %>%
+          left_join(repli_export %>% select(rr_id, paper_id) %>% distinct(), by = "rr_id") %>%
+          pull(paper_id) %>%
+          unique() %>%
+          length()
+        
+        n_excluded_claims_nonsig <- repli_case_exclusions %>%
+          filter(exclude_reason != "Non-significant original findings") %>%
+          nrow()
+        
+        n_excluded_claims_nonsig_success <- repli_case_exclusions %>%
+          filter(exclude_reason != "Non-significant original findings") %>%
+          left_join(repli_export %>% select(report_id = unique_report_id, score = rr_repl_exact_replicated_reported), by = "report_id") %>%
+          filter(score) %>%
+          nrow()
       }
     }
     
