@@ -48,7 +48,10 @@ create_repli_analytic <- function(repli_export,
     distinct(paper_id,
              claim_id,
              .keep_all = TRUE) %>%
-    select(unique_report_id)
+    select(unique_report_id) %>%
+    # These were originally thought to be ML studies, but ended up not,
+    # so the original coding is inaccurate for them
+    rbind("y2312_91_1", "m707Z7y")
   
   generalized <- rr_attempts_minted %>%
     filter(rr_type == "Generalizability") %>%
