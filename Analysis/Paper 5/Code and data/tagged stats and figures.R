@@ -10,10 +10,44 @@
   
     # Temporary load data for convenience
     {
+      # Initial setup and libraries
+      {
+        #rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
+        
+        library(shiny)
+        library(bslib)
+        library(dplyr)
+        library(ggplot2)
+        library(ggExtra)
+        library(DT)
+        library(tidyr)
+        library(pbapply)
+        library(googledrive)
+        library(stringr)
+        library(Hmisc)
+        library(targets)
+        library(googlesheets4)
+        library(zcurve)
+        library(scales)
+        library(wCorr)
+        library(corrplot)
+        library(cowplot)
+        library(ggridges) #note: using the github version, as the CRAN hasn't been pushed to get the weights functionality
+        library(ggside)
+        library(weights)
+        
+        drive_auth(Sys.getenv("google_oauth_email"))
+        #drive_deauth()
+        # Common functions
+        source(file="Analysis/common functions.R")
+      }
+      
       # Load data
       objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
                            "status","all_rr_attempts","repli_binary","publications",
-                           "non_significant_bushels","rr_sourced","repli_export","repli_case_exclusions")
+                           "non_significant_bushels","rr_sourced","repli_export",
+                           "repli_case_exclusions","orig_dataset",
+                           "full_dates")
       for(i in 1:length(objects_to_load)){
         assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
         #save(list=objects_to_load[i],file=paste0("Analysis/Data exploration app/",objects_to_load[i],".RData"))
@@ -1840,6 +1874,175 @@
           filter(score) %>%
           nrow()
       }
+      
+      # Sample and Data
+      {
+        n_claims_potential_repli <- status %>%
+          filter(pool) %>%
+          nrow()
+        
+        n_claims_eligible_nonrand <- status %>%
+          filter(bushel) %>%
+          nrow()
+      }
+      
+      # Sample Size Planning 
+      {
+        # New data replications conducted during Phase 1
+        p_claim_nd_attempt_75_90_power_p1 <- paste0(format.round(100*(
+          repli_outcomes_orig %>%
+          filter(!is_covid & repli_version_of_record) %>%
+          filter(repli_type == "new data") %>%
+          filter(nchar(rr_id) < 5) %>%
+          drop_na(repli_power_for_75_effect) %>%
+          count(repli_power_for_75_effect >= .9) %>%
+          mutate(prop = n/sum(n)) %>%
+          filter(`repli_power_for_75_effect >= 0.9`) %>%
+          pull(prop)
+          ),0),"%")
+          
+        p_claim_nd_attempt_75_90_power_achieved_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "new data") %>%
+            filter(nchar(rr_id) < 5) %>%
+            pull(repli_power_for_75_effect) %>%
+            mean(na.rm = T)
+        ),0),"%")
+        
+        median_claim_nd_attempt_75_90_power_achieved_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(nchar(rr_id) < 5) %>%
+            filter(repli_type == "new data") %>%
+            pull(repli_power_for_75_effect) %>%
+            median(na.rm = T)
+        ),0),"%")
+        
+        p_claim_sd_attempt_75_90_power_achieved_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+          filter(!is_covid & repli_version_of_record) %>%
+          filter(repli_type == "secondary data") %>%
+          filter(nchar(rr_id) < 5) %>%
+          pull(rr_power_100_original_effect) %>%
+          mean(na.rm = T)
+        ),0),"%")
+        
+        median_claim_sd_attempt_75_90_power_achieved_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) < 5) %>%
+            pull(rr_power_100_original_effect) %>%
+            median(na.rm = T)
+        ),0),"%")
+        
+        p_claim_sd_attempt_50_100_power_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) < 5) %>%
+            drop_na(rr_power_100_original_effect) %>%
+            count(rr_power_100_original_effect >= .5) %>%
+            mutate(prop = n/sum(n)) %>%
+            filter(`rr_power_100_original_effect >= 0.5`) %>%
+            pull(prop)
+        ),0),"%")
+        
+        p_claim_sd_attempt_50_100_power_achieved_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) < 5) %>%
+            pull(rr_power_100_original_effect) %>%
+            mean(na.rm = T)
+        ),0),"%")
+        
+        median_claim_sd_attempt_50_100_power_achieved_p1 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) < 5) %>%
+            pull(rr_power_100_original_effect) %>%
+            median(na.rm = T)
+        ),0),"%")
+        
+        # New data replications conducted during Phase 2
+        p_claim_nd_attempt_75_90_power_p2 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(nchar(rr_id) > 4) %>%
+            filter(repli_type == "new data") %>%
+            count(repli_power_for_75_effect >= .9) %>%
+            drop_na() %>%
+            mutate(prop = n/sum(n)) %>%
+            filter(`repli_power_for_75_effect >= 0.9`) %>%
+            pull(prop)
+        ),0),"%")
+        
+        p_claim_sd_attempt_75_90_power_achieved_p2 <- paste0(format.round(100*(
+          repli_outcomes %>%
+          filter(!is_covid & repli_version_of_record) %>%
+          filter(nchar(rr_id) > 4) %>%
+          filter(repli_type == "new data") %>%
+          pull(repli_power_for_75_effect) %>%
+          mean(na.rm = T)
+        ),0),"%")
+        
+        median_claim_sd_attempt_75_90_power_achieved_p2 <- paste0(format.round(100*(
+          repli_outcomes %>%
+          filter(!is_covid & repli_version_of_record) %>%
+          filter(nchar(rr_id) > 4) %>%
+          filter(repli_type == "new data") %>%
+          pull(repli_power_for_75_effect) %>%
+          median(na.rm = T)
+        ),0),"%")
+        
+        median_claim_sd_attempt_50_100_power_p2 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) > 4) %>%
+            drop_na(rr_power_100_original_effect) %>%
+            count(rr_power_100_original_effect >= .5) %>%
+            mutate(prop = n/sum(n)) %>%
+            filter(`rr_power_100_original_effect >= 0.5`) %>%
+            pull(prop)
+        ),0),"%")
+        
+        median_claim_sd_attempt_50_100_power_achieved_p2 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) > 4) %>%
+            pull(rr_power_100_original_effect) %>%
+            mean(na.rm = T)
+        ),0),"%")
+        
+        median_claim_sd_attempt_50_100_power_achieved_p2 <- paste0(format.round(100*(
+          repli_outcomes %>%
+            filter(!is_covid & repli_version_of_record) %>%
+            filter(repli_type == "secondary data") %>%
+            filter(nchar(rr_id) > 4) %>%
+            pull(rr_power_100_original_effect) %>%
+            median(na.rm = T)
+        ),0),"%")
+        
+        # SER Method for estimating power versus traditional power analysis
+        n_claims_SER_power <- 
+          orig_dataset %>%
+          semi_join(repli_outcomes %>% filter(!is_covid & repli_version_of_record), by = c("unique_claim_id" = "claim_id")) %>%
+          filter(str_detect(original_statistic_analysis_type_statsteam, "ser")) %>%
+          nrow()
+        
+        
+      }
+      
+      # Data collection & analysis
+      {
+        
+      }
+      
     }
     
     
@@ -2885,7 +3088,7 @@ if(TRUE){
   range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
 
   # Generate figures
-  if (1==1){
+  if (0==1){
     generated_figures <- figures(repli_outcomes,orig_outcomes,paper_metadata,repli_binary,iters=1000)
     
     ggsave(
