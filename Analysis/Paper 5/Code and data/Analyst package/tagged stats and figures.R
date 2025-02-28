@@ -69,7 +69,7 @@ tagged_stats <- function(iters = 100){
     # Get and trim paper metadata information
     {
       paper_metadata_orig <- paper_metadata
-      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year")]
+      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year","COS_pub_expanded")]
       paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
       paper_metadata$field <- str_replace(paper_metadata$field,"And","and")
       
@@ -2033,13 +2033,74 @@ tagged_stats <- function(iters = 100){
           for (col in 1:ncol(table_s10)){
             assign(paste0("table_s10_",row,"_",col),
                    table_s10[row,col])
-          }}
+          }
+        }
         
       }
       
       # Table S11
       {
+        exp_fields <- paper_metadata %>% 
+          select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+          mutate(
+            field = case_when(
+              str_detect(pub, "financ|Financ") ~ "finance",
+              str_detect(pub, "organization|Organization") ~ "org. behavior",
+              !str_detect(pub, "organization|Organization") & field == "marketing/org behavior"  ~ "marketing",
+              !str_detect(pub, "financ|Financ") & field == "economics"  ~ "economics",
+              .default = field
+            )
+          )
         
+        score_c12 <- repli_outcomes_orig %>% 
+          filter(!is_covid & repli_version_of_record) %>% 
+          select(report_id, paper_id, score = repli_score_criteria_met) %>% 
+          left_join(exp_fields , by = "paper_id") %>% 
+          select(-paper_id) %>% 
+          mutate(field = str_to_sentence(field)) %>% 
+          group_by(field) %>% 
+          dplyr::summarize(
+            success = sum(score),
+            tot = n()
+          ) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          replace_na(., list(field = "Total")) %>% 
+          mutate(
+            Counts = glue("{success} of {tot}"),
+            Rate = glue("{100*round(success/tot, 2)}%")
+          ) %>% 
+          select(-success, -tot)
+        
+        cor_c12 <- repli_outcomes_orig %>%
+          filter(!is_covid & repli_version_of_record) %>% 
+          left_join(orig_outcomes %>% select(claim_id, orig_conv_r), by = "claim_id") %>% 
+          mutate(orig_conv_r = abs(orig_conv_r)) %>% 
+          mutate(repli_conv_r = ifelse(repli_pattern_criteria_met, abs(repli_conv_r), -1*abs(repli_conv_r))) %>% 
+          select(report_id, paper_id, orig_conv_r, repli_conv_r) %>% 
+          left_join(exp_fields , by = "paper_id") %>% 
+          select(-paper_id) %>% 
+          mutate(field = str_to_sentence(field)) %>% 
+          pivot_longer(cols = c(orig_conv_r, repli_conv_r), names_to = "outcome", values_to = "value") %>% 
+          group_by(field, outcome) %>% 
+          dplyr::summarize(
+            m = median(value, na.rm = T) %>% round(2),
+            s = sd(value, na.rm = T) %>% round(2)
+          ) %>% 
+          mutate(t = glue("{m} ({s})")) %>% 
+          ungroup() %>% 
+          select(-m, -s) %>% 
+          pivot_wider(names_from = outcome, values_from = t)
+        
+        table_s11 <- score_c12 %>% 
+          left_join(cor_c12, by = "field") %>% 
+          mutate(across(everything(), function(x) ifelse(is.na(x), "--", x))) 
+        
+        for (row in 1:nrow(table_s11)){
+          for (col in 1:ncol(table_s11)){
+            assign(paste0("table_s11_",row,"_",col),
+                   table_s11[row,col])
+          }
+        }
       }
     }
     
