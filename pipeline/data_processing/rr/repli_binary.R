@@ -147,17 +147,18 @@ calculate_repli_binary <- function(repli_outcomes,
   ## bayesian meta-analysis
   custom_bma <- function(x) {
     
-    try_meta <- try(meta_bma(c(x[1], x[2]), c(x[3], x[4]), 
-                             d = prior("norm", 
-                                       c(mean = 0, sd = .25)),
-                             tau = prior("t", 
-                                         c(location=0, scale=.3, nu=1), 
-                                         lower=0),
-                             iter = 1500, 
-                             logml_iter = 2000, 
-                             rel.tol = .1) %>% 
-                      pluck("inclusion") %>% 
-                      pluck("incl.BF"))
+    try_meta <- try(meta_fixed(c(x[1], x[2]), c(x[3], x[4]), 
+                               d = prior("norm", c(mean = 0, sd = .25)),
+                               iter = 1500, 
+                               rel.tol = .1, 
+                               logml = "integrate", 
+                               summarize = "integrate") %>% 
+                      pluck("BF") %>% 
+                      as.data.frame() %>% 
+                      tibble::rownames_to_column() %>% 
+                      as_tibble() %>% 
+                      filter(rowname == "fixed_H1") %>% 
+                      pull(fixed_H0))
     
     if("try-error" %in% class(try_meta)) {
       
@@ -165,14 +166,21 @@ calculate_repli_binary <- function(repli_outcomes,
       
     } else {
       
-      meta_bma( c(x[1], x[2]), c(x[3], x[4]), 
-                d = prior("norm", c(mean = 0, sd = .25)),
-                tau = prior("t", c(location=0, scale=.3, nu=1), lower=0),
-                iter = 1500, logml_iter = 2000, rel.tol = .1) %>% 
-        pluck("inclusion") %>% 
-        pluck("incl.BF")
+      meta_fixed(c(x[1], x[2]), c(x[3], x[4]), 
+                 d = prior("norm", c(mean = 0, sd = .25)),
+                 iter = 1500, 
+                 rel.tol = .1, 
+                 logml = "integrate", 
+                 summarize = "integrate") %>% 
+        pluck("BF") %>% 
+        as.data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        as_tibble() %>% 
+        filter(rowname == "fixed_H1") %>% 
+        pull(fixed_H0)
       
     }
+    
   }
   
   # Calculations ----
@@ -411,7 +419,8 @@ calculate_repli_binary <- function(repli_outcomes,
   
   ## replication bayes factor
   rep_bayes <- combined_meta %>% 
-    mutate(r_bf = select(., c(orig_conv_r, orig_se, repli_conv_r, repli_se)) %>% 
+    mutate(r_bf = select(., 
+                         c(orig_conv_r, orig_se, repli_conv_r, repli_se)) %>% 
              apply(1, 
                    function(x) BFr(x[1], x[2], x[3], x[4]))) %>% 
     left_join(repli %>% select(report_id, repli_pattern_criteria_met), 
@@ -427,7 +436,7 @@ calculate_repli_binary <- function(repli_outcomes,
   
   meta_bma <- bma_estimation %>% 
     mutate(bma_outcome = interpret_bf(meta_bf)) %>% 
-    left_join(repli %>% select(report_id, repli_pattern_criteria_met), 
+    left_join(repli_outcomes %>% select(report_id, repli_pattern_criteria_met), 
               by = "report_id") %>% 
     mutate(bma_interpret = str_detect(bma_outcome, "favour") & 
              (str_detect(bma_outcome, "strong") | 
