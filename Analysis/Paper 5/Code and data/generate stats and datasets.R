@@ -33,10 +33,11 @@
 # Load and save data and datasets for public running
 {
   objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
-                                            "status","all_rr_attempts","repli_binary","publications",
-                                            "non_significant_bushels","rr_sourced","repli_export",
-                                            "repli_case_exclusions","orig_dataset",
-                                            "full_dates","never_sourced")
+                       "status","all_rr_attempts","repli_binary","publications",
+                       "non_significant_bushels","rr_sourced","repli_export",
+                       "repli_case_exclusions","orig_dataset",
+                       "full_dates","never_sourced","ser_power",
+                       "traditional_power")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
   }
@@ -44,6 +45,7 @@
   save(list=objects_to_load,file="Analysis/Paper 5/Code and data/Analyst package/analyst data.RData")
   file.copy(from="Analysis/common functions.R",to="Analysis/Paper 5/Code and data/Analyst package/common functions.R",overwrite=TRUE)
   file.copy(from="Analysis/Paper 5/Code and data/tagged stats and figures.R",to="Analysis/Paper 5/Code and data/Analyst package/tagged stats and figures.R",overwrite=TRUE)
+  file.copy(from="pipeline/data_processing/rr/repli_binary.R",to="Analysis/Paper 5/Code and data/Analyst package/repli_binary.R",overwrite=TRUE)
 }
 
 # Pull source code docs
@@ -88,7 +90,7 @@
   range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
 }
 # Generate figures
-if (0==1){
+if (1==1){
   generated_figures <- figures(iters = 1000)
   
   ggsave(
@@ -96,16 +98,6 @@ if (0==1){
     plot = generated_figures$figure_1,
     width = 3000,height = 1000,units = "px",bg="white"
   )
-  # ggsave(
-  #   "Analysis/Paper 5/Code and data/Figures/figure 1 claims.png",
-  #   plot = generated_figures$figure_1_claims,
-  #   width = 3000,height = 1000,units = "px",bg="white"
-  # )
-  # ggsave(
-  #   "Analysis/Paper 5/Code and data/Figures/figure 2.png",
-  #   plot = generated_figures$figure_2,
-  #   width = 2800,height = 1300,units = "px",bg="white"
-  # )
   ggsave(
     "Analysis/Paper 5/Code and data/Figures/figure 2.png",
     plot = generated_figures$figure_2,
@@ -121,9 +113,64 @@ if (0==1){
     plot = generated_figures$figure_4,
     width = 2000,height = 1200,units = "px",bg="white"
   )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s1.png",
+    plot = generated_figures$figure_s1,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s2.png",
+    plot = generated_figures$figure_s2,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s3.png",
+    plot = generated_figures$figure_s3,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s4.png",
+    plot = generated_figures$figure_s4,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
   # ggsave(
-  #   "Analysis/Paper 5/Code and data/Figures/figure 5.png",
-  #   plot = generated_figures$figure_5,
+  #   "Analysis/Paper 5/Code and data/Figures/figure s5.png",
+  #   plot = generated_figures$figure_s5,
   #   width = 2000,height = 2000,units = "px",bg="white"
   # )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s6.png",
+    plot = generated_figures$figure_s6,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s7.png",
+    plot = generated_figures$figure_s7,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s8.png",
+    plot = generated_figures$figure_s8,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s9.png",
+    plot = generated_figures$figure_s9,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s10.png",
+    plot = generated_figures$figure_s10,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s11.png",
+    plot = generated_figures$figure_s11,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s12.png",
+    plot = generated_figures$figure_s12,
+    width = 3000,height = 1000,units = "px",bg="white"
+  )
 }
