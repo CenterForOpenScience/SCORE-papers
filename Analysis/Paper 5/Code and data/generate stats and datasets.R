@@ -89,8 +89,9 @@
   range_delete(ss,range="A:H")
   range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
 }
+
 # Generate figures
-if (1==1){
+{
   generated_figures <- figures(iters = 1000)
   
   ggsave(
@@ -133,11 +134,11 @@ if (1==1){
     plot = generated_figures$figure_s4,
     width = 2000,height = 2000,units = "px",bg="white"
   )
-  # ggsave(
-  #   "Analysis/Paper 5/Code and data/Figures/figure s5.png",
-  #   plot = generated_figures$figure_s5,
-  #   width = 2000,height = 2000,units = "px",bg="white"
-  # )
+  ggsave(
+    "Analysis/Paper 5/Code and data/Figures/figure s5.png",
+    plot = generated_figures$figure_s5,
+    width = 2000,height = 2000,units = "px",bg="white"
+  )
   ggsave(
     "Analysis/Paper 5/Code and data/Figures/figure s6.png",
     plot = generated_figures$figure_s6,
@@ -146,7 +147,7 @@ if (1==1){
   ggsave(
     "Analysis/Paper 5/Code and data/Figures/figure s7.png",
     plot = generated_figures$figure_s7,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 4000,height = 4000,units = "px",bg="white"
   )
   ggsave(
     "Analysis/Paper 5/Code and data/Figures/figure s8.png",

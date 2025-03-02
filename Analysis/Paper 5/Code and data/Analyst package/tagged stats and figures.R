@@ -250,17 +250,20 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         r6.data <-  repli_outcomes_orig %>% 
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
           select(paper_id) %>% 
           distinct()
         r7.data <- repli_outcomes_orig %>%
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
           filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
           select(paper_id, claim_id, rr_id) %>% 
           distinct() 
         r8.data <-  repli_outcomes_orig %>%
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
           select(paper_id, claim_id) %>% 
           distinct()
         
@@ -293,7 +296,7 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
            r1.p.formatted,r2.p.formatted,r3.p.formatted,r4.p.formatted,r5.p.formatted,r6.p.formatted,r7.p.formatted,r8.p.formatted)
       }
       
-      # Table 4
+      # Table 3
       {
         repli_effects <- repli_outcomes %>% 
           filter(!is_covid) %>% 
@@ -363,19 +366,19 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         
         r4 <- paste0(r4.median.formatted,"\n(",r4.SD.formatted,")")
         
-        table_4 <- rbind(r1,r2,r3,r4)
-        for (row in 1:nrow(table_4)){
-          for (col in 1:ncol(table_4)){
-            assign(paste0("table_4_",row,"_",col),
-                   table_4[row,col])
+        table_3 <- rbind(r1,r2,r3,r4)
+        for (row in 1:nrow(table_3)){
+          for (col in 1:ncol(table_3)){
+            assign(paste0("table_3_",row,"_",col),
+                   table_3[row,col])
             if(row==4){
-              assign(paste0("table_4_median_",row,"_",col),
+              assign(paste0("table_3_median_",row,"_",col),
                      r4.median[col])
-              assign(paste0("table_4_SD_",row,"_",col),
+              assign(paste0("table_3_SD_",row,"_",col),
                      r4.SD[col])
-              assign(paste0("table_4_median_formatted_",row,"_",col),
+              assign(paste0("table_3_median_formatted_",row,"_",col),
                      r4.median.formatted[col])
-              assign(paste0("table_4_SD_formatted_",row,"_",col),
+              assign(paste0("table_3_SD_formatted_",row,"_",col),
                      r4.SD.formatted[col])
             }
           }
@@ -383,7 +386,7 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         rm(r1,r2,r3,r4)
       }
       
-      # Table 5
+      # Table 4
       {
         fields.order <- c("business","economics and finance","education","political science",
                           "psychology and health","sociology and criminology")
@@ -412,7 +415,7 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           mutate(weight = 1/n()) %>%
           ungroup()
 
-        table_5 <- do.call(rbind,lapply(fields.order, function(field) {
+        table_4 <- do.call(rbind,lapply(fields.order, function(field) {
           data <- effects_combined[effects_combined$field==field,]
           
           c1.numerator <- sum(as.numeric(data$success)*data$weight)
@@ -454,18 +457,18 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           data.frame(field,c1,c2,c3)
         }))
         
-        table_5 <- table_5[c("c1","c2","c3")]
+        table_4 <- table_4[c("c1","c2","c3")]
 
-        for (row in 1:nrow(table_5)){
-          for (col in 1:ncol(table_5)){
-            assign(paste0("table_5_",row,"_",col),
-                   table_5[row,col])
+        for (row in 1:nrow(table_4)){
+          for (col in 1:ncol(table_4)){
+            assign(paste0("table_4_",row,"_",col),
+                   table_4[row,col])
           }
         }
         rm(orig_effects,repli_effects,effects_combined)
       }
       
-      # Table 6
+      # Table 5
       {
         repli_effects <- repli_outcomes %>%
           filter(!is_covid) %>%
@@ -546,93 +549,93 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         r4.SD.formatted <- format.round(r4.SD,2)
         r4 <- paste0(r4.median.formatted," (",r4.SD.formatted,")")
         
-        table_6 <- rbind(r1,r2,r3,r4)
-        table_6_numerator <- rbind(r1.numerator,r2.numerator,rep(NA,ncol(table_6)),rep(NA,ncol(table_6)))
-        table_6_numerator_formatted <- rbind(r1.numerator.formatted,r2.numerator.formatted,rep(NA,ncol(table_6)),rep(NA,ncol(table_6)))
-        table_6_denom <- rbind(r1.denom,r2.denom,rep(NA,ncol(table_6)),rep(NA,ncol(table_6)))
-        table_6_denom_formatted <- rbind(r1.denom.formatted,r2.denom.formatted,rep(NA,ncol(table_6)),rep(NA,ncol(table_6)))
-        table_6_p <- rbind(r1.p,r2.p,rep(NA,ncol(table_6)),rep(NA,ncol(table_6)))
-        table_6_p_formatted <- rbind(r1.p.formatted,r2.p.formatted,rep(NA,ncol(table_6)),rep(NA,ncol(table_6)))
+        table_5 <- rbind(r1,r2,r3,r4)
+        table_5_numerator <- rbind(r1.numerator,r2.numerator,rep(NA,ncol(table_5)),rep(NA,ncol(table_5)))
+        table_5_numerator_formatted <- rbind(r1.numerator.formatted,r2.numerator.formatted,rep(NA,ncol(table_5)),rep(NA,ncol(table_5)))
+        table_5_denom <- rbind(r1.denom,r2.denom,rep(NA,ncol(table_5)),rep(NA,ncol(table_5)))
+        table_5_denom_formatted <- rbind(r1.denom.formatted,r2.denom.formatted,rep(NA,ncol(table_5)),rep(NA,ncol(table_5)))
+        table_5_p <- rbind(r1.p,r2.p,rep(NA,ncol(table_5)),rep(NA,ncol(table_5)))
+        table_5_p_formatted <- rbind(r1.p.formatted,r2.p.formatted,rep(NA,ncol(table_5)),rep(NA,ncol(table_5)))
         
-        table_6_median <- rbind(rep(NA,ncol(table_6)),rep(NA,ncol(table_6)),r3.median,r4.median)
-        table_6_median_formatted <- rbind(rep(NA,ncol(table_6)),rep(NA,ncol(table_6)),r3.median.formatted,r4.median.formatted)
-        table_6_SD <- rbind(rep(NA,ncol(table_6)),rep(NA,ncol(table_6)),r3.SD,r4.SD)
-        table_6_SD_formatted <- rbind(rep(NA,ncol(table_6)),rep(NA,ncol(table_6)),r3.SD.formatted,r4.SD.formatted)
+        table_5_median <- rbind(rep(NA,ncol(table_5)),rep(NA,ncol(table_5)),r3.median,r4.median)
+        table_5_median_formatted <- rbind(rep(NA,ncol(table_5)),rep(NA,ncol(table_5)),r3.median.formatted,r4.median.formatted)
+        table_5_SD <- rbind(rep(NA,ncol(table_5)),rep(NA,ncol(table_5)),r3.SD,r4.SD)
+        table_5_SD_formatted <- rbind(rep(NA,ncol(table_5)),rep(NA,ncol(table_5)),r3.SD.formatted,r4.SD.formatted)
         
-        for (row in 1:nrow(table_6)){
-          for (col in 1:ncol(table_6)){
-            assign(paste0("table_6_",row,"_",col),
-                   table_6[row,col])
+        for (row in 1:nrow(table_5)){
+          for (col in 1:ncol(table_5)){
+            assign(paste0("table_5_",row,"_",col),
+                   table_5[row,col])
             
-            assign(paste0("table_6_numerator_",row,"_",col),
-                   table_6_numerator[row,col])
-            assign(paste0("table_6_numerator_formatted_",row,"_",col),
-                   table_6_numerator_formatted[row,col])
+            assign(paste0("table_5_numerator_",row,"_",col),
+                   table_5_numerator[row,col])
+            assign(paste0("table_5_numerator_formatted_",row,"_",col),
+                   table_5_numerator_formatted[row,col])
             
-            assign(paste0("table_6_denom_",row,"_",col),
-                   table_6_denom[row,col])
-            assign(paste0("table_6_denom_formatted_",row,"_",col),
-                   table_6_denom_formatted[row,col])
+            assign(paste0("table_5_denom_",row,"_",col),
+                   table_5_denom[row,col])
+            assign(paste0("table_5_denom_formatted_",row,"_",col),
+                   table_5_denom_formatted[row,col])
             
-            assign(paste0("table_6_p_",row,"_",col),
-                   table_6_p[row,col])
-            assign(paste0("table_6_p_formatted_",row,"_",col),
-                   table_6_p_formatted[row,col])
+            assign(paste0("table_5_p_",row,"_",col),
+                   table_5_p[row,col])
+            assign(paste0("table_5_p_formatted_",row,"_",col),
+                   table_5_p_formatted[row,col])
             
-            assign(paste0("table_6_median_",row,"_",col),
-                   table_6_median[row,col])
-            assign(paste0("table_6_median_formatted_",row,"_",col),
-                   table_6_median_formatted[row,col])
+            assign(paste0("table_5_median_",row,"_",col),
+                   table_5_median[row,col])
+            assign(paste0("table_5_median_formatted_",row,"_",col),
+                   table_5_median_formatted[row,col])
             
-            assign(paste0("table_6_SD_",row,"_",col),
-                   table_6_SD[row,col])
-            assign(paste0("table_6_SD_formatted_",row,"_",col),
-                   table_6_SD_formatted[row,col])
+            assign(paste0("table_5_SD_",row,"_",col),
+                   table_5_SD[row,col])
+            assign(paste0("table_5_SD_formatted_",row,"_",col),
+                   table_5_SD_formatted[row,col])
           }
         }
         rm(r1,r2,r3,r4)
         
         # Add rows 5 and 6
         
-        table_6_5_13.data <- repli_outcomes %>%
+        table_5_5_13.data <- repli_outcomes %>%
           filter(!is.na(repli_power_for_75_effect),
                  repli_type=="new data") %>%
           group_by(paper_id) %>%
           mutate(weight = 1/n()) %>%
           ungroup()
         
-        table_6_5_1 <- format.round(weighted.median(table_6_5_13.data$repli_power_for_75_effect,table_6_5_13.data$weight),2)
-        table_6_5_3 <- format.round(median(table_6_5_13.data$repli_power_for_75_effect),2)
+        table_5_5_1 <- format.round(weighted.median(table_5_5_13.data$repli_power_for_75_effect,table_5_5_13.data$weight),2)
+        table_5_5_3 <- format.round(median(table_5_5_13.data$repli_power_for_75_effect),2)
         
-        table_6_5_24.data <- repli_outcomes %>%
+        table_5_5_24.data <- repli_outcomes %>%
           filter(!is.na(rr_power_75_original_effect_design),
                  repli_type=="new data") %>%
           group_by(paper_id) %>%
           mutate(weight = 1/n()) %>%
           ungroup()
         
-        table_6_5_2 <- format.round(weighted.median(table_6_5_24.data$rr_power_75_original_effect_design,table_6_5_24.data$weight),2)
-        table_6_5_4 <- format.round(median(table_6_5_24.data$rr_power_75_original_effect_design),2)
+        table_5_5_2 <- format.round(weighted.median(table_5_5_24.data$rr_power_75_original_effect_design,table_5_5_24.data$weight),2)
+        table_5_5_4 <- format.round(median(table_5_5_24.data$rr_power_75_original_effect_design),2)
         
-        table_6_6_13.data <- repli_outcomes %>%
+        table_5_6_13.data <- repli_outcomes %>%
           filter(!is.na(repli_power_for_75_effect),
                  repli_type=="secondary data") %>%
           group_by(paper_id) %>%
           mutate(weight = 1/n()) %>%
           ungroup()
         
-        table_6_6_1 <- format.round(weighted.median(table_6_6_13.data$repli_power_for_75_effect,table_6_6_13.data$weight),2)
-        table_6_6_3 <- format.round(median(table_6_6_13.data$repli_power_for_75_effect),2)
+        table_5_6_1 <- format.round(weighted.median(table_5_6_13.data$repli_power_for_75_effect,table_5_6_13.data$weight),2)
+        table_5_6_3 <- format.round(median(table_5_6_13.data$repli_power_for_75_effect),2)
         
-        table_6_6_24.data <- repli_outcomes %>%
+        table_5_6_24.data <- repli_outcomes %>%
           filter(!is.na(rr_power_75_original_effect_design),
                  repli_type=="secondary data") %>%
           group_by(paper_id) %>%
           mutate(weight = 1/n()) %>%
           ungroup()
         
-        table_6_6_2 <- format.round(weighted.median(table_6_6_24.data$rr_power_75_original_effect_design,table_6_6_24.data$weight),2)
-        table_6_6_4 <- format.round(median(table_6_6_24.data$rr_power_75_original_effect_design),2)
+        table_5_6_2 <- format.round(weighted.median(table_5_6_24.data$rr_power_75_original_effect_design,table_5_6_24.data$weight),2)
+        table_5_6_4 <- format.round(median(table_5_6_24.data$rr_power_75_original_effect_design),2)
       }
 
     }
@@ -1074,11 +1077,11 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       abs_effect_smaller_denom_papers <- sum(all_effects$weight)
       abs_effect_smaller_p_papers <- paste0(format.round(100*abs_effect_smaller_n_papers/abs_effect_smaller_denom_papers,1),"%")
       
-      table_4_median_R_papers_neg_ratio <- 
-        paste0(format.round(100*(table_4_median_4_1-table_4_median_4_2)/table_4_median_4_1,1),"%")
-      
-      table_4_median_R_claims_neg_ratio <- 
-        paste0(format.round(100*(table_4_median_4_3-table_4_median_4_4)/table_4_median_4_3,1),"%")
+      # table_4_median_R_papers_neg_ratio <- 
+      #   paste0(format.round(100*(table_4_median_4_1-table_4_median_4_2)/table_4_median_4_1,1),"%")
+      # 
+      # table_4_median_R_claims_neg_ratio <- 
+      #   paste0(format.round(100*(table_4_median_4_3-table_4_median_4_4)/table_4_median_4_3,1),"%")
       
       corr_pearsons_orig_v_repli <- 
         format.round(weightedCorr(abs(all_effects$orig_conv_r),abs(all_effects$repli_conv_r),method="Spearman",
@@ -1247,6 +1250,20 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                         },
                         clustervar = "claim_id",
                         keepvars=c("repli_conv_r","orig_conv_r","weight"),
+                        alpha=.05,tails="two-tailed",iters=iters,
+                        digits=3,na.rm = FALSE
+        )$formatted.text
+      
+      pearsons_r_claims_orig_v_repli_same_dir_v_year <- 
+        bootstrap.clust(data=effects_combined,
+                        FUN=function(x) {
+                          weightedCorr(x=x$success,
+                                       y=x$pub_year,
+                                       weight=x$weight,
+                                       method="Pearson")
+                        },
+                        clustervar = "paper_id",
+                        keepvars=c("success","pub_year","weight"),
                         alpha=.05,tails="two-tailed",iters=iters,
                         digits=3,na.rm = FALSE
         )$formatted.text
@@ -1635,17 +1652,20 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         r6.data <-  repli_outcomes_orig %>% 
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
           select(paper_id) %>% 
           distinct()
         r7.data <- repli_outcomes_orig %>%
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
           filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
           select(paper_id, claim_id, rr_id) %>% 
           distinct() 
         r8.data <-  repli_outcomes_orig %>%
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
+          filter(repli_version_of_record) %>% 
           select(paper_id, claim_id) %>% 
           distinct()
         
@@ -2631,14 +2651,51 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           pull(rr_power_100_original_effect) %>%
           median(na.rm = T)
       ),0),"%")
-      
-      # SER Method for estimating power versus traditional power analysis
+    }
+    
+    # SER Method for estimating power versus traditional power analysis
+    {
       n_claims_SER_power <- 
         orig_dataset %>%
         semi_join(repli_outcomes %>% filter(!is_covid & repli_version_of_record), by = c("unique_claim_id" = "claim_id")) %>%
         filter(str_detect(original_statistic_analysis_type_statsteam, "ser")) %>%
         nrow()
       
+      from_ser <- ser_power %>% 
+        rename(r_threshold = threshold, r_s1 = s1, r_s2 = s2) %>% 
+        left_join(
+          orig_dataset %>% 
+            select(unique_claim_id, ser_threshold = rr_threshold_analytic_sample_size, 
+                   ser_s1 = rr_stage1_analytic_sample_size, ser_s2 = rr_stage2_analytic_sample_size),
+          by = "unique_claim_id"
+        ) %>% 
+        pivot_longer(cols = -unique_claim_id, names_to = "category", values_to = "value") %>% 
+        separate(category, into = c("type", "category")) %>% 
+        pivot_wider(names_from = type, values_from = value) %>% 
+        drop_na()
+      
+      from_traditional <- traditional_power %>% 
+        drop_na(rr_stage1_analytic_sample_size) %>% 
+        select(unique_claim_id = claim_id, ser_threshold = rr_threshold_analytic_sample_size, 
+               ser_s1 = rr_stage1_analytic_sample_size, ser_s2 = rr_stage2_analytic_sample_size) %>% 
+        left_join(
+          orig_dataset %>% 
+            select(unique_claim_id, r_threshold = rr_threshold_analytic_sample_size, 
+                   r_s1 = rr_stage1_analytic_sample_size, r_s2 = rr_stage2_analytic_sample_size),
+          by = "unique_claim_id"
+        ) %>% 
+        pivot_longer(cols = -unique_claim_id, names_to = "category", values_to = "value") %>% 
+        separate(category, into = c("type", "category")) %>% 
+        pivot_wider(names_from = type, values_from = value)
+      
+      n_claims_SER_max_15000 <- 
+        from_ser %>%
+        bind_rows(from_traditional) %>%
+        filter(r < 15000 & ser < 15000) %>% nrow()
+      
+      n_claims_SER_max_5000 <- from_ser %>%
+        bind_rows(from_traditional) %>%
+        filter(r < 5000 & ser < 5000) %>% nrow()
       
     }
     
@@ -3112,7 +3169,7 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     # Multiple replications of single claims
     {
       n_multi_repli_same_claim <- 
-        repli_outcomes %>%
+        repli_outcomes_orig %>%
         filter(!is_covid & repli_type == "new data") %>%
         select(claim_id, paper_id, rr_id, repli_sample_size_value, contains("many")) %>%
         filter(is_manylabs == "posthoc" | is_manylabs == "traditional") %>%
@@ -3362,10 +3419,10 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                             n_claims)
       
       table_s6_median_R_papers_neg_ratio <- 
-        paste0(format.round(100*(table_s6_median_4_1-table_4_median_4_2)/table_s6_median_4_1,1),"%")
+        paste0(format.round(100*(table_s6_median_4_1-table_s6_median_4_2)/table_s6_median_4_1,1),"%")
       
       table_s6_median_R_claims_neg_ratio <- 
-        paste0(format.round(100*(table_s6_median_4_3-table_4_median_4_4)/table_s6_median_4_3,1),"%")
+        paste0(format.round(100*(table_s6_median_4_3-table_s6_median_4_4)/table_s6_median_4_3,1),"%")
     }
     
     # Statistical significance and effect size for replications completed from Phase 2 sample
@@ -3465,10 +3522,38 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                             n_claims)
       
       table_s7_median_R_papers_neg_ratio <- 
-        paste0(format.round(100*(table_s7_median_4_1-table_4_median_4_2)/table_s7_median_4_1,1),"%")
+        paste0(format.round(100*(table_s7_median_4_1-table_s7_median_4_2)/table_s7_median_4_1,1),"%")
       
       table_s7_median_R_claims_neg_ratio <- 
-        paste0(format.round(100*(table_s7_median_4_3-table_4_median_4_4)/table_s7_median_4_3,1),"%")
+        paste0(format.round(100*(table_s7_median_4_3-table_s7_median_4_4)/table_s7_median_4_3,1),"%")
+    }
+    
+    # Different protocol
+    {
+      n_claims_same_claim_different_protocol <- 
+        repli_outcomes %>%
+        filter(!is_covid) %>%
+        filter(is_manylabs == "posthoc") %>%
+        mutate(
+          claim_id = ifelse(claim_id == "AgO1_gdvqwq", "AgO1_single-trace", claim_id),
+          claim_id = ifelse(claim_id == "AvOr_gdyrdr", "AvOr_single-trace", claim_id),
+          claim_id = ifelse(claim_id == "zlBL_56zxpp", "zlBL_single-trace", claim_id),
+        ) %>%
+        count(claim_id) %>%
+        nrow()
+      
+      n_studies_same_claim_different_protocol <- 
+        repli_outcomes_orig %>%
+        filter(!is_covid) %>%
+        filter(is_manylabs == "posthoc") %>%
+        filter(manylabs_type != "aggregation") %>%
+        mutate(
+          claim_id = ifelse(claim_id == "AgO1_gdvqwq", "AgO1_single-trace", claim_id),
+          claim_id = ifelse(claim_id == "AvOr_gdyrdr", "AvOr_single-trace", claim_id),
+          claim_id = ifelse(claim_id == "zlBL_56zxpp", "zlBL_single-trace", claim_id),
+        ) %>%
+        count(rr_id) %>%
+        nrow()
     }
   }
   
@@ -4345,6 +4430,40 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     
     # Figure S4
     {
+      figure_s4 <- full_dates %>% 
+        mutate(
+          completed = case_when(
+            completed > as.Date("2023-03-31") ~ as.Date("2023-03-31"),
+            TRUE ~ completed
+          )
+        ) %>% 
+        semi_join(repli_outcomes %>% filter(!is_covid & (manylabs_type != "aggregation" | is.na(manylabs_type))), by = "rr_id") %>% 
+        mutate(duration = (completed - started) %>% as.numeric()) %>% 
+        ggplot(aes(x = duration, fill = type)) +
+        geom_density(alpha = 0.7) +
+        scale_fill_manual(
+          values = c("tomato1", "tomato4", "deepskyblue1", "deepskyblue4"),
+          labels = c("New data, P1", "New data, P2", 
+                     "Secondary data, P1", "Secondary data, P2")
+        ) +
+        labs(
+          x = "Days",
+          y = "",
+          fill = "",
+          title = "Duration of replication projects"
+        ) +
+        theme_light() +
+        theme(
+          plot.title = element_text(size = 11, hjust = 0.5),
+          axis.text.y = element_blank(),
+          legend.text = element_text(size = 11),
+          legend.position = "bottom"
+        )
+      
+    }
+    
+    # Figure S5
+    {
       all_sourced <- rr_sourced %>% 
         semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
         filter(type == "replication" | type == "hybrid") %>% 
@@ -4352,7 +4471,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         distinct()
       
       # need all eligible papers to start
-      figure_s4 <- status %>% 
+      figure_s5 <- status %>% 
         filter(RR) %>% 
         select(paper_id) %>% 
         left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id") %>% 
@@ -4414,12 +4533,6 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.text = element_text(size = 11),
           legend.position = "bottom"
         )
-      
-    }
-    
-    # Figure S5
-    {
-      
     }
     
     # Figure S6
@@ -4550,9 +4663,13 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           axis.text.x = element_text(size = 14),
           axis.text.y = element_text(size = 9),
           legend.text = element_text(size = 14),
-          legend.position = "right"
+          legend.position = "bottom"
         ) +
-        guides(fill = guide_legend(nrow = 6, byrow = T, reverse = T))
+        #guides(fill = guide_legend(nrow = 6, byrow = T, reverse = T))
+        guides(fill = guide_legend(nrow = 1,
+                                   byrow = T,
+                                   reverse = T,
+                                   direction="horizontal"))
     }
     
     # Figure S8
@@ -5215,7 +5332,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       "figure_s2"=figure_s2,
       "figure_s3"=figure_s3,
       "figure_s4"=figure_s4,
-      #"figure_s5"=figure_s5,
+      "figure_s5"=figure_s5,
       "figure_s6"=figure_s6,
       "figure_s7"=figure_s7,
       "figure_s8"=figure_s8,
