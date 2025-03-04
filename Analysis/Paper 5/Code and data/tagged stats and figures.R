@@ -250,16 +250,23 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         r6.data <-  repli_outcomes_orig %>% 
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
-          filter(repli_version_of_record) %>% 
+          #filter(repli_version_of_record) %>% 
           select(paper_id) %>% 
           distinct()
+        # r7.data <- repli_outcomes_orig %>%
+        #   filter(repli_type != "original and secondary data") %>% 
+        #   filter(!is_covid) %>% 
+        #   filter(repli_version_of_record) %>% 
+        #   filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
+        #   select(paper_id, claim_id, rr_id) %>% 
+        #   distinct() 
+        
         r7.data <- repli_outcomes_orig %>%
-          filter(repli_type != "original and secondary data") %>% 
-          filter(!is_covid) %>% 
-          filter(repli_version_of_record) %>% 
-          filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
-          select(paper_id, claim_id, rr_id) %>% 
-          distinct() 
+          filter(repli_type != "original and secondary data") %>%
+          semi_join(status %>% filter(p1_delivery|p2_delivery), by = "paper_id") %>%
+          filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>%
+          select(paper_id, claim_id, rr_id) %>%
+          distinct()
         r8.data <-  repli_outcomes_orig %>%
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
@@ -1656,12 +1663,11 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           select(paper_id) %>% 
           distinct()
         r7.data <- repli_outcomes_orig %>%
-          filter(repli_type != "original and secondary data") %>% 
-          filter(!is_covid) %>% 
-          filter(repli_version_of_record) %>% 
-          filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>% 
-          select(paper_id, claim_id, rr_id) %>% 
-          distinct() 
+          filter(repli_type != "original and secondary data") %>%
+          semi_join(status %>% filter(p1_delivery|p2_delivery), by = "paper_id") %>%
+          filter(is.na(manylabs_type) | manylabs_type != "aggregation") %>%
+          select(paper_id, claim_id, rr_id) %>%
+          distinct()
         r8.data <-  repli_outcomes_orig %>%
           filter(repli_type != "original and secondary data") %>% 
           filter(!is_covid) %>% 
