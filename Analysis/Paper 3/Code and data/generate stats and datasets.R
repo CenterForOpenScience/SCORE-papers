@@ -1,8 +1,6 @@
 
 # Initial setup and libraries
 {
-  rm(list=ls()) # yes I know this is bad, will get rid of later; just a convenience for now
-  
   library(shiny)
   library(bslib)
   library(dplyr)
@@ -18,13 +16,8 @@
   library(googlesheets4)
   library(zcurve)
   library(scales)
-  library(wCorr)
-  library(corrplot)
-  library(cowplot)
-  library(ggridges) #note: using the github version, as the CRAN hasn't been pushed to get the weights functionality
-  library(ggside)
-  library(weights)
-  library(glue)
+  #library(MASS)
+  library(DescTools)
   
   drive_auth(Sys.getenv("google_oauth_email"))
   #drive_deauth()
@@ -32,20 +25,16 @@
 
 # Load and save data and datasets for public running
 {
-  objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
-                       "status","all_rr_attempts","repli_binary","publications",
-                       "non_significant_bushels","rr_sourced","repli_export",
-                       "repli_case_exclusions","orig_dataset",
-                       "full_dates","never_sourced","ser_power",
-                       "traditional_power")
+  objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes",
+                       "paper_metadata","status","stitched_claims",
+                       "all_rr_attempts","publications")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
   }
   
-  save(list=objects_to_load,file="Analysis/Paper 5/Code and data/Analyst package/analyst data.RData")
-  file.copy(from="Analysis/common functions.R",to="Analysis/Paper 5/Code and data/Analyst package/common functions.R",overwrite=TRUE)
-  file.copy(from="Analysis/Paper 5/Code and data/tagged stats and figures.R",to="Analysis/Paper 5/Code and data/Analyst package/tagged stats and figures.R",overwrite=TRUE)
-  file.copy(from="pipeline/data_processing/rr/repli_binary.R",to="Analysis/Paper 5/Code and data/Analyst package/repli_binary.R",overwrite=TRUE)
+  save(list=objects_to_load,file="Analysis/Paper 3/Code and data/Analyst package/analyst data.RData")
+  file.copy(from="Analysis/common functions.R",to="Analysis/Paper 3/Code and data/Analyst package/common functions.R",overwrite=TRUE)
+  file.copy(from="Analysis/Paper 3/Code and data/tagged stats and figures.R",to="Analysis/Paper 3/Code and data/Analyst package/tagged stats and figures.R",overwrite=TRUE)
 }
 
 # Pull source code docs
