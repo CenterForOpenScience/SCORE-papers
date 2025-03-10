@@ -921,22 +921,27 @@ list(
 )
 ```
 
-Original variables data. QC'ed and merged. 
-
-```{targets processed-ov}
-list(
-
-)
-```
-
 Process reproducibility data. 
 
 ```{targets processed-pr}
 
 list(
   
+  tar_target(oa_changelog_file,
+             "1mrH4mPCr6VUrOD8S08hhzD3jdcRjOnMPAF9XfZ0_vH4"),
+  tar_target(oa_changelog_moddate,
+             get_google_mod_date(oa_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(oa_changelog,
+             load_changelog(oa_changelog_file,
+                            oa_changelog_moddate)),
+  
+  tar_target(oa_raw,
+             load_process_oa(oa_sheet)),
+  
   tar_target(oa_outreach,
-           load_process_oa(oa_sheet)),
+             update_oa(oa_raw,
+                       oa_changelog)),
   
   tar_target(pr_data_form,
              process_pr_data(pr_data_raw,

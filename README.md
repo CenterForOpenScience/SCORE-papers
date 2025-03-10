@@ -16,18 +16,13 @@ Please read through the rest of this document for more information on `renv`, `{
 
 ## Troubleshooting First Time Setup 
 
-The biggest failure point in project installation seems to be with the renv package. If you are encountering errors while running `renv::restore()`, start by making sure your installation of R and its [mandatory tools](https://mac.r-project.org/tools/) are up to date. If that does not solve the issue, try `install.packages("renv")` to update the package, then run `renv::restore()`. If those methods fail, contact the data manager for help. 
+The biggest failure point in project installation seems to be with the renv package. If you are encountering errors while running `renv::restore()`, start by making sure your installation of R and its [mandatory tools](https://mac.r-project.org/tools/) are up to date. If that does not solve the issue, try `install.packages("renv")` to update the package, then run `renv::restore()`. 
 
 If you encounter issues while running `rmarkdown::render("targets.Rmd")`, the most likely issue is that you do not have permission to access one or more online sources it pulls raw data from. Contact the data manager to get appropriate access here.
 
 ## Accessing data and Workflow Maintenance
 
 Project data is reproducibly generated using `targets::tar_make()`. After running `rmarkdown::render("targets.Rmd")`, during first time setup, you will have access to all SCORE data products. To load any particular dataset into the R environment, use `targets::tar_load()` with the name of the dataset you want as the parameter. Multiple datasets can be loaded in at one time by using a concatenated list of dataset names (e.g., `targets::tar_load(c(repli_outcomes, repro_outcomes))`). Dataset names are documented in `targets.Rmd`. 
-
-While working with SCORE data, data might change in two ways:
-
-1) New datasets can be added
-2) New data can be added to existing datasets
 
 ### Updating to include new datasets
 
