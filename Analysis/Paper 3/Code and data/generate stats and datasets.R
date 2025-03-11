@@ -1,11 +1,7 @@
 
 # Initial setup and libraries
 {
-  library(shiny)
-  library(bslib)
   library(dplyr)
-  library(ggplot2)
-  library(ggExtra)
   library(DT)
   library(tidyr)
   library(pbapply)
@@ -41,14 +37,14 @@
 {
   # Common functions
   #source(file="Analysis/common functions.R")
-  source(file="Analysis/Paper 5/Code and data/tagged stats and figures.R")
+  source(file="Analysis/Paper 3/Code and data/tagged stats and figures.R")
 }
 
 # Generate tagged stats in text
 {
   # Pull paper to find what tags are in paper
   {
-    paper_text <- drive_read_string(file=googledrive::as_id("1mauNAwu0eZfvh5-5p44wnKz8NQL-5Tm_bAyZNseTONo"),
+    paper_text <- drive_read_string(file=googledrive::as_id("18U3ElDrhF5PltX_UP1XIN1e6CK8nkfOzjSDZr2zF6lo"),
                                     type = "text/plain",encoding="UTF-8")  %>%
       strsplit(split = "(\r\n|\r|\n)") %>%
       .[[1]]
@@ -74,93 +70,94 @@
   }))
   
   # Export
-  ss <- "https://docs.google.com/spreadsheets/d/1uaR6vYAMVywk1liQeKRyRCDQcs--teFpRsWzHrvfg3s"
+  ss <- "https://docs.google.com/spreadsheets/d/1qs8Ap3wfw-t5SqlDbCa1sQvvtVY4LS38xwxd3rro0po"
   range_delete(ss,range="A:H")
   range_write(ss,data = data.frame(tags=paste0("{",tags,"}"),values_text), range = "A1",col_names=FALSE)
 }
 
 # Generate figures
 {
-  generated_figures <- figures(iters = 1000)
+  generated_figures <- figures()
   
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure 1.png",
+    "Analysis/Paper 3/Code and data/Figures/figure 1.png",
     plot = generated_figures$figure_1,
-    width = 3000,height = 1000,units = "px",bg="white"
+    width = 6000,height = 2500,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure 2.png",
+    "Analysis/Paper 3/Code and data/Figures/figure 2.png",
     plot = generated_figures$figure_2,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure 3.png",
+    "Analysis/Paper 3/Code and data/Figures/figure 3.png",
     plot = generated_figures$figure_3,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 1200,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure 4.png",
+    "Analysis/Paper 3/Code and data/Figures/figure 4.png",
     plot = generated_figures$figure_4,
-    width = 2000,height = 1200,units = "px",bg="white"
+    width = 6000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s1.png",
+    "Analysis/Paper 3/Code and data/Figures/figure 5.png",
+    plot = generated_figures$figure_5,
+    width = 6000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 3/Code and data/Figures/figure 6.png",
+    plot = generated_figures$figure_6,
+    width = 6000,height = 2000,units = "px",bg="white"
+  )
+  ggsave(
+    "Analysis/Paper 3/Code and data/Figures/figure s1.png",
     plot = generated_figures$figure_s1,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 1200,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s2.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s2.png",
     plot = generated_figures$figure_s2,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 10000,height = 4000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s3.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s3.png",
     plot = generated_figures$figure_s3,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 10000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s4.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s4.png",
     plot = generated_figures$figure_s4,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s5.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s5.png",
     plot = generated_figures$figure_s5,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s6.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s6.png",
     plot = generated_figures$figure_s6,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 4000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s7.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s7.png",
     plot = generated_figures$figure_s7,
-    width = 4000,height = 4000,units = "px",bg="white"
+    width = 6000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s8.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s8.png",
     plot = generated_figures$figure_s8,
-    width = 2000,height = 2000,units = "px",bg="white"
+    width = 6000,height = 5000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s9.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s9.png",
     plot = generated_figures$figure_s9,
-    width = 2000,height = 2000,units = "px",bg="white"
+    #figure_s9,
+    width = 6000,height = 2000,units = "px",bg="white"
   )
   ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s10.png",
+    "Analysis/Paper 3/Code and data/Figures/figure s10.png",
     plot = generated_figures$figure_s10,
-    width = 2000,height = 2000,units = "px",bg="white"
-  )
-  ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s11.png",
-    plot = generated_figures$figure_s11,
-    width = 2000,height = 2000,units = "px",bg="white"
-  )
-  ggsave(
-    "Analysis/Paper 5/Code and data/Figures/figure s12.png",
-    plot = generated_figures$figure_s12,
-    width = 3000,height = 1000,units = "px",bg="white"
+    width = 6000,height = 5000,units = "px",bg="white"
   )
 }

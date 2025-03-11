@@ -3350,7 +3350,8 @@ tagged_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                         FUN=function(x) {
                           x <- x %>% group_by(paper_id) %>% mutate(weight = 1/n())
                           weighted.mean((!is.na(x$repli_p_value) & x$repli_p_value <= 0.05 &
-                                           !is.na(x$repli_pattern_criteria_met) & x$repli_pattern_criteria_met==TRUE),
+                                           !is.na(x$repli_pattern_criteria_met) 
+                                         & x$repli_pattern_criteria_met==TRUE),
                                         x$weight)
                         },
                         clustervar = "paper_id",
