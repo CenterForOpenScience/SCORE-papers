@@ -587,6 +587,16 @@ list(
              load_changelog(rr_attempts_minted_changelog_file,
                             rr_attempts_minted_changelog_moddate)),
   
+  # repro_supplement_changelog (Google Sheet)
+  tar_target(repro_supplement_changelog_file,
+             "1OzOpJCJCy5OPYISk1UR5tI0ehNaou-ykAeD7GPZ99ug"),
+  tar_target(repro_supplement_changelog_moddate,
+             get_google_mod_date(repro_supplement_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(repro_supplement_changelog,
+             load_changelog(repro_supplement_changelog_file,
+                            repro_supplement_changelog_moddate)),
+  
   ## checkins/ ----
   # rr_reporting_checkin.tsv
   tar_target(rr_reporting_checkin_file,
@@ -908,10 +918,14 @@ list(
                           p2_repro_input_changelog)),
   
   # Create repro supplement
-  tar_target(repro_supplement,
+  tar_target(repro_supplement_raw,
              transform_repro_outcomes(repro_export,
                                       orig_dataset,
                                       rr_confrontations_repro_claim)),
+  
+  tar_target(repro_supplement,
+             update_repro_supplement(repro_supplement_raw,
+                                     repro_supplement_changelog)),
   
   # Full reproduction dataset
   tar_target(repro_outcomes,
