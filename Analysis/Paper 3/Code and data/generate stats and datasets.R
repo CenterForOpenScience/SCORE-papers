@@ -76,7 +76,7 @@
 }
 
 # Generate figures
-{
+if(FALSE){
   generated_figures <- figures()
   
   ggsave(

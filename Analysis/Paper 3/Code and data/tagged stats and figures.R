@@ -72,7 +72,7 @@ tagged_stats <- function(iters = 100){
                                          repro_outcomes$repro_version_of_record=="T",]
     
     # Merge in paper metadata
-      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year","is_covid")]
+      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","COS_pub_expanded","pub_year","is_covid")]
       orig_outcomes <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
       
       repro_outcomes_merged <- merge(repro_outcomes,orig_outcomes[,!(names(orig_outcomes) %in% c("paper_id"))],
@@ -503,6 +503,39 @@ tagged_stats <- function(iters = 100){
       
       n_min_pr_edu_by_year <- min(table(pr_outcomes_modified[pr_outcomes_modified$field=="Education",]$pub_year))
       n_max_pr_edu_by_year <- max(table(pr_outcomes_modified[pr_outcomes_modified$field=="Education",]$pub_year))
+    
+      exp_fields <- paper_metadata %>% 
+        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+        mutate(
+          field2 = case_when(
+            str_detect(pub, "financ|Financ") ~ "finance",
+            str_detect(pub, "organization|Organization") ~ "org. behavior",
+            !str_detect(pub, "organization|Organization") & field == "marketing/org behavior"  ~ "marketing",
+            !str_detect(pub, "financ|Financ") & field == "economics"  ~ "economics",
+            .default = field
+          )
+        ) %>%
+        mutate(field2 = str_to_title(field2)) %>%
+        select(paper_id,field2)
+      pr_outcomes_subfields <- merge(pr_outcomes_modified,exp_fields,by="paper_id",all.x=TRUE,all.y=FALSE)
+      
+      p_papers_data_available_econ_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Economics",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Economics"))
+      p_papers_data_available_polisci_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Political Science",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Political Science"))
+      p_papers_data_available_fin_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Finance",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Finance"))
+      p_papers_data_available_padmin_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Public Administration",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Public Administration"))
+
+      
+      rm(exp_fields,pr_outcomes_subfields)
+
+      
     }
     
     # Assessing outcome reproducibility
@@ -542,8 +575,6 @@ tagged_stats <- function(iters = 100){
                  ) %>%
                distinct())
       
-      n_papers_OR_source_data <- sum(repro_outcomes$repro_type=="Source Data Reproduction")
-      
       rm(claims_per_paper)
         
     }
@@ -563,8 +594,8 @@ tagged_stats <- function(iters = 100){
       
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_completed_outcome_test <- length(unique(repro_outcomes_OR$paper_id))
-      p_papers_completed_outcome_test <- format.text.percent(n_papers_completed_outcome_test,n_papers_OR_data_available)
+      #n_papers_completed_outcome_test <- length(unique(repro_outcomes_OR$paper_id))
+      #p_papers_completed_outcome_test <- format.text.percent(n_papers_completed_outcome_test,n_papers_OR_data_available)
       
       data <- status %>% filter(RR) %>% 
         select(paper_id) %>% 
@@ -627,9 +658,6 @@ tagged_stats <- function(iters = 100){
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
       n_claims_exc_no_elig <- nrow(repro_outcomes)-nrow(repro_outcomes_OR)
-
-      # n_papers_OR_added_SDR <- length(unique(
-      #   repro_outcomes_OR[repro_outcomes_OR$repro_type=="Source Data Reproduction",]$paper_id))
       
       n_papers_OR_added_SDR <- format.round(
         sum(repro_outcomes_OR %>%
@@ -638,16 +666,16 @@ tagged_stats <- function(iters = 100){
         pull(n)),1)
       
       
-      # 
-      # n_papers_OR_of_all_precise <- format.round(sum(repro_outcomes_expanded$weight *
-      #                                                  (repro_outcomes_expanded$repro_outcome_overall=="precise" | 
-      #                                                     repro_outcomes_expanded$repro_outcome_overall=="push button")),1)
-      # 
-      # p_papers_OR_of_all_precise <- cw.proportion(
-      #   repro_outcomes_expanded$repro_outcome_overall=="precise" | 
-      #     repro_outcomes_expanded$repro_outcome_overall=="push button",
-      #   weights=repro_outcomes_expanded$weight,
-      #   clusters = repro_outcomes_expanded$paper_id,iters)$formatted.text
+
+      n_papers_OR_of_all_precise <- format.round(sum(repro_outcomes_expanded$weight *
+                                                       (repro_outcomes_expanded$repro_outcome_overall=="precise" |
+                                                          repro_outcomes_expanded$repro_outcome_overall=="push button")),1)
+
+      p_papers_OR_of_all_precise <- cw.proportion(
+        repro_outcomes_expanded$repro_outcome_overall=="precise" |
+          repro_outcomes_expanded$repro_outcome_overall=="push button",
+        weights=repro_outcomes_expanded$weight,
+        clusters = repro_outcomes_expanded$paper_id,iters)$formatted.text
       
       n_papers_OR_approx_or_precise <- format.round(
         sum(repro_outcomes_OR$weight *
@@ -706,13 +734,11 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_expanded_no_none$paper_id,iters)$formatted.text
       
       repro_outcomes_dc <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data and code available",]
-      repro_outcomes_dc <- repro_outcomes_dc #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+      repro_outcomes_dc <- repro_outcomes_dc
       repro_outcomes_dc <- repro_outcomes_dc %>%
         filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_data_and_code <- length(unique(repro_outcomes_dc$paper_id))
+      n_papers_OR_data_and_code <- format.round(sum(repro_outcomes_dc$weight),1)
       
       n_papers_OR_data_and_code_approx_or_precise <- format.round(
         sum(repro_outcomes_dc$weight *
@@ -737,10 +763,6 @@ tagged_stats <- function(iters = 100){
         weights=repro_outcomes_dc$weight,
         clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
       
-      # fig_4_QC_p_text <- p_papers_OR_data_and_code_precise
-      # fig_4_QC_n_text <- n_papers_OR_data_and_code_precise
-      # fig_4_QC_denom_text <- length(unique(repro_outcomes_dc$paper_id))
-      
       n_papers_OR_data_and_code_pushbutton <- format.round(sum(repro_outcomes_dc$weight *
                                                              (repro_outcomes_dc$repro_outcome_overall=="push button")),1)
       
@@ -750,14 +772,11 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
       
       repro_outcomes_do <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Only data available",]
-      
-      repro_outcomes_do <- repro_outcomes_do #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+
       repro_outcomes_do <- repro_outcomes_do %>%
         filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_data_only <- length(unique(repro_outcomes_do$paper_id))
+      n_papers_OR_data_only <- format.round(sum(repro_outcomes_do$weight),1)
       
       n_papers_OR_data_only_approx_or_precise <- format.round(
         sum(repro_outcomes_do$weight *
@@ -791,14 +810,15 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_do$paper_id,iters)$formatted.text
       
       repro_outcomes_sd <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data reconstructed from source",]
-      
-      repro_outcomes_sd <- repro_outcomes_sd #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
       repro_outcomes_sd <- repro_outcomes_sd %>%
         filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_source_data <- length(unique(repro_outcomes_sd$paper_id))
+      n_papers_OR_source_data <- all_rr_attempts %>%
+        filter(type == "Source Data Reproduction") %>%
+        filter(field != "covid") %>%
+        select(paper_id) %>%
+        distinct() %>%
+        nrow()
       
       n_papers_OR_source_data_approx_or_precise <- format.round(
         sum(repro_outcomes_sd$weight *
@@ -830,6 +850,9 @@ tagged_stats <- function(iters = 100){
         repro_outcomes_sd$repro_outcome_overall=="push button",
         weights=repro_outcomes_sd$weight,
         clusters = repro_outcomes_sd$paper_id,iters)$formatted.text
+      
+      as.numeric(n_papers_OR_data_and_code) + as.numeric(n_papers_OR_source_data)+as.numeric(n_papers_OR_data_only)
+      
     }
     
     # Implied overall outcome reproducibility
@@ -926,7 +949,8 @@ tagged_stats <- function(iters = 100){
       repro_outcomes_merged_econ <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Economics and Finance",]
       repro_outcomes_merged_econ <- repro_outcomes_merged_econ %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
+      #n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
+      n_papers_OR_econ <- format.round(sum(repro_outcomes_merged_econ$weight),1)
       
       n_papers_OR_approx_or_precise_econ <- format.round(
         sum(repro_outcomes_merged_econ$weight *
@@ -954,7 +978,8 @@ tagged_stats <- function(iters = 100){
       repro_outcomes_merged_polisci <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Political Science",]
       repro_outcomes_merged_polisci <- repro_outcomes_merged_polisci %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
+      #n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
+      n_papers_OR_polisci <- format.round(sum(repro_outcomes_merged_polisci$weight),1)
       
       n_papers_OR_approx_or_precise_polisci <- format.round(
         sum(repro_outcomes_merged_polisci$weight *
@@ -985,7 +1010,8 @@ tagged_stats <- function(iters = 100){
                                                              repro_outcomes_merged$field!="Political Science",]
       repro_outcomes_merged_other <- repro_outcomes_merged_other %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
+      #n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
+      n_papers_OR_other <- format.round(sum(repro_outcomes_merged_other$weight),1)
       
       n_papers_OR_approx_or_precise_other <- format.round(
         sum(repro_outcomes_merged_other$weight *
@@ -1019,7 +1045,9 @@ tagged_stats <- function(iters = 100){
                                        repro_outcomes$repro_outcome_overall=="precise" | 
                                        repro_outcomes$repro_outcome_overall=="push button")*
                                       repro_outcomes$weight
-        )/(length(unique(repro_outcomes$paper_id))),1),"%")
+        )/sum(repro_outcomes$weight),1),"%")
+      
+        #format.round(sum(repro_outcomes$weight),1)
       
       p_raw_papers_data_unavailable <- n_papers_data_unavailable/n_papers_assess_process_repro
       p_raw_papers_OR_approx_or_precise <- cw.proportion(
@@ -1035,11 +1063,391 @@ tagged_stats <- function(iters = 100){
     
     # Sampling frame and selection of claims for reproduction
     {
-      n_papers_initial_sample <- length(unique(status$paper_id))
+      n_papers_initial_sample_p1 <- status %>% filter(p1_delivery) %>% nrow()
       
-      #nrow(status  %>% filter(bushel))
+      n_papers_bushel <- (nrow(status  %>% filter(bushel)))
     }
     
+    # Attrition of reproductions that started but were not completed
+    {
+      n_papers_repro_completed <- all_rr_attempts %>%
+        filter(field != "covid" & str_detect(type, "Reproduction")) %>%
+        count(paper_id) %>%
+        nrow()
+      
+      p_papers_repro_completed <- 
+        paste0(format.round(100*n_papers_OR_at_least_one/n_papers_repro_completed,1),"%")
+    }
+    
+    # Claims-level Summary of Outcome Reproducibility 
+    {
+      repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
+      
+      n_claims_exc_no_elig <- nrow(repro_outcomes)-nrow(repro_outcomes_OR)
+      
+      n_claims_OR_added_SDR <- nrow(repro_outcomes_OR %>%
+        filter(repro_type=="Source Data Reproduction"))
+
+      n_claims_OR_of_all_precise <- format.round(
+        sum(1 *
+              (repro_outcomes_expanded$repro_outcome_overall=="precise" |
+                 repro_outcomes_expanded$repro_outcome_overall=="push button")),0)
+      
+      p_claims_OR_of_all_precise <- format.text.percent(
+        sum(repro_outcomes_expanded$repro_outcome_overall=="precise" |
+          repro_outcomes_expanded$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_expanded))
+      
+      n_claims_OR_approx_or_precise <- format.round(
+        sum(1 *
+              (repro_outcomes_OR$repro_outcome_overall=="approximate" |
+                 repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                 repro_outcomes_OR$repro_outcome_overall=="push button")),0)
+      
+      p_claims_OR_approx_or_precise <- format.text.percent(
+        sum(repro_outcomes_OR$repro_outcome_overall=="approximate" | 
+          repro_outcomes_OR$repro_outcome_overall=="precise" | 
+          repro_outcomes_OR$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_OR))
+      
+      n_claims_OR_precise <- format.round(
+        sum(1 *
+              (repro_outcomes_OR$repro_outcome_overall=="precise" |
+                 repro_outcomes_OR$repro_outcome_overall=="push button")),0)
+      
+      p_claims_OR_precise <- format.text.percent(
+        sum(repro_outcomes_OR$repro_outcome_overall=="precise" | 
+          repro_outcomes_OR$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_OR))
+      
+      n_claims_OR_precise_pushbutton <- format.round(
+        sum(repro_outcomes_OR$weight *
+              ((repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                  repro_outcomes_OR$repro_outcome_overall=="push button") & 
+                 repro_outcomes_OR$repro_type=="Push Button Reproduction")),0)
+      
+      p_claims_OR_precise_pushbutton <- format.text.percent(
+        sum((repro_outcomes_OR$repro_outcome_overall=="precise" |
+           repro_outcomes_OR$repro_outcome_overall=="push button") &
+          repro_outcomes_OR$repro_type=="Push Button Reproduction"),
+        nrow(repro_outcomes_OR))
+      
+      # stopped here
+      
+      repro_outcomes_expanded_no_none <- repro_outcomes_expanded[repro_outcomes_expanded$repro_outcome_overall!="none",]
+      
+      n_papers_of_all_exc_no_elig <- format.round(
+        sum(repro_outcomes_expanded$weight)-sum(repro_outcomes_expanded_no_none$weight),1)
+      
+      n_claims_of_all_exc_no_elig <- nrow(repro_outcomes_expanded)-nrow(repro_outcomes_expanded_no_none)
+      
+      n_papers_of_all_denom <- format.round(sum(repro_outcomes_expanded_no_none$weight),1)
+      
+      n_papers_OR_of_all_approx_or_precise <- format.round(sum(repro_outcomes_expanded_no_none$weight *
+                                                                 (repro_outcomes_expanded_no_none$repro_outcome_overall=="approximate" |
+                                                                    repro_outcomes_expanded_no_none$repro_outcome_overall=="precise" |
+                                                                    repro_outcomes_expanded_no_none$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_of_all_approx_or_precise <- cw.proportion(
+        repro_outcomes_expanded_no_none$repro_outcome_overall=="approximate" |
+          repro_outcomes_expanded_no_none$repro_outcome_overall=="precise" |
+          repro_outcomes_expanded_no_none$repro_outcome_overall=="push button",
+        weights=repro_outcomes_expanded_no_none$weight,
+        clusters = repro_outcomes_expanded_no_none$paper_id,iters)$formatted.text
+      
+      repro_outcomes_dc <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data and code available",]
+      repro_outcomes_dc <- repro_outcomes_dc
+      repro_outcomes_dc <- repro_outcomes_dc %>%
+        filter(!repro_outcome_overall=="none")
+      
+      n_papers_OR_data_and_code <- format.round(sum(repro_outcomes_dc$weight),1)
+      
+      n_papers_OR_data_and_code_approx_or_precise <- format.round(
+        sum(repro_outcomes_dc$weight *
+              (repro_outcomes_dc$repro_outcome_overall=="approximate" |
+                 repro_outcomes_dc$repro_outcome_overall=="precise" | 
+                 repro_outcomes_dc$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_data_and_code_approx_or_precise <- cw.proportion(
+        repro_outcomes_dc$repro_outcome_overall=="approximate" | 
+          repro_outcomes_dc$repro_outcome_overall=="precise" | 
+          repro_outcomes_dc$repro_outcome_overall=="push button",
+        weights=repro_outcomes_dc$weight,
+        clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
+      
+      n_papers_OR_data_and_code_precise <- format.round(sum(repro_outcomes_dc$weight *
+                                                              (repro_outcomes_dc$repro_outcome_overall=="precise" |
+                                                                 repro_outcomes_dc$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_data_and_code_precise <- cw.proportion(
+        repro_outcomes_dc$repro_outcome_overall=="precise" | 
+          repro_outcomes_dc$repro_outcome_overall=="push button",
+        weights=repro_outcomes_dc$weight,
+        clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
+      
+      n_papers_OR_data_and_code_pushbutton <- format.round(sum(repro_outcomes_dc$weight *
+                                                                 (repro_outcomes_dc$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_data_and_code_pushbutton <- cw.proportion(
+        repro_outcomes_dc$repro_outcome_overall=="push button",
+        weights=repro_outcomes_dc$weight,
+        clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
+      
+      repro_outcomes_do <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Only data available",]
+      
+      repro_outcomes_do <- repro_outcomes_do %>%
+        filter(!repro_outcome_overall=="none")
+      
+      n_papers_OR_data_only <- format.round(sum(repro_outcomes_do$weight),1)
+      
+      n_papers_OR_data_only_approx_or_precise <- format.round(
+        sum(repro_outcomes_do$weight *
+              (repro_outcomes_do$repro_outcome_overall=="approximate" |
+                 repro_outcomes_do$repro_outcome_overall=="precise" | 
+                 repro_outcomes_do$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_data_only_approx_or_precise <- cw.proportion(
+        repro_outcomes_do$repro_outcome_overall=="approximate" | 
+          repro_outcomes_do$repro_outcome_overall=="precise" | 
+          repro_outcomes_do$repro_outcome_overall=="push button",
+        weights=repro_outcomes_do$weight,
+        clusters = repro_outcomes_do$paper_id,iters)$formatted.text
+      
+      n_papers_OR_data_only_precise <- format.round(sum(repro_outcomes_do$weight *
+                                                          (repro_outcomes_do$repro_outcome_overall=="precise" |
+                                                             repro_outcomes_do$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_data_only_precise <- cw.proportion(
+        repro_outcomes_do$repro_outcome_overall=="precise" | 
+          repro_outcomes_do$repro_outcome_overall=="push button",
+        weights=repro_outcomes_do$weight,
+        clusters = repro_outcomes_do$paper_id,iters)$formatted.text
+      
+      n_papers_OR_data_only_pushbutton <- format.round(sum(repro_outcomes_do$weight *
+                                                             (repro_outcomes_do$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_data_only_pushbutton <- cw.proportion(
+        repro_outcomes_do$repro_outcome_overall=="push button",
+        weights=repro_outcomes_do$weight,
+        clusters = repro_outcomes_do$paper_id,iters)$formatted.text
+      
+      repro_outcomes_sd <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data reconstructed from source",]
+      repro_outcomes_sd <- repro_outcomes_sd %>%
+        filter(!repro_outcome_overall=="none")
+      
+      n_papers_OR_source_data <- all_rr_attempts %>%
+        filter(type == "Source Data Reproduction") %>%
+        filter(field != "covid") %>%
+        select(paper_id) %>%
+        distinct() %>%
+        nrow()
+      
+      n_papers_OR_source_data_approx_or_precise <- format.round(
+        sum(repro_outcomes_sd$weight *
+              (repro_outcomes_sd$repro_outcome_overall=="approximate" |
+                 repro_outcomes_sd$repro_outcome_overall=="precise" | 
+                 repro_outcomes_sd$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_source_data_approx_or_precise <- cw.proportion(
+        repro_outcomes_sd$repro_outcome_overall=="approximate" | 
+          repro_outcomes_sd$repro_outcome_overall=="precise" | 
+          repro_outcomes_sd$repro_outcome_overall=="push button",
+        weights=repro_outcomes_sd$weight,
+        clusters = repro_outcomes_sd$paper_id,iters)$formatted.text
+      
+      n_papers_OR_source_data_precise <- format.round(sum(repro_outcomes_sd$weight *
+                                                            (repro_outcomes_sd$repro_outcome_overall=="precise" |
+                                                               repro_outcomes_sd$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_source_data_precise <- cw.proportion(
+        repro_outcomes_sd$repro_outcome_overall=="precise" | 
+          repro_outcomes_sd$repro_outcome_overall=="push button",
+        weights=repro_outcomes_sd$weight,
+        clusters = repro_outcomes_sd$paper_id,iters)$formatted.text
+      
+      n_papers_OR_source_data_pushbutton <- format.round(sum(repro_outcomes_sd$weight *
+                                                               (repro_outcomes_sd$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_source_data_pushbutton <- cw.proportion(
+        repro_outcomes_sd$repro_outcome_overall=="push button",
+        weights=repro_outcomes_sd$weight,
+        clusters = repro_outcomes_sd$paper_id,iters)$formatted.text
+      
+      as.numeric(n_papers_OR_data_and_code) + as.numeric(n_papers_OR_source_data)+as.numeric(n_papers_OR_data_only)
+      
+      p_papers_OR_approx_or_precise_overall <- 
+        bootstrap.clust(data=pr_outcomes,
+                        FUN=function(x) {
+                          paper_ids <- x$paper_id
+                          pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
+                          
+                          p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                            nrow(pr_outcomes_modified_int)
+                          
+                          repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
+                            filter(!repro_outcome_overall=="none")
+                          
+                          p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR$weight*
+                                                                 (repro_outcomes_OR$repro_outcome_overall=="approximate" | 
+                                                                    repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                                                                    repro_outcomes_OR$repro_outcome_overall=="push button"))/
+                            sum(repro_outcomes_OR$weight)
+                          
+                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                          p_papers_OR_approx_or_precise_overall
+                        },
+                        clustervar = "paper_id",
+                        keepvars=c("paper_id"),
+                        alpha=.05,tails="two-tailed",iters=iters,
+                        format.percent=TRUE,digits=1
+        )$formatted.text
+      
+      p_papers_OR_precise_overall <- 
+        bootstrap.clust(data=pr_outcomes,
+                        FUN=function(x) {
+                          paper_ids <- x$paper_id
+                          pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
+                          
+                          p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                            nrow(pr_outcomes_modified_int)
+                          
+                          repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
+                            filter(!repro_outcome_overall=="none")
+                          
+                          p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR$weight*
+                                                                 (
+                                                                   repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                                                                     repro_outcomes_OR$repro_outcome_overall=="push button"))/
+                            sum(repro_outcomes_OR$weight)
+                          
+                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                          p_papers_OR_approx_or_precise_overall
+                        },
+                        clustervar = "paper_id",
+                        keepvars=c("paper_id"),
+                        alpha=.05,tails="two-tailed",iters=iters,
+                        format.percent=TRUE,digits=1
+        )$formatted.text
+
+      #rho_of_all_precise_v_year <- bootstrap.clust(data=repro_outcomes_expanded,
+      rho_OR_precise_v_year <- bootstrap.clust(data=repro_outcomes_merged,
+                                               FUN=function(x) {
+                                                 SpearmanRho(x=as.numeric(x$pub_year),
+                                                             y=as.numeric(x$repro_outcome_overall=="precise" |
+                                                                            x$repro_outcome_overall=="push button"),
+                                                             conf.level=.95)[1]
+                                               },
+                                               clustervar = "paper_id",
+                                               keepvars=c("paper_id","pub_year","repro_outcome_overall"),
+                                               alpha=.05,tails="two-tailed",iters=iters,
+                                               format.percent=FALSE,digits=1
+      )$formatted.text
+      
+      rho_OR_precise_or_approx_v_year <- bootstrap.clust(data=repro_outcomes_merged,
+                                                         FUN=function(x) {
+                                                           SpearmanRho(x=as.numeric(x$pub_year),
+                                                                       y=as.numeric(x$repro_outcome_overall=="precise" |
+                                                                                      x$repro_outcome_overall=="push button" |
+                                                                                      x$repro_outcome_overall=="approximate"),
+                                                                       conf.level=.95)[1]
+                                                         },
+                                                         clustervar = "paper_id",
+                                                         keepvars=c("paper_id","pub_year","repro_outcome_overall"),
+                                                         alpha=.05,tails="two-tailed",iters=iters,
+                                                         format.percent=FALSE,digits=3
+      )$formatted.text
+
+      repro_outcomes_merged_econ <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Economics and Finance",]
+      repro_outcomes_merged_econ <- repro_outcomes_merged_econ %>% filter(!repro_outcome_overall=="none")
+      
+      #n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
+      n_papers_OR_econ <- format.round(sum(repro_outcomes_merged_econ$weight),1)
+      
+      n_papers_OR_approx_or_precise_econ <- format.round(
+        sum(repro_outcomes_merged_econ$weight *
+              (repro_outcomes_merged_econ$repro_outcome_overall=="approximate" |
+                 repro_outcomes_merged_econ$repro_outcome_overall=="precise" |
+                 repro_outcomes_merged_econ$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_approx_or_precise_econ <- cw.proportion(
+        repro_outcomes_merged_econ$repro_outcome_overall=="approximate" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="push button",
+        weights=repro_outcomes_merged_econ$weight,
+        clusters = repro_outcomes_merged_econ$paper_id,iters)$formatted.text
+      
+      n_papers_OR_precise_econ <- format.round(sum(repro_outcomes_merged_econ$weight *
+                                                     (repro_outcomes_merged_econ$repro_outcome_overall=="precise" | 
+                                                        repro_outcomes_merged_econ$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_precise_econ <- cw.proportion(
+        repro_outcomes_merged_econ$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="push button",
+        weights=repro_outcomes_merged_econ$weight,
+        clusters = repro_outcomes_merged_econ$paper_id,iters)$formatted.text
+      
+      repro_outcomes_merged_polisci <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Political Science",]
+      repro_outcomes_merged_polisci <- repro_outcomes_merged_polisci %>% filter(!repro_outcome_overall=="none")
+      
+      #n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
+      n_papers_OR_polisci <- format.round(sum(repro_outcomes_merged_polisci$weight),1)
+      
+      n_papers_OR_approx_or_precise_polisci <- format.round(
+        sum(repro_outcomes_merged_polisci$weight *
+              (repro_outcomes_merged_polisci$repro_outcome_overall=="approximate" |
+                 repro_outcomes_merged_polisci$repro_outcome_overall=="precise" | 
+                 repro_outcomes_merged_polisci$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_approx_or_precise_polisci <- cw.proportion(
+        repro_outcomes_merged_polisci$repro_outcome_overall=="approximate" | 
+          repro_outcomes_merged_polisci$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_polisci$repro_outcome_overall=="push button",
+        weights=repro_outcomes_merged_polisci$weight,
+        clusters = repro_outcomes_merged_polisci$paper_id,iters)$formatted.text
+      
+      n_papers_OR_precise_polisci <- format.round(sum(repro_outcomes_merged_polisci$weight *
+                                                        (repro_outcomes_merged_polisci$repro_outcome_overall=="precise"|
+                                                           repro_outcomes_merged_polisci$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_precise_polisci <- cw.proportion(
+        repro_outcomes_merged_polisci$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_polisci$repro_outcome_overall=="push button",
+        weights=repro_outcomes_merged_polisci$weight,
+        clusters = repro_outcomes_merged_polisci$paper_id,iters)$formatted.text
+      
+      
+      repro_outcomes_merged_other <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & 
+                                                             repro_outcomes_merged$field!="Economics and Finance" & 
+                                                             repro_outcomes_merged$field!="Political Science",]
+      repro_outcomes_merged_other <- repro_outcomes_merged_other %>% filter(!repro_outcome_overall=="none")
+      
+      #n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
+      n_papers_OR_other <- format.round(sum(repro_outcomes_merged_other$weight),1)
+      
+      n_papers_OR_approx_or_precise_other <- format.round(
+        sum(repro_outcomes_merged_other$weight *
+              (repro_outcomes_merged_other$repro_outcome_overall=="approximate" |
+                 repro_outcomes_merged_other$repro_outcome_overall=="precise" | 
+                 repro_outcomes_merged_other$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_approx_or_precise_other <- cw.proportion(
+        repro_outcomes_merged_other$repro_outcome_overall=="approximate" |
+          repro_outcomes_merged_other$repro_outcome_overall=="precise"|
+          repro_outcomes_merged_other$repro_outcome_overall=="push button",
+        weights=repro_outcomes_merged_other$weight,
+        clusters = repro_outcomes_merged_other$paper_id,iters)$formatted.text
+      
+      n_papers_OR_precise_other <- format.round(sum(repro_outcomes_merged_other$weight *
+                                                      (repro_outcomes_merged_other$repro_outcome_overall=="precise" | 
+                                                         repro_outcomes_merged_other$repro_outcome_overall=="push button")),1)
+      
+      p_papers_OR_precise_other <- cw.proportion(
+        repro_outcomes_merged_other$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_other$repro_outcome_overall=="push button",
+        weights=repro_outcomes_merged_other$weight,
+        clusters = repro_outcomes_merged_other$paper_id,iters)$formatted.text
+      
+    }
     
   }
 
@@ -1533,6 +1941,10 @@ figures <- function(){
       
       data<-data[data$is_covid==FALSE & !is.na(data$repro_version_of_record) & data$repro_version_of_record=="T",]
   
+      data <- data %>%
+        group_by(paper_id) %>%
+        mutate(weight=1/n())
+      
       data$field <- str_to_title(data$COS_pub_category)
       
       group_order <- c("Data and code\navailable",
@@ -1556,9 +1968,7 @@ figures <- function(){
       # Drop not attempteds / missing repro types
       data <- data[!is.na(data$repro_type) & !is.na(data$cat),]
       
-      data <- data %>%
-        group_by(paper_id) %>%
-        mutate(weight=1/n())
+      
       
       # # Drop un needed variables (for speed)
       # data <- data[c("paper_id","claim_id","group","weight","cat","field","pub_year")]
@@ -3430,105 +3840,109 @@ figures <- function(){
     }
     
     # Aesthetic setup
-    bars_range <- c(0,1)
-    col_widths <- c(2.5,7,1.5)
-    n_bins_max <- 150
-    y_axis_text_size <- 8
-    x_axis_text_size <- 12
-    legend_text_size <- 4
-    
-    chart.palette <- palette_process_repro_charts
-    
-    # Group by group plots
-    plotlist <- lapply(1:length(group_order),function(x) {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+    {
+      bars_range <- c(0,1)
+      col_widths <- c(2.5,7,1.5)
+      n_bins_max <- 150
+      y_axis_text_size <- 8
+      x_axis_text_size <- 12
+      legend_text_size <- 4
       
-      rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+      chart.palette <- palette_process_repro_charts
+    }
+    # Plots
+    {
+      # Group by group plots
+      plotlist <- lapply(1:length(group_order),function(x) {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis = FALSE)$plot
+        
+        snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
+                                    chart.palette = chart.palette,
+                                    n_bins_max=n_bins_max,
+                                    display_axis = FALSE,
+                                    collapsevar="paper_id")$plot
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      })
+      # Blank / right axis
+      group_label <- ggplot()+theme_nothing()
+      
+      rounded.bars_plot <- ggplot()+theme_nothing()
+      
+      snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
+                                  chart.palette = "white",
+                                  n_bins_max=n_bins_max,
+                                  axis_only = TRUE)$plot+
+        theme(axis.text.x= element_text(size=x_axis_text_size))
+      
+      plotlist[[length(plotlist)+1]] <-
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      # Totals row
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+      
+      rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = chart.palette,
                                         display_axis = FALSE)$plot
       
-      snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
-                                  chart.palette = chart.palette,
+      snakebins_plot <- ggplot()+theme_nothing()
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      
+      # Axis row
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      rounded.bars_plot <- rounded.bars(data,nesting.structure,
+                                        chart.palette = rep("white",length(chart.palette)),
+                                        axis_only = TRUE,)$plot+
+        scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
+        theme(axis.text.x= element_text(size=x_axis_text_size))
+      
+      snakebins_plot <- snakebins(data,nesting.structure,
+                                  chart.palette = rep("white",length(chart.palette)),
                                   n_bins_max=n_bins_max,
                                   display_axis = FALSE,
-                                  collapsevar="paper_id")$plot
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    })
-    # Blank / right axis
-    group_label <- ggplot()+theme_nothing()
-    
-    rounded.bars_plot <- ggplot()+theme_nothing()
-    
-    snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
-                                chart.palette = "white",
-                                n_bins_max=n_bins_max,
-                                axis_only = TRUE)$plot+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    plotlist[[length(plotlist)+1]] <-
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    # Totals row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-    
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis = FALSE)$plot
-    
-    snakebins_plot <- ggplot()+theme_nothing()
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Axis row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = rep("white",length(chart.palette)),
-                                      axis_only = TRUE,)$plot+
-      scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    snakebins_plot <- snakebins(data,nesting.structure,
-                                chart.palette = rep("white",length(chart.palette)),
-                                n_bins_max=n_bins_max,
-                                display_axis = FALSE,
-                                collapsevar="paper_id")$plot+
-      xlim(0,n_bins_max)
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Spacer row
-    plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
-    
-    # Legend row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    data.legend <- data %>% group_by(cat) %>% summarise(n=n())
-    cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$cats_rects
-    rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$plot+
-      geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                color=c("white","white","black","white","black","black","black"),fontface="bold")+
-      geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
-      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
-      ylim(0,1.2)+
-      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-    
-    snakebins_plot <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+                                  collapsevar="paper_id")$plot+
+        xlim(0,n_bins_max)
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      
+      # Spacer row
+      plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
+      
+      # Legend row
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      
+      data.legend <- data %>% group_by(cat) %>% summarise(n=n())
+      cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$cats_rects
+      rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$plot+
+        geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                  color=c("white","white","black","white","black","black","black"),fontface="bold")+
+        geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
+        geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
+        #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+        ylim(0,1.2)+
+        annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+      
+      snakebins_plot <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+    }
     # Display plots
     figure_s6 <- 
       plot_grid(plotlist=plotlist,ncol=1,align = "v",
