@@ -234,7 +234,7 @@ tagged_stats <- function(iters = 100){
       # Papers with data available
       r5 <- format.row(all_rr_attempts %>%
                          semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         filter(str_detect(all_types, "Source Data Reproduction")) %>%
+                         filter(str_detect(type, "Source Data Reproduction")) %>%
                          select(paper_id) %>%
                          bind_rows(
                            pr_outcomes %>%
@@ -242,13 +242,6 @@ tagged_stats <- function(iters = 100){
                              select(paper_id)
                          ) %>%
                          distinct())
-      # Papers with reproduction started
-      # r6 <- format.row(all_rr_attempts  %>%
-      #                    filter(str_detect(type, "Reproduction")) %>%
-      #                    select(paper_id) %>%
-      #                    distinct() %>%
-      #                    semi_join(status %>% filter(RR), by = "paper_id"))
-      
       r6 <- format.row(all_rr_attempts %>%
         filter(field != "covid") %>%
         filter(str_detect(type, "Reproduction")) %>%
@@ -273,10 +266,18 @@ tagged_stats <- function(iters = 100){
                          distinct())
       
       # Reproductions of unique claims
-      r9 <- format.row(repro_outcomes_inc_vor %>%
-                         semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         select(paper_id, claim_id) %>%
-                         distinct())
+      # r9 <- format.row(repro_outcomes_inc_vor %>%
+      #                    semi_join(status %>% filter(RR), by = "paper_id") %>%
+      #                    select(paper_id, claim_id) %>%
+      #                    distinct())
+      r9 <- format.row(repro_outcomes_orig %>%
+        filter(!is_covid) %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        select("paper_id","alt_id") %>%
+        unique())
       
       table_2 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8,r9)
       for (row in 1:nrow(table_2)){
@@ -335,7 +336,7 @@ tagged_stats <- function(iters = 100){
       # Papers with data available
       r5 <- format.row(all_rr_attempts %>%
                          semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         filter(str_detect(all_types, "Source Data Reproduction")) %>%
+                         filter(str_detect(type, "Source Data Reproduction")) %>%
                          select(paper_id) %>%
                          bind_rows(
                            pr_outcomes %>%
@@ -372,10 +373,14 @@ tagged_stats <- function(iters = 100){
                          distinct())
       
       # Reproductions of unique claims
-      r9 <- format.row(repro_outcomes_inc_vor %>%
-                         semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         select(paper_id, claim_id) %>%
-                         distinct())
+      r9 <- format.row(repro_outcomes_orig %>%
+                         filter(!is_covid) %>%
+                         left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                                   by = c("claim_id" = "unique_claim_id")) %>%
+                         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+                         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+                         select("paper_id","alt_id") %>%
+                         unique())
       
       
       table_s3 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8,r9)
@@ -437,7 +442,7 @@ tagged_stats <- function(iters = 100){
     
     # Table S5
     {
-      table_s5 <- repro_outcomes %>%
+      table_s5_out <- repro_outcomes %>%
         filter(!is_covid & repro_version_of_record == "T") %>% 
         mutate(
           repro_outcome_overall = case_match(
@@ -461,10 +466,12 @@ tagged_stats <- function(iters = 100){
           values_to = "value"
         ) %>% 
         filter(value) %>% 
-        select(-value) %>% 
-        bind_rows(
+        select(-value)
+      
+        table_s5 <- table_s5_out %>% 
+          bind_rows(
           pr_outcomes %>% filter(!covid) %>% 
-            anti_join(out, by = "paper_id") %>% 
+            anti_join(table_s5_out, by = "paper_id") %>% 
             select(paper_id) %>% mutate(outcome = "not attempted")
         ) %>% 
         left_join(paper_metadata %>% select(paper_id, journal = publication_standard, field = COS_pub_category), by = "paper_id") %>% 
@@ -477,9 +484,11 @@ tagged_stats <- function(iters = 100){
         mutate(total = select(., -c(field, journal)) %>% apply(1, sum)) %>% 
         arrange(field) %>% 
         select(-field) %>% 
-        select(` ` = journal,`Not attempted` = `not attempted`, Excluded = excluded, Not = not,
+          select(` ` = journal,`Not attempted` = `not attempted`, Excluded = excluded, Not = not,
                Approximate = approximate, Precise = precise, Total = total) %>% 
         as.data.frame()
+        
+      rm(table_s5_out)
       
       for (row in 1:nrow(table_s5)){
         for (col in 1:ncol(table_s5)){
@@ -540,6 +549,7 @@ tagged_stats <- function(iters = 100){
       
       n_papers_data_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE)
       p_papers_data_available <- format.text.percent(n_papers_data_available,n_papers_assess_process_repro)
+      p_claims_data_available <- p_papers_data_available # Identical because process repro was was assessed one claim per paper
       
       n_papers_code_available <- sum(pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_code_available <- format.text.percent(n_papers_code_available,n_papers_assess_process_repro)
@@ -828,8 +838,6 @@ tagged_stats <- function(iters = 100){
         filter(repro_type=="Source Data Reproduction") %>%
         dplyr::summarise(n = sum(weight)) %>%
         pull(n)),1)
-      
-      
 
       n_papers_OR_of_all_precise <- format.round(sum(repro_outcomes_expanded$weight *
                                                        (repro_outcomes_expanded$repro_outcome_overall=="precise" |
@@ -1056,8 +1064,10 @@ tagged_stats <- function(iters = 100){
         dplyr::summarize(all_yes = all(analyst == "yes")) %>%
         nrow()
       
-      p_claims_analyst_report_success <- 
+      p_claims_analyst_report_success <-
         format.text.percent(n_claims_analyst_report_success,n_claims_analyst_report)
+      
+
     }
     
     # Implied overall outcome reproducibility
@@ -1068,7 +1078,7 @@ tagged_stats <- function(iters = 100){
                         paper_ids <- x$paper_id
                         pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
 
-                        p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                        p_data <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE)/
                           nrow(pr_outcomes_modified_int)
                         
                         repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
@@ -1080,7 +1090,7 @@ tagged_stats <- function(iters = 100){
                                  repro_outcomes_OR$repro_outcome_overall=="push button"))/
                           sum(repro_outcomes_OR$weight)
                         
-                        p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                        p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data
                         p_papers_OR_approx_or_precise_overall
                         },
                       clustervar = "paper_id",
@@ -1095,7 +1105,7 @@ tagged_stats <- function(iters = 100){
                           paper_ids <- x$paper_id
                           pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
                           
-                          p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                          p_data <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE)/
                             nrow(pr_outcomes_modified_int)
                           
                           repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
@@ -1107,7 +1117,7 @@ tagged_stats <- function(iters = 100){
                                                                     repro_outcomes_OR$repro_outcome_overall=="push button"))/
                             sum(repro_outcomes_OR$weight)
                           
-                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data
                           p_papers_OR_approx_or_precise_overall
                         },
                         clustervar = "paper_id",
@@ -1131,7 +1141,7 @@ tagged_stats <- function(iters = 100){
                       clustervar = "paper_id",
                       keepvars=c("paper_id","pub_year","repro_outcome_overall"),
                       alpha=.05,tails="two-tailed",iters=iters,
-                      format.percent=FALSE,digits=1
+                      format.percent=FALSE,digits=3
       )$formatted.text
       
       rho_OR_precise_or_approx_v_year <- bootstrap.clust(data=repro_outcomes_merged,
@@ -1502,7 +1512,7 @@ tagged_stats <- function(iters = 100){
                 repro_outcomes_OR$repro_outcome_overall=="precise" | 
                 repro_outcomes_OR$repro_outcome_overall=="push button"))/
         nrow(repro_outcomes_OR))*
-        (sum(pr_outcomes_modified$data_available_or_shared==TRUE & pr_outcomes_modified$code_available_or_shared==TRUE)/
+        (sum(pr_outcomes_modified$data_available_or_shared==TRUE)/
         nrow(pr_outcomes_modified)),1),"%")
         
       
@@ -1511,7 +1521,7 @@ tagged_stats <- function(iters = 100){
                     repro_outcomes_OR$repro_outcome_overall=="precise" | 
                     repro_outcomes_OR$repro_outcome_overall=="push button"))/
                nrow(repro_outcomes_OR))*
-          (sum(pr_outcomes_modified$data_available_or_shared==TRUE & pr_outcomes_modified$code_available_or_shared==TRUE)/
+          (sum(pr_outcomes_modified$data_available_or_shared==TRUE)/
              nrow(pr_outcomes_modified)),1),"%")
 
       rho_OR_precise_v_year_claims <- bootstrap.clust(data=repro_outcomes_merged,
