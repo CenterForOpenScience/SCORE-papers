@@ -1786,6 +1786,23 @@ tagged_stats <- function(iters = 100){
         nrow()
       
     }
+    
+    # Attrition of reproductions that started but were not completed
+    {
+      n_papers_repro_tyner_workflow <- 
+        repro_export %>%
+        filter(!is_covid) %>%
+        select(paper_id) %>%
+        anti_join(
+          all_rr_attempts %>%
+            filter(field != "covid") %>%
+            filter(str_detect(type, "Reproduction")) %>%
+            select(paper_id),
+          by = "paper_id"
+        ) %>%
+        distinct() %>%
+        nrow()
+    }
   }
 
   # Clean up input values and export
