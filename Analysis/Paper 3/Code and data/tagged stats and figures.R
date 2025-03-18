@@ -4,8 +4,7 @@
 # listed outputs for all analysis tags contained within the publication,
 # accessed with $ (e.g. results_figures$figure_1)
 
-# Note: packages are current CRAN versions as of Friday Feb 28, 2025, with one
-# exception: ggridges uses the Github version. To install, run devtools::install_github("wilkelab/ggridges")
+# Note: packages are current CRAN versions as of March 18, 2025
 
 generate_all <- function(){
   
@@ -31,7 +30,6 @@ tagged_stats <- function(iters = 100){
     library(wCorr)
     library(corrplot)
     library(cowplot)
-    library(ggridges) #note: using the github version, as the CRAN hasn't been pushed to get the weights functionality
     library(ggside)
     library(weights)
     library(glue)
@@ -276,6 +274,7 @@ tagged_stats <- function(iters = 100){
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
         select("paper_id","alt_id") %>%
         unique())
       
@@ -379,6 +378,7 @@ tagged_stats <- function(iters = 100){
                                    by = c("claim_id" = "unique_claim_id")) %>%
                          mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
                          mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+                         mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
                          select("paper_id","alt_id") %>%
                          unique())
       
@@ -501,6 +501,8 @@ tagged_stats <- function(iters = 100){
     # Abstract
     {
       n_papers <- length(unique(pr_outcomes$paper_id))
+      
+      n_claims <- length(unique(repro_outcomes$claim_id))
       
       n_journals <- length(unique(
         paper_metadata[paper_metadata$paper_id %in% pr_outcomes$paper_id,]$publication_standard
@@ -703,7 +705,6 @@ tagged_stats <- function(iters = 100){
       n_papers_OR_at_least_one <- length(unique(repro_outcomes$paper_id))
       n_papers_at_exc_no_elig <- format.round(n_papers_OR_at_least_one-sum(repro_outcomes_OR$weight),1)
       
-      n_claims_OR_at_least_one <- length(unique(repro_outcomes$claim_id))
       n_claims_at_exc_no_elig <- n_claims_OR_at_least_one-nrow(repro_outcomes_OR)
       
       n_papers_not_attemptable <- repro_outcomes_orig %>%
@@ -1662,6 +1663,7 @@ tagged_stats <- function(iters = 100){
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
         count(alt_id) %>%
         nrow()
       
@@ -1671,6 +1673,7 @@ tagged_stats <- function(iters = 100){
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
         count(paper_id) %>%
         nrow()
       
@@ -1680,6 +1683,7 @@ tagged_stats <- function(iters = 100){
                     by = c("claim_id" = "unique_claim_id")) %>%
           mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
           mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+          mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
           group_by(alt_id) %>%
           mutate(n = n()) %>%
           ungroup() %>%
@@ -1698,6 +1702,7 @@ tagged_stats <- function(iters = 100){
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
         group_by(alt_id) %>%
         mutate(n = n()) %>%
         ungroup() %>%
@@ -1721,6 +1726,7 @@ tagged_stats <- function(iters = 100){
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
         group_by(alt_id) %>%
         mutate(n = n()) %>%
         ungroup() %>%
@@ -1756,6 +1762,7 @@ tagged_stats <- function(iters = 100){
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
         group_by(alt_id) %>%
         mutate(n = n()) %>%
         ungroup() %>%
