@@ -23,7 +23,8 @@
 {
   objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes",
                        "paper_metadata","status","stitched_claims",
-                       "all_rr_attempts","publications")
+                       "all_rr_attempts","publications","extracted_claims",
+                       "repro_export")
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
   }
@@ -76,7 +77,7 @@
 }
 
 # Generate figures
-{
+if(TRUE){
   generated_figures <- figures()
   
   ggsave(

@@ -65,6 +65,11 @@ tagged_stats <- function(iters = 100){
       orig_outcomes <- orig_outcomes[!orig_outcomes$is_covid,]
       repro_outcomes <- repro_outcomes[!repro_outcomes$is_covid,]
       pr_outcomes <- pr_outcomes[!pr_outcomes$covid,]
+      
+    # Modify repro outcomes overall result to make "not attempted" = "not"
+      repro_outcomes$repro_outcome_overall <- 
+        ifelse(repro_outcomes$repro_outcome_overall=="not attemptable",
+               "not",repro_outcomes$repro_outcome_overall)
     
     # Trim out non-version of record entries (and save original version)
       repro_outcomes_inc_vor <- repro_outcomes
@@ -72,11 +77,12 @@ tagged_stats <- function(iters = 100){
                                          repro_outcomes$repro_version_of_record=="T",]
     
     # Merge in paper metadata
-      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","pub_year","is_covid")]
+      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","COS_pub_expanded","pub_year","is_covid")]
       orig_outcomes <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
       
-      repro_outcomes_merged <- merge(repro_outcomes,orig_outcomes[,!(names(orig_outcomes) %in% c("paper_id"))],
+      repro_outcomes_merged <- merge(repro_outcomes,orig_outcomes_orig[,!(names(orig_outcomes_orig) %in% c("paper_id"))],
                                      by="claim_id",all.x=TRUE,all.y=FALSE)
+      repro_outcomes_merged <- merge(repro_outcomes_merged,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
       
       pr_outcomes <- merge(pr_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
       
@@ -185,8 +191,6 @@ tagged_stats <- function(iters = 100){
           group_by(paper_id) %>%
           mutate(weight=1/n())
         repro_outcomes_expanded$field <- str_to_title(repro_outcomes_expanded$COS_pub_category)
-        
-        
       }
 
   }
@@ -230,7 +234,7 @@ tagged_stats <- function(iters = 100){
       # Papers with data available
       r5 <- format.row(all_rr_attempts %>%
                          semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         filter(str_detect(all_types, "Source Data Reproduction")) %>%
+                         filter(str_detect(type, "Source Data Reproduction")) %>%
                          select(paper_id) %>%
                          bind_rows(
                            pr_outcomes %>%
@@ -238,12 +242,19 @@ tagged_stats <- function(iters = 100){
                              select(paper_id)
                          ) %>%
                          distinct())
-      # Papers with reproduction started
-      r6 <- format.row(all_rr_attempts  %>%
-                         filter(str_detect(type, "Reproduction")) %>%
-                         select(paper_id) %>%
-                         distinct() %>%
-                         semi_join(status %>% filter(RR), by = "paper_id"))
+      r6 <- format.row(all_rr_attempts %>%
+        filter(field != "covid") %>%
+        filter(str_detect(type, "Reproduction")) %>%
+        select(paper_id, rr_id) %>%
+        bind_rows(
+          repro_outcomes %>% filter(!is_covid) %>%
+            select(paper_id, rr_id)
+        ) %>%
+        select(paper_id) %>%
+        distinct() %>%
+        left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id")
+      )
+      
       # Papers with reproduction completed
       r7 <- format.row(repro_outcomes %>%
                          group_by(paper_id) %>%
@@ -255,10 +266,19 @@ tagged_stats <- function(iters = 100){
                          distinct())
       
       # Reproductions of unique claims
-      r9 <- format.row(repro_outcomes_inc_vor %>%
-                         semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         select(paper_id, claim_id) %>%
-                         distinct())
+      # r9 <- format.row(repro_outcomes_inc_vor %>%
+      #                    semi_join(status %>% filter(RR), by = "paper_id") %>%
+      #                    select(paper_id, claim_id) %>%
+      #                    distinct())
+      r9 <- format.row(repro_outcomes_orig %>%
+        filter(!is_covid) %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+        select("paper_id","alt_id") %>%
+        unique())
       
       table_2 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8,r9)
       for (row in 1:nrow(table_2)){
@@ -270,7 +290,18 @@ tagged_stats <- function(iters = 100){
       rm(r1,r2,r3,r4,r5,r6,r7,r8)
     }
     
-    # Table 3
+    # Table S2
+    {
+      table_s2 <- all_rr_attempts %>%
+        filter(field != "covid") %>%
+        filter(str_detect(type, "Reproduction")) %>%
+        mutate(Completed = ifelse( outcome | results_available == "yes", "Yes", "No")) %>%
+        mutate(`Reproduction outcome` = ifelse(rr_id %in% repro_outcomes$rr_id, "Yes", "No")) %>%
+        select(`Paper ID` = paper_id, `Project ID` = rr_id, `OSF` = project_guid, Completed, `Reproduction outcome`) %>%
+        arrange(`Paper ID`)
+    }
+    
+    # Table S3
     {
       years.order <- 2009:2018
       
@@ -306,7 +337,7 @@ tagged_stats <- function(iters = 100){
       # Papers with data available
       r5 <- format.row(all_rr_attempts %>%
                          semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         filter(str_detect(all_types, "Source Data Reproduction")) %>%
+                         filter(str_detect(type, "Source Data Reproduction")) %>%
                          select(paper_id) %>%
                          bind_rows(
                            pr_outcomes %>%
@@ -315,11 +346,23 @@ tagged_stats <- function(iters = 100){
                          ) %>%
                          distinct())
       # Papers with reproduction started
-      r6 <- format.row(all_rr_attempts  %>%
-                         filter(str_detect(type, "Reproduction")) %>%
-                         select(paper_id) %>%
-                         distinct() %>%
-                         semi_join(status %>% filter(RR), by = "paper_id"))
+      # r6 <- format.row(all_rr_attempts  %>%
+      #                    filter(str_detect(type, "Reproduction")) %>%
+      #                    select(paper_id) %>%
+      #                    distinct() %>%
+      #                    semi_join(status %>% filter(RR), by = "paper_id"))
+      r6 <- format.row(all_rr_attempts %>%
+        filter(field != "covid") %>%
+        filter(str_detect(type, "Reproduction")) %>%
+        select(paper_id, rr_id) %>%
+        bind_rows(
+          repro_outcomes %>% filter(!is_covid) %>%
+            select(paper_id, rr_id)
+        ) %>%
+        select(paper_id) %>%
+        distinct() %>%
+        left_join(paper_metadata %>% select(paper_id, year = pub_year), by = "paper_id") 
+      )
       # Papers with reproduction completed
       r7 <- format.row(repro_outcomes %>%
                          group_by(paper_id) %>%
@@ -331,25 +374,137 @@ tagged_stats <- function(iters = 100){
                          distinct())
       
       # Reproductions of unique claims
-      r9 <- format.row(repro_outcomes_inc_vor %>%
-                         semi_join(status %>% filter(RR), by = "paper_id") %>%
-                         select(paper_id, claim_id) %>%
-                         distinct())
+      r9 <- format.row(repro_outcomes_orig %>%
+                         filter(!is_covid) %>%
+                         left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                                   by = c("claim_id" = "unique_claim_id")) %>%
+                         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+                         mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+                         mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+                         select("paper_id","alt_id") %>%
+                         unique())
       
       
-      table_3 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8,r9)
-      for (row in 1:nrow(table_3)){
-        for (col in 1:ncol(table_3)){
-          assign(paste0("table_3_",row,"_",col),
-                 table_3[row,col])
+      table_s3 <- rbind(r1,r2,r3,r4,r5,r6,r7,r8,r9)
+      for (row in 1:nrow(table_s3)){
+        for (col in 1:ncol(table_s3)){
+          assign(paste0("table_s3_",row,"_",col),
+                 table_s3[row,col])
         }
       }
       rm(r1,r2,r3,r4,r5,r6,r7,r8)
     }
     
+    # Table S4
+    {
+      table_s4 <- pr_outcomes %>% 
+        filter(!covid) %>% 
+        mutate(
+          d = case_when(
+            str_detect(restricted_data, "Yes") ~ "restricted",
+            !str_detect(restricted_data, "Yes") & OA_data_shared == "available_online" ~ "open",
+            !str_detect(restricted_data, "Yes") & str_detect(OA_data_shared, "yes") ~ "shared",
+            OA_data_shared == "no" ~ "no"
+          ),
+          c = OA_code_shared != "no"
+        ) %>% 
+        mutate(
+          pr = case_when(
+            d == "open" & c ~ "Open data, code available",
+            d == "restricted" & c ~ "Data restricted, code available",
+            d == "shared" & c ~ "Data shared directly, code available",
+            d == "open" & !c ~ "Open data, code unavailable",
+            d == "shared" & !c ~ "Data shared directly, code unavailable",
+            d == "no" & c ~ "Data unavailable, code available",
+            d %in% c("no", "restricted") & !c ~ "Neither data nor code available"
+          )
+        ) %>% 
+        left_join(paper_metadata %>% select(paper_id, journal = publication_standard, field = COS_pub_category), by = "paper_id") %>% 
+        select(paper_id, field, journal, pr) %>% 
+        group_by(journal, pr, field) %>% 
+        dplyr::summarize(t = n()) %>% 
+        pivot_wider(names_from = pr, values_from = t) %>% 
+        ungroup() %>% 
+        mutate(across(everything(), function(x) ifelse(is.na(x), 0, x))) %>% 
+        select(field, journal, "Open data, code available", "Data restricted, code available", "Data shared directly, code available",
+               "Open data, code unavailable", "Data shared directly, code unavailable", "Data unavailable, code available",
+               "Neither data nor code available") %>% 
+        mutate(total = select(., -c(field, journal)) %>% apply(1, sum)) %>% 
+        arrange(field) %>% 
+        select(-field) %>% 
+        as.data.frame()
+      
+      for (row in 1:nrow(table_s4)){
+        for (col in 1:ncol(table_s4)){
+          assign(paste0("table_s4_",row,"_",col),
+                 table_s4[row,col])
+        }
+      }
+    }
+    
+    # Table S5
+    {
+      table_s5_out <- repro_outcomes %>%
+        filter(!is_covid & repro_version_of_record == "T") %>% 
+        mutate(
+          repro_outcome_overall = case_match(
+            repro_outcome_overall,
+            "not attemptable" ~ "not",
+            "push button" ~ "precise",
+            "none" ~ "excluded",
+            .default = repro_outcome_overall
+          )
+        ) %>% 
+        group_by(paper_id) %>%
+        dplyr::summarize(
+          precise = all(repro_outcome_overall == "precise"),
+          approximate = any(repro_outcome_overall == "approximate") & !any(repro_outcome_overall == "not"),
+          not = any(repro_outcome_overall == "not"),
+          excluded = any(repro_outcome_overall == "excluded")
+        ) %>% 
+        pivot_longer(
+          cols = -paper_id,
+          names_to = "outcome",
+          values_to = "value"
+        ) %>% 
+        filter(value) %>% 
+        select(-value)
+      
+        table_s5 <- table_s5_out %>% 
+          bind_rows(
+          pr_outcomes %>% filter(!covid) %>% 
+            anti_join(table_s5_out, by = "paper_id") %>% 
+            select(paper_id) %>% mutate(outcome = "not attempted")
+        ) %>% 
+        left_join(paper_metadata %>% select(paper_id, journal = publication_standard, field = COS_pub_category), by = "paper_id") %>% 
+        select(paper_id, field, journal, outcome) %>% 
+        group_by(journal, outcome, field) %>% 
+        dplyr::summarize(t = n()) %>% 
+        pivot_wider(names_from = outcome, values_from = t) %>% 
+        ungroup() %>% 
+        mutate(across(everything(), function(x) ifelse(is.na(x), 0, x))) %>% 
+        mutate(total = select(., -c(field, journal)) %>% apply(1, sum)) %>% 
+        arrange(field) %>% 
+        select(-field) %>% 
+          select(` ` = journal,`Not attempted` = `not attempted`, Excluded = excluded, Not = not,
+               Approximate = approximate, Precise = precise, Total = total) %>% 
+        as.data.frame()
+        
+      rm(table_s5_out)
+      
+      for (row in 1:nrow(table_s5)){
+        for (col in 1:ncol(table_s5)){
+          assign(paste0("table_s5_",row,"_",col),
+                 table_s5[row,col])
+        }
+      }
+    }
+    
     # Abstract
     {
       n_papers <- length(unique(pr_outcomes$paper_id))
+      
+      n_claims <- length(unique(pr_outcomes$claim_id))
       
       n_journals <- length(unique(
         paper_metadata[paper_metadata$paper_id %in% pr_outcomes$paper_id,]$publication_standard
@@ -398,6 +553,7 @@ tagged_stats <- function(iters = 100){
       
       n_papers_data_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE)
       p_papers_data_available <- format.text.percent(n_papers_data_available,n_papers_assess_process_repro)
+      p_claims_data_available <- p_papers_data_available # Identical because process repro was was assessed one claim per paper
       
       n_papers_code_available <- sum(pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_code_available <- format.text.percent(n_papers_code_available,n_papers_assess_process_repro)
@@ -503,17 +659,71 @@ tagged_stats <- function(iters = 100){
       
       n_min_pr_edu_by_year <- min(table(pr_outcomes_modified[pr_outcomes_modified$field=="Education",]$pub_year))
       n_max_pr_edu_by_year <- max(table(pr_outcomes_modified[pr_outcomes_modified$field=="Education",]$pub_year))
+    
+      exp_fields <- paper_metadata %>% 
+        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+        mutate(
+          field2 = case_when(
+            str_detect(pub, "financ|Financ") ~ "finance",
+            str_detect(pub, "organization|Organization") ~ "org. behavior",
+            !str_detect(pub, "organization|Organization") & field == "marketing/org behavior"  ~ "marketing",
+            !str_detect(pub, "financ|Financ") & field == "economics"  ~ "economics",
+            .default = field
+          )
+        ) %>%
+        mutate(field2 = str_to_title(field2)) %>%
+        select(paper_id,field2)
+      pr_outcomes_subfields <- merge(pr_outcomes_modified,exp_fields,by="paper_id",all.x=TRUE,all.y=FALSE)
+      
+      n_min_pr_edu_alone_by_year <- min(table(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Education",]$pub_year))
+      n_max_pr_edu_alone_by_year <- max(table(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Education",]$pub_year))
+      
+      n_pr_crim_PA_alone_each_year <- max(table(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Criminology"| pr_outcomes_subfields$field2=="Public Administration ",]$pub_year))
+      
+      
+      p_papers_data_available_econ_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Economics",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Economics"))
+      p_papers_data_available_polisci_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Political Science",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Political Science"))
+      p_papers_data_available_fin_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Finance",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Finance"))
+      p_papers_data_available_padmin_sub <- format.text.percent(
+        sum(pr_outcomes_subfields[pr_outcomes_subfields$field2=="Public Administration",]$data_available_or_shared),
+        sum(pr_outcomes_subfields$field2=="Public Administration"))
+
+      
+      rm(exp_fields,pr_outcomes_subfields)
+
+      
     }
     
     # Assessing outcome reproducibility
     {
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
-      #n_papers_OR
       n_papers_OR_at_least_one <- length(unique(repro_outcomes$paper_id))
       n_papers_at_exc_no_elig <- format.round(n_papers_OR_at_least_one-sum(repro_outcomes_OR$weight),1)
       
-      # n_papers_OR <- length(unique(repro_outcomes_OR$paper_id))
+      n_claims_at_exc_no_elig <- n_claims_OR_at_least_one-nrow(repro_outcomes_OR)
+      
+      n_papers_not_attemptable <- repro_outcomes_orig %>%
+        filter(!is_covid & repro_version_of_record == "T") %>%
+        filter(repro_outcome_overall == "not attemptable") %>%
+        nrow()
+      
+      n_claims_not_attemptable <- repro_outcomes_orig %>%
+        filter(!is_covid & repro_version_of_record == "T") %>%
+        filter(repro_outcome_overall == "not attemptable") %>%
+        nrow()
+      
+      paper_ids_NA <- repro_outcomes_orig %>%
+        filter(!is_covid & repro_version_of_record == "T") %>%
+        filter(repro_outcome_overall == "not attemptable") %>%
+        select(paper_id)
+      
       n_papers_OR <- sum(repro_outcomes_OR$weight)
       
       n_claims_OR <- length(unique(repro_outcomes_OR$claim_id))
@@ -542,8 +752,6 @@ tagged_stats <- function(iters = 100){
                  ) %>%
                distinct())
       
-      n_papers_OR_source_data <- sum(repro_outcomes$repro_type=="Source Data Reproduction")
-      
       rm(claims_per_paper)
         
     }
@@ -563,8 +771,8 @@ tagged_stats <- function(iters = 100){
       
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_completed_outcome_test <- length(unique(repro_outcomes_OR$paper_id))
-      p_papers_completed_outcome_test <- format.text.percent(n_papers_completed_outcome_test,n_papers_OR_data_available)
+      #n_papers_completed_outcome_test <- length(unique(repro_outcomes_OR$paper_id))
+      #p_papers_completed_outcome_test <- format.text.percent(n_papers_completed_outcome_test,n_papers_OR_data_available)
       
       data <- status %>% filter(RR) %>% 
         select(paper_id) %>% 
@@ -622,32 +830,27 @@ tagged_stats <- function(iters = 100){
       
     }
     
-    # Outcome reproducibility assessments
+    # Outcome reproducibility assessments in comparison with the sample
     {
       repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
       n_claims_exc_no_elig <- nrow(repro_outcomes)-nrow(repro_outcomes_OR)
-
-      # n_papers_OR_added_SDR <- length(unique(
-      #   repro_outcomes_OR[repro_outcomes_OR$repro_type=="Source Data Reproduction",]$paper_id))
       
       n_papers_OR_added_SDR <- format.round(
         sum(repro_outcomes_OR %>%
         filter(repro_type=="Source Data Reproduction") %>%
         dplyr::summarise(n = sum(weight)) %>%
         pull(n)),1)
-      
-      
-      # 
-      # n_papers_OR_of_all_precise <- format.round(sum(repro_outcomes_expanded$weight *
-      #                                                  (repro_outcomes_expanded$repro_outcome_overall=="precise" | 
-      #                                                     repro_outcomes_expanded$repro_outcome_overall=="push button")),1)
-      # 
-      # p_papers_OR_of_all_precise <- cw.proportion(
-      #   repro_outcomes_expanded$repro_outcome_overall=="precise" | 
-      #     repro_outcomes_expanded$repro_outcome_overall=="push button",
-      #   weights=repro_outcomes_expanded$weight,
-      #   clusters = repro_outcomes_expanded$paper_id,iters)$formatted.text
+
+      n_papers_OR_of_all_precise <- format.round(sum(repro_outcomes_expanded$weight *
+                                                       (repro_outcomes_expanded$repro_outcome_overall=="precise" |
+                                                          repro_outcomes_expanded$repro_outcome_overall=="push button")),1)
+
+      p_papers_OR_of_all_precise <- cw.proportion(
+        repro_outcomes_expanded$repro_outcome_overall=="precise" |
+          repro_outcomes_expanded$repro_outcome_overall=="push button",
+        weights=repro_outcomes_expanded$weight,
+        clusters = repro_outcomes_expanded$paper_id,iters)$formatted.text
       
       n_papers_OR_approx_or_precise <- format.round(
         sum(repro_outcomes_OR$weight *
@@ -706,13 +909,11 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_expanded_no_none$paper_id,iters)$formatted.text
       
       repro_outcomes_dc <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data and code available",]
-      repro_outcomes_dc <- repro_outcomes_dc #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+      repro_outcomes_dc <- repro_outcomes_dc
       repro_outcomes_dc <- repro_outcomes_dc %>%
         filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_data_and_code <- length(unique(repro_outcomes_dc$paper_id))
+      n_papers_OR_data_and_code <- format.round(sum(repro_outcomes_dc$weight),1)
       
       n_papers_OR_data_and_code_approx_or_precise <- format.round(
         sum(repro_outcomes_dc$weight *
@@ -737,10 +938,6 @@ tagged_stats <- function(iters = 100){
         weights=repro_outcomes_dc$weight,
         clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
       
-      # fig_4_QC_p_text <- p_papers_OR_data_and_code_precise
-      # fig_4_QC_n_text <- n_papers_OR_data_and_code_precise
-      # fig_4_QC_denom_text <- length(unique(repro_outcomes_dc$paper_id))
-      
       n_papers_OR_data_and_code_pushbutton <- format.round(sum(repro_outcomes_dc$weight *
                                                              (repro_outcomes_dc$repro_outcome_overall=="push button")),1)
       
@@ -750,14 +947,11 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
       
       repro_outcomes_do <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Only data available",]
-      
-      repro_outcomes_do <- repro_outcomes_do #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+
       repro_outcomes_do <- repro_outcomes_do %>%
         filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_data_only <- length(unique(repro_outcomes_do$paper_id))
+      n_papers_OR_data_only <- format.round(sum(repro_outcomes_do$weight),1)
       
       n_papers_OR_data_only_approx_or_precise <- format.round(
         sum(repro_outcomes_do$weight *
@@ -791,14 +985,17 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_do$paper_id,iters)$formatted.text
       
       repro_outcomes_sd <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data reconstructed from source",]
-      
-      repro_outcomes_sd <- repro_outcomes_sd #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
       repro_outcomes_sd <- repro_outcomes_sd %>%
         filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_source_data <- length(unique(repro_outcomes_sd$paper_id))
+      n_papers_OR_source_data_of_all <- all_rr_attempts %>%
+        filter(type == "Source Data Reproduction") %>%
+        filter(field != "covid") %>%
+        select(paper_id) %>%
+        distinct() %>%
+        nrow()
+      
+      n_papers_OR_source_data <- format.round(sum(repro_outcomes_sd$weight),1)
       
       n_papers_OR_source_data_approx_or_precise <- format.round(
         sum(repro_outcomes_sd$weight *
@@ -830,6 +1027,50 @@ tagged_stats <- function(iters = 100){
         repro_outcomes_sd$repro_outcome_overall=="push button",
         weights=repro_outcomes_sd$weight,
         clusters = repro_outcomes_sd$paper_id,iters)$formatted.text
+      
+      as.numeric(n_papers_OR_data_and_code) + as.numeric(n_papers_OR_source_data)+as.numeric(n_papers_OR_data_only)
+      
+      n_papers_analyst_report_success <- repro_outcomes %>%
+        rename(analyst = repro_interpret_supported) %>%
+        mutate(analyst = ifelse(analyst %in% c("complicated", "undefined"), NA, analyst)) %>%
+        drop_na(analyst) %>%
+        group_by(paper_id) %>%
+        dplyr::summarize(all_yes = all(analyst == "yes")) %>%
+        filter(all_yes) %>%
+        nrow()
+      
+      n_papers_analyst_report <- repro_outcomes %>%
+        rename(analyst = repro_interpret_supported) %>%
+        mutate(analyst = ifelse(analyst %in% c("complicated", "undefined"), NA, analyst)) %>%
+        drop_na(analyst) %>%
+        group_by(paper_id) %>%
+        dplyr::summarize(all_yes = all(analyst == "yes")) %>%
+        nrow()
+      
+      p_papers_analyst_report_success <- 
+        format.text.percent(n_papers_analyst_report_success,n_papers_analyst_report)
+      
+      n_claims_analyst_report_success <- repro_outcomes %>%
+        rename(analyst = repro_interpret_supported) %>%
+        mutate(analyst = ifelse(analyst %in% c("complicated", "undefined"), NA, analyst)) %>%
+        drop_na(analyst) %>%
+        group_by(claim_id) %>%
+        dplyr::summarize(all_yes = all(analyst == "yes")) %>%
+        filter(all_yes) %>%
+        nrow()
+      
+      n_claims_analyst_report <- repro_outcomes %>%
+        rename(analyst = repro_interpret_supported) %>%
+        mutate(analyst = ifelse(analyst %in% c("complicated", "undefined"), NA, analyst)) %>%
+        drop_na(analyst) %>%
+        group_by(claim_id) %>%
+        dplyr::summarize(all_yes = all(analyst == "yes")) %>%
+        nrow()
+      
+      p_claims_analyst_report_success <-
+        format.text.percent(n_claims_analyst_report_success,n_claims_analyst_report)
+      
+
     }
     
     # Implied overall outcome reproducibility
@@ -840,7 +1081,7 @@ tagged_stats <- function(iters = 100){
                         paper_ids <- x$paper_id
                         pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
 
-                        p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                        p_data <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE)/
                           nrow(pr_outcomes_modified_int)
                         
                         repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
@@ -852,7 +1093,7 @@ tagged_stats <- function(iters = 100){
                                  repro_outcomes_OR$repro_outcome_overall=="push button"))/
                           sum(repro_outcomes_OR$weight)
                         
-                        p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                        p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data
                         p_papers_OR_approx_or_precise_overall
                         },
                       clustervar = "paper_id",
@@ -867,7 +1108,7 @@ tagged_stats <- function(iters = 100){
                           paper_ids <- x$paper_id
                           pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
                           
-                          p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                          p_data <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE)/
                             nrow(pr_outcomes_modified_int)
                           
                           repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
@@ -879,7 +1120,7 @@ tagged_stats <- function(iters = 100){
                                                                     repro_outcomes_OR$repro_outcome_overall=="push button"))/
                             sum(repro_outcomes_OR$weight)
                           
-                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data
                           p_papers_OR_approx_or_precise_overall
                         },
                         clustervar = "paper_id",
@@ -903,7 +1144,7 @@ tagged_stats <- function(iters = 100){
                       clustervar = "paper_id",
                       keepvars=c("paper_id","pub_year","repro_outcome_overall"),
                       alpha=.05,tails="two-tailed",iters=iters,
-                      format.percent=FALSE,digits=1
+                      format.percent=FALSE,digits=3
       )$formatted.text
       
       rho_OR_precise_or_approx_v_year <- bootstrap.clust(data=repro_outcomes_merged,
@@ -926,7 +1167,8 @@ tagged_stats <- function(iters = 100){
       repro_outcomes_merged_econ <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Economics and Finance",]
       repro_outcomes_merged_econ <- repro_outcomes_merged_econ %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
+      #n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
+      n_papers_OR_econ <- format.round(sum(repro_outcomes_merged_econ$weight),1)
       
       n_papers_OR_approx_or_precise_econ <- format.round(
         sum(repro_outcomes_merged_econ$weight *
@@ -954,7 +1196,8 @@ tagged_stats <- function(iters = 100){
       repro_outcomes_merged_polisci <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Political Science",]
       repro_outcomes_merged_polisci <- repro_outcomes_merged_polisci %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
+      #n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
+      n_papers_OR_polisci <- format.round(sum(repro_outcomes_merged_polisci$weight),1)
       
       n_papers_OR_approx_or_precise_polisci <- format.round(
         sum(repro_outcomes_merged_polisci$weight *
@@ -980,12 +1223,12 @@ tagged_stats <- function(iters = 100){
         clusters = repro_outcomes_merged_polisci$paper_id,iters)$formatted.text
       
 
-      repro_outcomes_merged_other <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & 
-                                                             repro_outcomes_merged$field!="Economics and Finance" & 
+      repro_outcomes_merged_other <- repro_outcomes_merged[repro_outcomes_merged$field!="Economics and Finance" & 
                                                              repro_outcomes_merged$field!="Political Science",]
       repro_outcomes_merged_other <- repro_outcomes_merged_other %>% filter(!repro_outcome_overall=="none")
       
-      n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
+      #n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
+      n_papers_OR_other <- format.round(sum(repro_outcomes_merged_other$weight),1)
       
       n_papers_OR_approx_or_precise_other <- format.round(
         sum(repro_outcomes_merged_other$weight *
@@ -1019,7 +1262,9 @@ tagged_stats <- function(iters = 100){
                                        repro_outcomes$repro_outcome_overall=="precise" | 
                                        repro_outcomes$repro_outcome_overall=="push button")*
                                       repro_outcomes$weight
-        )/(length(unique(repro_outcomes$paper_id))),1),"%")
+        )/sum(repro_outcomes$weight),1),"%")
+      
+        #format.round(sum(repro_outcomes$weight),1)
       
       p_raw_papers_data_unavailable <- n_papers_data_unavailable/n_papers_assess_process_repro
       p_raw_papers_OR_approx_or_precise <- cw.proportion(
@@ -1028,19 +1273,545 @@ tagged_stats <- function(iters = 100){
           repro_outcomes_OR$repro_outcome_overall=="push button",
         weights=repro_outcomes_OR$weight,
         clusters = repro_outcomes_OR$paper_id,iters)$point.estimate
-      p_short_papers_OR_approx_or_precise <- paste0(format.round(100*p_raw_papers_OR_approx_or_precise,0),"%")
       
-      p_short_OR_min_plausible <- paste0(format.round(100*(0*(p_raw_papers_data_unavailable)+p_raw_papers_OR_approx_or_precise*(1-p_raw_papers_data_unavailable)),0),"%")
+      p_short_papers_OR_approx_or_precise <- 
+        paste0(format.round(100*p_raw_papers_OR_approx_or_precise,0),"%")
+      
+      p_short_OR_min_plausible <- 
+        paste0(format.round(
+          100*(0*(p_raw_papers_data_unavailable)+p_raw_papers_OR_approx_or_precise*(1-p_raw_papers_data_unavailable))
+          ,0),"%")
+      
+      p_short_papers_OR_approx_or_precise_overall <- paste0(format.round(100*
+        bootstrap.clust(data=pr_outcomes,
+                        FUN=function(x) {
+                          paper_ids <- x$paper_id
+                          pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
+                          
+                          p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
+                            nrow(pr_outcomes_modified_int)
+                          
+                          repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
+                            filter(!repro_outcome_overall=="none")
+                          
+                          p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR$weight*
+                                                                 (repro_outcomes_OR$repro_outcome_overall=="approximate" | 
+                                                                    repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                                                                    repro_outcomes_OR$repro_outcome_overall=="push button"))/
+                            sum(repro_outcomes_OR$weight)
+                          
+                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
+                          p_papers_OR_approx_or_precise_overall
+                        },
+                        clustervar = "paper_id",
+                        keepvars=c("paper_id"),
+                        alpha=.05,tails="two-tailed",iters=1,
+                        format.percent=TRUE,digits=1
+        )$point.estimate,1),"%")
+      
     }
     
     # Sampling frame and selection of claims for reproduction
     {
-      n_papers_initial_sample <- length(unique(status$paper_id))
+      n_papers_initial_sample_p1 <- status %>% filter(p1_delivery) %>% nrow()
       
-      #nrow(status  %>% filter(bushel))
+      n_papers_bushel <- (nrow(status  %>% filter(bushel)))
     }
     
+    # Attrition of reproductions that started but were not completed
+    {
+      n_papers_repro_completed <- all_rr_attempts %>%
+        filter(field != "covid" & str_detect(type, "Reproduction")) %>%
+        count(paper_id) %>%
+        nrow()
+      
+      p_papers_repro_completed <- 
+        paste0(format.round(100*n_papers_OR_at_least_one/n_papers_repro_completed,1),"%")
+    }
     
+    # Claims-level Summary of Outcome Reproducibility 
+    {
+      repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
+      
+      n_claims_exc_no_elig <- nrow(repro_outcomes)-nrow(repro_outcomes_OR)
+      
+      n_claims_OR_added_SDR <- nrow(repro_outcomes_OR %>%
+        filter(repro_type=="Source Data Reproduction"))
+
+      n_claims_OR_of_all_precise <- format.round(
+        sum(1 *
+              (repro_outcomes_expanded$repro_outcome_overall=="precise" |
+                 repro_outcomes_expanded$repro_outcome_overall=="push button")),0)
+      
+      p_claims_OR_of_all_precise <- format.text.percent(
+        sum(repro_outcomes_expanded$repro_outcome_overall=="precise" |
+          repro_outcomes_expanded$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_expanded))
+      
+      n_claims_OR_approx_or_precise <- format.round(
+        sum(1 *
+              (repro_outcomes_OR$repro_outcome_overall=="approximate" |
+                 repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                 repro_outcomes_OR$repro_outcome_overall=="push button")),0)
+      
+      p_claims_OR_approx_or_precise <- format.text.percent(
+        sum(repro_outcomes_OR$repro_outcome_overall=="approximate" | 
+          repro_outcomes_OR$repro_outcome_overall=="precise" | 
+          repro_outcomes_OR$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_OR))
+      
+      n_claims_OR_precise <- format.round(
+        sum(1 *
+              (repro_outcomes_OR$repro_outcome_overall=="precise" |
+                 repro_outcomes_OR$repro_outcome_overall=="push button")),0)
+      
+      p_claims_OR_precise <- format.text.percent(
+        sum(repro_outcomes_OR$repro_outcome_overall=="precise" | 
+          repro_outcomes_OR$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_OR))
+      
+      n_claims_OR_precise_pushbutton <- format.round(
+        sum(repro_outcomes_OR$weight *
+              ((repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                  repro_outcomes_OR$repro_outcome_overall=="push button") & 
+                 repro_outcomes_OR$repro_type=="Push Button Reproduction")),0)
+      
+      p_claims_OR_precise_pushbutton <- format.text.percent(
+        sum((repro_outcomes_OR$repro_outcome_overall=="precise" |
+           repro_outcomes_OR$repro_outcome_overall=="push button") &
+          repro_outcomes_OR$repro_type=="Push Button Reproduction"),
+        nrow(repro_outcomes_OR))
+      
+      repro_outcomes_expanded_no_none <- repro_outcomes_expanded[repro_outcomes_expanded$repro_outcome_overall!="none",]
+      
+      n_claims_of_all_denom <- nrow(repro_outcomes_expanded_no_none)
+      
+      n_claims_OR_of_all_approx_or_precise <- 
+        sum(repro_outcomes_expanded_no_none$repro_outcome_overall=="approximate" |
+                repro_outcomes_expanded_no_none$repro_outcome_overall=="precise" |
+              repro_outcomes_expanded_no_none$repro_outcome_overall=="push button")
+      
+      p_claims_OR_of_all_approx_or_precise <- format.text.percent(
+        sum(repro_outcomes_expanded_no_none$repro_outcome_overall=="approximate" |
+          repro_outcomes_expanded_no_none$repro_outcome_overall=="precise" |
+          repro_outcomes_expanded_no_none$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_expanded_no_none))
+      
+      repro_outcomes_dc <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data and code available",]
+      repro_outcomes_dc <- repro_outcomes_dc %>%
+        filter(!repro_outcome_overall=="none")
+      
+      n_claims_OR_data_and_code <- nrow(repro_outcomes_dc)
+      
+      n_claims_OR_data_and_code_approx_or_precise <- 
+        sum(repro_outcomes_dc$repro_outcome_overall=="approximate" |
+               repro_outcomes_dc$repro_outcome_overall=="precise" | 
+               repro_outcomes_dc$repro_outcome_overall=="push button")
+      
+      p_claims_OR_data_and_code_approx_or_precise <- format.text.percent(
+        sum(repro_outcomes_dc$repro_outcome_overall=="approximate" |
+              repro_outcomes_dc$repro_outcome_overall=="precise" | 
+              repro_outcomes_dc$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_dc),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_data_and_code_precise <- 
+        sum(repro_outcomes_dc$repro_outcome_overall=="precise" |
+                           repro_outcomes_dc$repro_outcome_overall=="push button")
+      
+      p_claims_OR_data_and_code_precise <- format.text.percent(
+        sum(repro_outcomes_dc$repro_outcome_overall=="precise" | 
+          repro_outcomes_dc$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_dc),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_data_and_code_pushbutton <- 
+        sum(repro_outcomes_dc$repro_outcome_overall=="push button")
+      
+      p_claims_OR_data_and_code_pushbutton <- format.text.percent(
+        sum(repro_outcomes_dc$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_dc),
+        digits=1,confint = FALSE)
+      
+      repro_outcomes_do <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Only data available",]
+      
+      repro_outcomes_do <- repro_outcomes_do %>%
+        filter(!repro_outcome_overall=="none")
+      
+      n_claims_OR_data_only <- nrow(repro_outcomes_do)
+      
+      n_claims_OR_data_only_approx_or_precise <- 
+        sum(repro_outcomes_do$repro_outcome_overall=="approximate" |
+                 repro_outcomes_do$repro_outcome_overall=="precise" | 
+                 repro_outcomes_do$repro_outcome_overall=="push button")
+      
+      p_claims_OR_data_only_approx_or_precise <- format.text.percent(
+        sum(repro_outcomes_do$repro_outcome_overall=="approximate" | 
+          repro_outcomes_do$repro_outcome_overall=="precise" | 
+          repro_outcomes_do$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_do),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_data_only_precise <- 
+        sum(repro_outcomes_do$repro_outcome_overall=="precise" |
+              repro_outcomes_do$repro_outcome_overall=="push button")
+      
+      p_claims_OR_data_only_precise <- format.text.percent(
+        sum(repro_outcomes_do$repro_outcome_overall=="precise" | 
+          repro_outcomes_do$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_do),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_data_only_pushbutton <- 
+        sum(repro_outcomes_do$repro_outcome_overall=="push button")
+      
+      p_claims_OR_data_only_pushbutton <- format.text.percent(
+        sum(repro_outcomes_do$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_do),
+        digits=1,confint = FALSE)
+      
+      repro_outcomes_sd <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data reconstructed from source",]
+      repro_outcomes_sd <- repro_outcomes_sd %>%
+        filter(!repro_outcome_overall=="none")
+      
+      # all_rr_attempts_claims <- merge(all_rr_attempts,repro_outcomes_expanded[c("claim")])
+      
+      n_claims_OR_source_data <- nrow(repro_outcomes_sd)
+      
+      n_claims_OR_source_data_approx_or_precise <- 
+        sum(
+          repro_outcomes_sd$repro_outcome_overall=="approximate" |
+            repro_outcomes_sd$repro_outcome_overall=="precise" | 
+            repro_outcomes_sd$repro_outcome_overall=="push button")
+      
+      p_claims_OR_source_data_approx_or_precise <- format.text.percent(
+        sum(repro_outcomes_sd$repro_outcome_overall=="approximate" | 
+          repro_outcomes_sd$repro_outcome_overall=="precise" | 
+          repro_outcomes_sd$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_sd),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_source_data_precise <- 
+        sum(
+          repro_outcomes_sd$repro_outcome_overall=="precise" |
+            repro_outcomes_sd$repro_outcome_overall=="push button")
+      
+      p_claims_OR_source_data_precise <- format.text.percent(
+        sum(repro_outcomes_sd$repro_outcome_overall=="precise" | 
+          repro_outcomes_sd$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_sd),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_source_data_pushbutton <- sum(
+        repro_outcomes_sd$repro_outcome_overall=="push button")
+      
+      p_claims_OR_source_data_pushbutton <- format.text.percent(
+        sum(repro_outcomes_sd$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_sd),
+        digits=1,confint = FALSE)
+      
+      p_claims_OR_approx_or_precise_overall <- paste0(format.round(
+        100*(sum((repro_outcomes_OR$repro_outcome_overall=="approximate" | 
+                repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                repro_outcomes_OR$repro_outcome_overall=="push button"))/
+        nrow(repro_outcomes_OR))*
+        (sum(pr_outcomes_modified$data_available_or_shared==TRUE)/
+        nrow(pr_outcomes_modified)),1),"%")
+        
+      
+      p_claims_OR_precise_overall <- paste0(format.round(
+        100*(sum((
+                    repro_outcomes_OR$repro_outcome_overall=="precise" | 
+                    repro_outcomes_OR$repro_outcome_overall=="push button"))/
+               nrow(repro_outcomes_OR))*
+          (sum(pr_outcomes_modified$data_available_or_shared==TRUE)/
+             nrow(pr_outcomes_modified)),1),"%")
+
+      rho_OR_precise_v_year_claims <- bootstrap.clust(data=repro_outcomes_merged,
+                                               FUN=function(x) {
+                                                 SpearmanRho(x=as.numeric(x$pub_year),
+                                                             y=as.numeric(x$repro_outcome_overall=="precise" |
+                                                                            x$repro_outcome_overall=="push button"),
+                                                             conf.level=.95)[1]
+                                               },
+                                               clustervar = "claim_id",
+                                               keepvars=c("claim_id","pub_year","repro_outcome_overall"),
+                                               alpha=.05,tails="two-tailed",iters=iters,
+                                               format.percent=FALSE,digits=3
+      )$formatted.text
+      
+      rho_OR_approx_or_precise_v_year_claims <- bootstrap.clust(data=repro_outcomes_merged,
+                                                         FUN=function(x) {
+                                                           SpearmanRho(x=as.numeric(x$pub_year),
+                                                                       y=as.numeric(x$repro_outcome_overall=="precise" |
+                                                                                      x$repro_outcome_overall=="push button" |
+                                                                                      x$repro_outcome_overall=="approximate"),
+                                                                       conf.level=.95)[1]
+                                                         },
+                                                         clustervar = "claim_id",
+                                                         keepvars=c("claim_id","pub_year","repro_outcome_overall"),
+                                                         alpha=.05,tails="two-tailed",iters=iters,
+                                                         format.percent=FALSE,digits=3
+      )$formatted.text
+
+      repro_outcomes_merged_econ <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Economics and Finance",]
+      repro_outcomes_merged_econ <- repro_outcomes_merged_econ %>% filter(!repro_outcome_overall=="none")
+      
+      #n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
+      n_claims_OR_econ <- nrow(repro_outcomes_merged_econ)
+      
+      n_claims_OR_approx_or_precise_econ <- 
+        sum(repro_outcomes_merged_econ$repro_outcome_overall=="approximate" |
+                 repro_outcomes_merged_econ$repro_outcome_overall=="precise" |
+                 repro_outcomes_merged_econ$repro_outcome_overall=="push button")
+      
+      p_claims_OR_approx_or_precise_econ <- format.text.percent(
+        sum(repro_outcomes_merged_econ$repro_outcome_overall=="approximate" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_merged_econ),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_precise_econ <- sum(
+        repro_outcomes_merged_econ$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="push button")
+      
+      p_claims_OR_precise_econ <- format.text.percent(
+        sum(repro_outcomes_merged_econ$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_econ$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_merged_econ),
+        digits=1,confint = FALSE)
+      
+      repro_outcomes_merged_polisci <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Political Science",]
+      repro_outcomes_merged_polisci <- repro_outcomes_merged_polisci %>% filter(!repro_outcome_overall=="none")
+      
+      #n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
+      n_claims_OR_polisci <- nrow(repro_outcomes_merged_polisci)
+      
+      n_claims_OR_approx_or_precise_polisci <- 
+        sum(repro_outcomes_merged_polisci$repro_outcome_overall=="approximate" |
+                 repro_outcomes_merged_polisci$repro_outcome_overall=="precise" | 
+                 repro_outcomes_merged_polisci$repro_outcome_overall=="push button")
+      
+      p_claims_OR_approx_or_precise_polisci <- format.text.percent(
+        sum(repro_outcomes_merged_polisci$repro_outcome_overall=="approximate" | 
+          repro_outcomes_merged_polisci$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_polisci$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_merged_polisci),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_precise_polisci <- sum(
+        repro_outcomes_merged_polisci$repro_outcome_overall=="precise"|
+          repro_outcomes_merged_polisci$repro_outcome_overall=="push button")
+      
+      p_claims_OR_precise_polisci <- format.text.percent(
+        sum(repro_outcomes_merged_polisci$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_polisci$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_merged_polisci),
+        digits=1,confint = FALSE)
+      
+      repro_outcomes_merged_other <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & 
+                                                             repro_outcomes_merged$field!="Economics and Finance" & 
+                                                             repro_outcomes_merged$field!="Political Science",]
+      repro_outcomes_merged_other <- repro_outcomes_merged_other %>% filter(!repro_outcome_overall=="none")
+      
+      #n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
+      n_claims_OR_other <- nrow(repro_outcomes_merged_other)
+      
+      n_claims_OR_approx_or_precise_other <- 
+        sum(repro_outcomes_merged_other$repro_outcome_overall=="approximate" |
+                 repro_outcomes_merged_other$repro_outcome_overall=="precise" | 
+                 repro_outcomes_merged_other$repro_outcome_overall=="push button")
+      
+      p_claims_OR_approx_or_precise_other <- format.text.percent(
+        sum(repro_outcomes_merged_other$repro_outcome_overall=="approximate" |
+          repro_outcomes_merged_other$repro_outcome_overall=="precise"|
+          repro_outcomes_merged_other$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_merged_other),
+        digits=1,confint = FALSE)
+      
+      n_claims_OR_precise_other <- 
+        sum(repro_outcomes_merged_other$repro_outcome_overall=="precise" |
+              repro_outcomes_merged_other$repro_outcome_overall=="push button")
+      
+      p_claims_OR_precise_other <- format.text.percent(
+        sum(repro_outcomes_merged_other$repro_outcome_overall=="precise" | 
+          repro_outcomes_merged_other$repro_outcome_overall=="push button"),
+        nrow(repro_outcomes_merged_other),
+        digits=1,confint = FALSE)
+      
+    }
+    
+    # Outcome reproducibility
+    {
+      n_papers_eligible_both_data_code <- pr_outcomes %>%
+        filter(!covid) %>%
+        filter(OA_data_shared != "no") %>%
+        select(paper_id) %>%
+        bind_rows(
+          all_rr_attempts %>%
+            filter(field != "covid") %>%
+            filter(str_detect(all_types, "Source Data Reproduction")) %>%
+            select(paper_id)
+        ) %>%
+        distinct() %>% nrow()
+    }
+    
+    # Data aggregation
+    {
+      n_claims_multi_analyst <- repro_outcomes_orig %>%
+        filter(!is_covid & repro_version_of_record == "F") %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+        count(alt_id) %>%
+        nrow()
+      
+      n_papers_multi_analyst <- repro_outcomes_orig %>%
+        filter(!is_covid & repro_version_of_record == "F") %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+        count(paper_id) %>%
+        nrow()
+      
+      n_claims_repro_closest_to_orig <- repro_outcomes_orig %>%
+          filter(!is_covid) %>%
+          left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                    by = c("claim_id" = "unique_claim_id")) %>%
+          mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+          mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+          mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+          group_by(alt_id) %>%
+          mutate(n = n()) %>%
+          ungroup() %>%
+          mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "not attemptable", "not", repro_outcome_overall)) %>%
+          mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "push button", "precise", repro_outcome_overall)) %>%
+          group_by(alt_id) %>%
+          mutate(ct = length(unique(repro_outcome_overall))) %>%
+          ungroup() %>%
+          filter(n > 1 & ct > 1) %>%
+          count(alt_id) %>%
+          nrow()
+      
+      n_claims_most_author_materials <- repro_outcomes_orig %>%
+        filter(!is_covid) %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+        group_by(alt_id) %>%
+        mutate(n = n()) %>%
+        ungroup() %>%
+        mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "not attemptable", "not", repro_outcome_overall)) %>%
+        mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "push button", "precise", repro_outcome_overall)) %>%
+        group_by(alt_id) %>%
+        mutate(ct = length(unique(repro_outcome_overall))) %>%
+        ungroup() %>%
+        filter(n > 1 & ct == 1) %>%
+        select(claim_id, alt_id, repro_outcome_overall, repro_type) %>%
+        group_by(alt_id, repro_outcome_overall) %>%
+        mutate(method_ct = length(unique(repro_type))) %>%
+        ungroup() %>%
+        filter(method_ct == 2) %>%
+        count(alt_id) %>%
+        nrow()
+      
+      n_claims_part_of_multi <- repro_outcomes_orig %>%
+        filter(!is_covid) %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+        group_by(alt_id) %>%
+        mutate(n = n()) %>%
+        ungroup() %>%
+        mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "not attemptable", "not", repro_outcome_overall)) %>%
+        mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "push button", "precise", repro_outcome_overall)) %>%
+        group_by(alt_id) %>%
+        mutate(ct = length(unique(repro_outcome_overall))) %>%
+        ungroup() %>%
+        filter(n > 1 & ct == 1) %>%
+        select(rr_id, claim_id, alt_id, repro_outcome_overall, repro_type) %>%
+        group_by(alt_id, repro_outcome_overall) %>%
+        mutate(method_ct = length(unique(repro_type))) %>%
+        ungroup() %>%
+        filter(method_ct == 1) %>%
+        mutate(
+          in_bushel = rr_id %in% (repro_outcomes_orig %>%
+                                    filter(!is_covid) %>%
+                                    group_by(rr_id) %>%
+                                    dplyr::summarize(n = n()) %>%
+                                    filter(n > 1) %>%
+                                    pull(rr_id))
+        ) %>%
+        group_by(alt_id) %>%
+        mutate(bushel_ct = length(unique(in_bushel))) %>%
+        ungroup() %>%
+        filter(bushel_ct > 1) %>%
+        count(alt_id) %>%
+        nrow()
+      
+      n_claims_repro_randomly_selected <- repro_outcomes_orig %>%
+        filter(!is_covid) %>%
+        left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
+                  by = c("claim_id" = "unique_claim_id")) %>%
+        mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
+        mutate(alt_id = ifelse(p1 | is.na(p1), all_st, claim_id)) %>%
+        mutate(alt_id = ifelse(claim_id %in% c("0a3Z_mqy444", "a2Yx_3lxxq3", "a2Yx_single-trace"), claim_id, alt_id)) %>%
+        group_by(alt_id) %>%
+        mutate(n = n()) %>%
+        ungroup() %>%
+        mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "not attemptable", "not", repro_outcome_overall)) %>%
+        mutate(repro_outcome_overall = ifelse(repro_outcome_overall == "push button", "precise", repro_outcome_overall)) %>%
+        group_by(alt_id) %>%
+        mutate(ct = length(unique(repro_outcome_overall))) %>%
+        ungroup() %>%
+        filter(n > 1 & ct == 1) %>%
+        select(rr_id, claim_id, alt_id, repro_outcome_overall, repro_type) %>%
+        group_by(alt_id, repro_outcome_overall) %>%
+        mutate(method_ct = length(unique(repro_type))) %>%
+        ungroup() %>%
+        filter(method_ct == 1) %>%
+        mutate(
+          in_bushel = rr_id %in% (repro_outcomes_orig %>%
+                                    filter(!is_covid) %>%
+                                    group_by(rr_id) %>%
+                                    dplyr::summarize(n = n()) %>%
+                                    filter(n > 1) %>%
+                                    pull(rr_id))
+        ) %>%
+        group_by(alt_id) %>%
+        mutate(bushel_ct = length(unique(in_bushel))) %>%
+        ungroup() %>%
+        filter(bushel_ct == 1) %>%
+        count(alt_id) %>%
+        nrow()
+      
+    }
+    
+    # Attrition of reproductions that started but were not completed
+    {
+      n_papers_repro_tyner_workflow <- 
+        repro_export %>%
+        filter(!is_covid) %>%
+        select(paper_id) %>%
+        anti_join(
+          all_rr_attempts %>%
+            filter(field != "covid") %>%
+            filter(str_detect(type, "Reproduction")) %>%
+            select(paper_id),
+          by = "paper_id"
+        ) %>%
+        distinct() %>%
+        nrow()
+    }
   }
 
   # Clean up input values and export
@@ -1070,25 +1841,6 @@ figures <- function(){
       library(colorspace)
       
     }
-    # 
-    # # Load libraries (check for others)
-    # {
-    #   library(dplyr)
-    #   library(ggplot2)
-    #   library(ggExtra)
-    #   library(DT)
-    #   library(tidyr)
-    #   library(stringr)
-    #   library(Hmisc)
-    #   library(scales)
-    #   library(wCorr)
-    #   library(corrplot)
-    #   library(cowplot)
-    #   library(ggridges) #note: using the github version, as the CRAN hasn't been pushed to get the weights functionality
-    #   library(ggside)
-    #   library(weights)
-    #   library(glue)
-    # }
     
     # Set defaults for convenience
     {
@@ -1107,49 +1859,57 @@ figures <- function(){
       }
     }
     
-    # Fields order
-    fields.raw <-
-      c("political science",
-        "economics and finance",
-        "sociology and criminology",
-        "psychology and health",
-        "business",
-        "education")
-    fields.format.2.row <- 
-      c("Political\nScience",
-        "Economics\nand Finance",
-        "Sociology and\nCriminology",
-        "Psychology\nand Health",
-        "Business",
-        "Education")
-    fields.format.3.row <- 
-      c("Political\nScience",
-        "Economics\nand\nFinance",
-        "Sociology\nand\nCriminology",
-        "Psychology\nand\nHealth",
-        "Business",
-        "Education")
-    fields.abbreviated <- 
-      c("Political Science",
-        "Economics",
-        "Sociology",
-        "Psychology",
-        "Business",
-        "Education")
-    
-    repro_outcomes$repro_type_consolidated <- 
-      ordered(repro_outcomes$repro_type,
-              labels=c("Data and code available","Data and code available",
-                       "Only data available","Data reconstructed from source"),
-              levels=c("Push Button Reproduction","Extended Push Button Reproduction",
-                       "Author Data Reproduction","Source Data Reproduction")
-      )
-    
-    repro_outcomes$repro_outcome_overall_consolidated <- 
-      ordered(repro_outcomes$repro_outcome_overall,
-              labels=c("Precisely\nReproduced","Precisely\nReproduced","Approximately\nReproduced","Not\nReproduced"),
-              levels=c("push button","precise","approximate","not")
-      )
+    # Generate / modify key variables
+    {
+      # Fields order
+      fields.raw <-
+        c("political science",
+          "economics and finance",
+          "sociology and criminology",
+          "psychology and health",
+          "business",
+          "education")
+      fields.format.2.row <- 
+        c("Political\nScience",
+          "Economics\nand Finance",
+          "Sociology and\nCriminology",
+          "Psychology\nand Health",
+          "Business",
+          "Education")
+      fields.format.3.row <- 
+        c("Political\nScience",
+          "Economics\nand\nFinance",
+          "Sociology\nand\nCriminology",
+          "Psychology\nand\nHealth",
+          "Business",
+          "Education")
+      fields.abbreviated <- 
+        c("Political Science",
+          "Economics",
+          "Sociology",
+          "Psychology",
+          "Business",
+          "Education")
+      
+      # Modify repro outcomes overall result to make "not attempted" = "not"
+      repro_outcomes$repro_outcome_overall <- 
+        ifelse(repro_outcomes$repro_outcome_overall=="not attemptable",
+               "not",repro_outcomes$repro_outcome_overall)
+      
+      repro_outcomes$repro_type_consolidated <- 
+        ordered(repro_outcomes$repro_type,
+                labels=c("Data and code available","Data and code available",
+                         "Only data available","Data reconstructed from source"),
+                levels=c("Push Button Reproduction","Extended Push Button Reproduction",
+                         "Author Data Reproduction","Source Data Reproduction")
+        )
+      
+      repro_outcomes$repro_outcome_overall_consolidated <- 
+        ordered(repro_outcomes$repro_outcome_overall,
+                labels=c("Precisely\nReproduced","Precisely\nReproduced","Approximately\nReproduced","Not\nReproduced"),
+                levels=c("push button","precise","approximate","not")
+        )
+    }
     
   }
   
@@ -1531,8 +2291,13 @@ figures <- function(){
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
       
-      data<-data[data$is_covid==FALSE & !is.na(data$repro_version_of_record) & data$repro_version_of_record=="T",]
+      data<-data[data$is_covid==FALSE & !is.na(data$repro_version_of_record) &
+                   data$repro_version_of_record=="T",]
   
+      data <- data %>%
+        group_by(paper_id) %>%
+        mutate(weight=1/n())
+      
       data$field <- str_to_title(data$COS_pub_category)
       
       group_order <- c("Data and code\navailable",
@@ -1549,20 +2314,12 @@ figures <- function(){
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
                                            "not attempted",
                                            data$repro_outcome_overall)
-  
-      
+
       data$cat <- data$repro_outcome_overall_consolidated
       
       # Drop not attempteds / missing repro types
       data <- data[!is.na(data$repro_type) & !is.na(data$cat),]
-      
-      data <- data %>%
-        group_by(paper_id) %>%
-        mutate(weight=1/n())
-      
-      # # Drop un needed variables (for speed)
-      # data <- data[c("paper_id","claim_id","group","weight","cat","field","pub_year")]
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
@@ -1596,9 +2353,7 @@ figures <- function(){
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
         
         data.group <- data %>%
-          filter(group==group_order[x]) #%>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
         
         cats_rects <- rounded.bars(data.group,nesting.structure,
                                    weightvar="weight",
@@ -1658,7 +2413,6 @@ figures <- function(){
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot
-        
         
         plotlist[[length(plotlist)+1]] <- 
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
@@ -3430,105 +4184,109 @@ figures <- function(){
     }
     
     # Aesthetic setup
-    bars_range <- c(0,1)
-    col_widths <- c(2.5,7,1.5)
-    n_bins_max <- 150
-    y_axis_text_size <- 8
-    x_axis_text_size <- 12
-    legend_text_size <- 4
-    
-    chart.palette <- palette_process_repro_charts
-    
-    # Group by group plots
-    plotlist <- lapply(1:length(group_order),function(x) {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+    {
+      bars_range <- c(0,1)
+      col_widths <- c(2.5,7,1.5)
+      n_bins_max <- 150
+      y_axis_text_size <- 8
+      x_axis_text_size <- 12
+      legend_text_size <- 4
       
-      rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+      chart.palette <- palette_process_repro_charts
+    }
+    # Plots
+    {
+      # Group by group plots
+      plotlist <- lapply(1:length(group_order),function(x) {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis = FALSE)$plot
+        
+        snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
+                                    chart.palette = chart.palette,
+                                    n_bins_max=n_bins_max,
+                                    display_axis = FALSE,
+                                    collapsevar="paper_id")$plot
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      })
+      # Blank / right axis
+      group_label <- ggplot()+theme_nothing()
+      
+      rounded.bars_plot <- ggplot()+theme_nothing()
+      
+      snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
+                                  chart.palette = "white",
+                                  n_bins_max=n_bins_max,
+                                  axis_only = TRUE)$plot+
+        theme(axis.text.x= element_text(size=x_axis_text_size))
+      
+      plotlist[[length(plotlist)+1]] <-
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      # Totals row
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+      
+      rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = chart.palette,
                                         display_axis = FALSE)$plot
       
-      snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
-                                  chart.palette = chart.palette,
+      snakebins_plot <- ggplot()+theme_nothing()
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      
+      # Axis row
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      rounded.bars_plot <- rounded.bars(data,nesting.structure,
+                                        chart.palette = rep("white",length(chart.palette)),
+                                        axis_only = TRUE,)$plot+
+        scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
+        theme(axis.text.x= element_text(size=x_axis_text_size))
+      
+      snakebins_plot <- snakebins(data,nesting.structure,
+                                  chart.palette = rep("white",length(chart.palette)),
                                   n_bins_max=n_bins_max,
                                   display_axis = FALSE,
-                                  collapsevar="paper_id")$plot
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    })
-    # Blank / right axis
-    group_label <- ggplot()+theme_nothing()
-    
-    rounded.bars_plot <- ggplot()+theme_nothing()
-    
-    snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
-                                chart.palette = "white",
-                                n_bins_max=n_bins_max,
-                                axis_only = TRUE)$plot+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    plotlist[[length(plotlist)+1]] <-
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    # Totals row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-    
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis = FALSE)$plot
-    
-    snakebins_plot <- ggplot()+theme_nothing()
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Axis row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = rep("white",length(chart.palette)),
-                                      axis_only = TRUE,)$plot+
-      scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    snakebins_plot <- snakebins(data,nesting.structure,
-                                chart.palette = rep("white",length(chart.palette)),
-                                n_bins_max=n_bins_max,
-                                display_axis = FALSE,
-                                collapsevar="paper_id")$plot+
-      xlim(0,n_bins_max)
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Spacer row
-    plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
-    
-    # Legend row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    data.legend <- data %>% group_by(cat) %>% summarise(n=n())
-    cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$cats_rects
-    rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$plot+
-      geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                color=c("white","white","black","white","black","black","black"),fontface="bold")+
-      geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
-      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
-      ylim(0,1.2)+
-      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-    
-    snakebins_plot <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+                                  collapsevar="paper_id")$plot+
+        xlim(0,n_bins_max)
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      
+      # Spacer row
+      plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
+      
+      # Legend row
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      
+      data.legend <- data %>% group_by(cat) %>% summarise(n=n())
+      cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$cats_rects
+      rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$plot+
+        geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                  color=c("white","white","black","white","black","black","black"),fontface="bold")+
+        geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
+        geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
+        #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+        ylim(0,1.2)+
+        annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+      
+      snakebins_plot <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+    }
     # Display plots
     figure_s6 <- 
       plot_grid(plotlist=plotlist,ncol=1,align = "v",
