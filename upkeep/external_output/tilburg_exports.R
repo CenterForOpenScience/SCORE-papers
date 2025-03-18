@@ -20,7 +20,7 @@ make_tilburg_rr_input <- function(
     select(unique_report_id)
   
   repli <- repli_export %>%
-    filter(rr_type != "Hybrid") %>%
+    #filter(rr_type != "Hybrid") %>%
     mutate(
       unique_claim_id = paste0(paper_id,
                                "_",
@@ -105,7 +105,7 @@ make_tilburg_orig_input <- function(
 
   # Tilburg needs the row order to be preserved in our uploads to them
   current_order <- input_gsheet %>%
-    range_read(sheet = 2) %>%
+    range_read(sheet = 1) %>%
     select(paper_id,
            c4_claim_id,
            unique_claim_id)
