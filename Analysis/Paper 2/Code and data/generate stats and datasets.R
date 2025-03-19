@@ -1,7 +1,14 @@
-# Run this script to:
-# 1) Generate the public code/data package
-# 2) Run the code/data package to (if enabled) generate tagged text items and figures
-# 3) (If enabled) export tagged text items and figures to a specified Google sheet and folder, respectively
+# This script does the following:
+# * Generate the public code/data package
+# * Run the code/data package to (if enabled) generate tagged text items and figures
+# * (If enabled) export tagged text items and figures to a specified Google sheet and folder, respectively
+
+# Full knit procedures
+# 1) Run this script
+# 2) Open the Google Sheet containing the output of the tagged stats
+# 3) Run the "Create new docs" command under the AutoFill Docs menu item
+# 4) When the script completes, open the link in the F1 cell, which contains the knitted doc
+# 5) If this looks good, copy/paste the entire document into the knitted doc document
 
 # Initial setup and libraries
 {
@@ -18,12 +25,12 @@
   generate_tagged_stats <- TRUE # enables generating tagged statistics and outputting them into the google sheet
   generate_figures <- TRUE # enables generating figures and expoprting them to the project folder
   
-  objects_to_load <- c("paper_metadata","repli_outcomes","orig_outcomes")
+  objects_to_load <- c("paper_metadata","repli_outcomes","repro_outcomes","orig_outcomes","pr_outcomes")
   
   drive_auth(Sys.getenv("google_oauth_email")) # set a google_oauth_email = <email address> in your .Rprofile so this doesn't need to be changed 
   paper_folder <- "Paper 2"
-  template_doc_id <- "18U3ElDrhF5PltX_UP1XIN1e6CK8nkfOzjSDZr2zF6lo" # google doc ID for the template doc to pull tags from (obtained from URL)
-  tagged_stats_ss <- "https://docs.google.com/spreadsheets/d/1qs8Ap3wfw-t5SqlDbCa1sQvvtVY4LS38xwxd3rro0po" # URL for the google sheet that tagged stats go to
+  template_doc_id <- "1bUzr20Z8lcWt4xikV4W9J99TNX0m41w3QzKSu6T7oAI" # google doc ID for the template doc to pull tags from (obtained from URL)
+  tagged_stats_ss <- "https://docs.google.com/spreadsheets/d/1uVp-BmqKtPbNMjQZ1ixraJBdxstqM5zI5ZhWyAXdrSk" # URL for the google sheet that tagged stats go to
 }
 
 # Load and save data and datasets and generate public package. 
@@ -37,6 +44,11 @@
   save(list=objects_to_load,file=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/analyst data.RData"))
   file.copy(from=paste0("Analysis/common functions.R"),to=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/common functions.R"),overwrite=TRUE)
   file.copy(from=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"),to=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/tagged stats and figures.R"),overwrite=TRUE)
+  
+  files2zip <- dir(paste0("Analysis/",paper_folder,"/Code and data/Analyst package"), full.names = TRUE)
+  zip(zipfile = paste0("Analysis/",paper_folder,"/Code and data/Analyst package/data and code.zip"), files = files2zip[!endsWith(files2zip,".zip")])
+  
+  source(file=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"))
 }
 
 # Generate tagged stats in text

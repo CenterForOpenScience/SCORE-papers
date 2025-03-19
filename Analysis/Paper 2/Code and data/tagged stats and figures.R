@@ -69,7 +69,7 @@ tagged_stats <- function(){
     {
       # Abstract
       {
-        n_papers <- 6416
+        n_papers_assessed_process_repro <- pr_outcomes %>% filter(!covid) %>% nrow()
       }
       # Results
       {

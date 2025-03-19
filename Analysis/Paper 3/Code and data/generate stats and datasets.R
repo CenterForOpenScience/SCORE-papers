@@ -32,6 +32,9 @@
   save(list=objects_to_load,file="Analysis/Paper 3/Code and data/Analyst package/analyst data.RData")
   file.copy(from="Analysis/common functions.R",to="Analysis/Paper 3/Code and data/Analyst package/common functions.R",overwrite=TRUE)
   file.copy(from="Analysis/Paper 3/Code and data/tagged stats and figures.R",to="Analysis/Paper 3/Code and data/Analyst package/tagged stats and figures.R",overwrite=TRUE)
+  
+  files2zip <- dir("Analysis/Paper 3/Code and data/Analyst package", full.names = TRUE)
+  zip(zipfile = "Analysis/Paper 3/Code and data/Analyst package/data and code.zip", files = files2zip[!endsWith(files2zip,".zip")])
 }
 
 # Pull source code docs
