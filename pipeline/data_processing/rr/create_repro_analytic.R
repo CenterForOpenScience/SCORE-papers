@@ -1,5 +1,3 @@
-# Create rr analytic datasets
-
 # Create the reproduction analytic dataset
 create_repro_analytic <- function(repro_export,
                                   repro_supplement){

@@ -108,7 +108,7 @@ orig_statistics_input <- make_tilburg_orig_input(
     input_gsheet
   )
 
-orig_statistics_input_tilburg <- read_sheet(input_gsheet, sheet = 2)
+orig_statistics_input_tilburg <- read_sheet(input_gsheet, sheet = 1)
 
 new_rows <- anti_join(orig_statistics_input, 
                       orig_statistics_input_tilburg,
@@ -137,13 +137,18 @@ for (i in 1:nrow(report_decision)) {
 
 }
 
-# orig_stat_reported <- "" %>%
-#   read_sheet() %>%
-#   right_join() %>%
-#   select(orig_statistic_nrow_reported,
-#          orig_statistic_ncol_reported)
+std_errors <- read_sheet("15MgfGp-rVImySkNPTsdBjsuTMopQtAJOQssCWlO8JoY")
+
+std_error_only <- orig_upload %>%
+  left_join(std_errors, by = "unique_claim_id") %>%
+  select(original_effect_size_se_reference)
 
 range_write(orig_upload,
             ss = "1P4RrEUET-jdgbrMyFofEgKlJR1DX7oKxA9azcmcXwFI",
-            sheet = 2,
+            sheet = 1,
             range = cell_cols("A:BA"))
+
+range_write(std_error_only,
+            ss = "1P4RrEUET-jdgbrMyFofEgKlJR1DX7oKxA9azcmcXwFI",
+            sheet = 1,
+            range = cell_cols("BH"))
