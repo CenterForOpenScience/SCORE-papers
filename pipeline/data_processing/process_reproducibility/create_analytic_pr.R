@@ -100,12 +100,16 @@ create_pr_analytic <- function(pr_qc,
         OA_data_shared == "available" ~ "available_online",
         pr_data_available == "Yes" ~ "available_online",
         is.na(OA_data_shared) ~ "no",
+        OA_data_shared == "yes_private" ~ "shared_on_request",
+        OA_data_shared == "yes_public" ~ "shared_on_request",
         .default = OA_data_shared
       ),
       OA_code_shared = case_when(
         OA_code_shared == "available" ~ "available_online",
         pr_code_available == "Yes" ~ "available_online",
         is.na(OA_code_shared) ~ "no",
+        OA_code_shared == "yes_private" ~ "shared_on_request",
+        OA_code_shared == "yes_public" ~ "shared_on_request",
         .default = OA_code_shared
       )
     ) %>%
