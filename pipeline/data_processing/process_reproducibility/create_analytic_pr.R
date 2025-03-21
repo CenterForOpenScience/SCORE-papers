@@ -10,11 +10,59 @@ create_pr_analytic <- function(pr_qc,
   pr_qc %>%
     left_join(oa_fields, by = "paper_id") %>%
     mutate(
-      pr_data_location = case_match(
-        pr_data_location,
-        "Publisher/journal website" ~ "Publisher website",
-        .default = pr_data_location
+      # Copy over from load_clean_pr to catch changes post update
+      pr_code_location = case_match(
+        pr_code_responses_same_as_data,
+        "Yes - same responses" ~ pr_data_location,
+        .default = pr_code_location
       ),
+      pr_code_location_description = case_match(
+        pr_code_responses_same_as_data,
+        "Yes - same responses" ~ pr_data_location_description,
+        .default = pr_code_location_description
+      ),
+      pr_code_date = case_match(
+        pr_code_responses_same_as_data,
+        "Yes - same responses" ~ pr_data_date,
+        .default = pr_code_date
+      ),
+      pr_code_notes = case_match(
+        pr_code_responses_same_as_data,
+        "Yes - same responses" ~ pr_data_notes,
+        .default = pr_code_notes
+      ),
+      paper_data_instructions = case_when(
+        is.na(paper_data_instructions) ~ "No",
+        .default = paper_data_instructions
+      ),
+      paper_materials_available_on_request = case_when(
+        is.na(paper_materials_available_on_request) ~ "No",
+        .default = paper_materials_available_on_request
+      ),
+      restricted_data = case_when(
+        is.na(restricted_data) ~ "Unclear/NA",
+        .default = restricted_data
+      ),
+      pr_data_available = case_match(
+        pr_data_available,
+        "Yes - data are available" ~ "Yes",
+        "No - data were not found/are not available" ~ "No",
+        .default = pr_data_available
+      ),
+      pr_code_available = case_match(
+        pr_code_available,
+        "Yes - code is publicly available" ~ "Yes",
+        "Yes - code is available" ~ "Yes",
+        "No - code was not found/is not available" ~ "No",
+        .default = pr_code_available
+      ),
+      # End copy
+      pr_code_complete = case_match(
+        pr_code_responses_same_as_data,
+        "Yes - same responses" ~ pr_data_complete,
+        .default = pr_code_complete
+      ),
+      pr_data_location = str_remove(pr_data_location, "/journal"),
       pr_data_complete = case_match(
         pr_data_complete,
         "Partial/Incomplete" ~ "Incomplete",
@@ -37,11 +85,7 @@ create_pr_analytic <- function(pr_qc,
         "Somewhat/Unsure" ~ "Somewhat",
         .default = restricted_data_instructions
       ),
-      pr_code_location = case_match(
-        pr_code_location,
-        "Publisher/journal website" ~ "Publisher website",
-        .default = pr_code_location
-      ),
+      pr_code_location = str_remove(pr_code_location, "/journal"),
       pr_code_complete = case_match(
         pr_code_complete,
         "Partial/Incomplete" ~ "Incomplete",
@@ -83,9 +127,9 @@ create_pr_analytic <- function(pr_qc,
            data_notes = pr_data_notes,
            restricted_data,
            restricted_data_instructions,
+           restricted_data_category,
            restricted_data_description,
            code_available = pr_code_available,
-           restricted_data_category,
            code_location = pr_code_location,
            code_location_description = pr_code_location_description,
            code_complete = pr_code_complete,
