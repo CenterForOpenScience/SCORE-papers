@@ -240,6 +240,7 @@ tagged_stats <- function(iters = 100){
                              select(paper_id)
                          ) %>%
                          distinct())
+      
       r6 <- format.row(all_rr_attempts %>%
         filter(field != "covid") %>%
         filter(str_detect(type, "Reproduction")) %>%
@@ -292,11 +293,17 @@ tagged_stats <- function(iters = 100){
     {
       table_s2 <- all_rr_attempts %>%
         filter(field != "covid") %>%
-        filter(str_detect(type, "Reproduction")) %>%
-        mutate(Completed = ifelse( outcome | results_available == "yes", "Yes", "No")) %>%
-        mutate(`Reproduction outcome` = ifelse(rr_id %in% repro_outcomes$rr_id, "Yes", "No")) %>%
-        select(`Paper ID` = paper_id, `Project ID` = rr_id, `OSF` = project_guid, Completed, `Reproduction outcome`) %>%
+        filter(str_detect(all_types, "Reproduction")) %>% 
+        mutate(`Completed & reported` = ifelse(rr_id %in% repro_outcomes$rr_id, "Yes", "No")) %>%
+        select(`Paper ID` = paper_id, `Project ID` = rr_id, `OSF` = project_guid, `Completed & reported`) %>%
         arrange(`Paper ID`)
+      
+      for (row in 1:nrow(table_s2)){
+        for (col in 1:ncol(table_s2)){
+          assign(paste0("table_s2_",row,"_",col),
+                 table_s2[row,col])
+        }
+      }
     }
     
     # Table S3
@@ -988,10 +995,15 @@ tagged_stats <- function(iters = 100){
         filter(!repro_outcome_overall=="none")
       
       n_papers_OR_source_data_of_all <- all_rr_attempts %>%
-        filter(type == "Source Data Reproduction") %>%
         filter(field != "covid") %>%
-        select(paper_id) %>%
-        distinct() %>%
+        filter(str_detect(type, "Source Data Reproduction")) %>%
+        anti_join(
+          pr_outcomes %>%
+            filter(!covid) %>%
+            filter(OA_data_shared != "no"),
+          by = "paper_id"
+        ) %>%
+        count(paper_id) %>%
         nrow()
       
       n_papers_OR_source_data <- format.round(sum(repro_outcomes_sd$weight),1)
