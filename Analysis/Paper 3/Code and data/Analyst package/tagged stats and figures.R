@@ -4,8 +4,7 @@
 # listed outputs for all analysis tags contained within the publication,
 # accessed with $ (e.g. results_figures$figure_1)
 
-# Note: packages are current CRAN versions as of Friday Feb 28, 2025, with one
-# exception: ggridges uses the Github version. To install, run devtools::install_github("wilkelab/ggridges")
+# Note: packages are current CRAN versions as of March 18, 2025
 
 generate_all <- function(){
   
@@ -31,7 +30,6 @@ tagged_stats <- function(iters = 100){
     library(wCorr)
     library(corrplot)
     library(cowplot)
-    library(ggridges) #note: using the github version, as the CRAN hasn't been pushed to get the weights functionality
     library(ggside)
     library(weights)
     library(glue)
@@ -504,43 +502,43 @@ tagged_stats <- function(iters = 100){
     {
       n_papers <- length(unique(pr_outcomes$paper_id))
       
-      n_claims <- length(unique(pr_outcomes$claim_id))
+      n_claims <- length(unique(repro_outcomes$claim_id))
       
       n_journals <- length(unique(
         paper_metadata[paper_metadata$paper_id %in% pr_outcomes$paper_id,]$publication_standard
       ))
       
-      n_papers_passed_process_repro_assess <- sum(pr_outcomes$process_reproducible=="Yes")
+      # n_papers_passed_process_repro_assess <- sum(pr_outcomes$process_reproducible=="Yes")
+      # 
+      # p_papers_passed_process_repro_assess <- format.text.percent(n_papers_passed_process_repro_assess,nrow(pr_outcomes))
+      # 
+      # p_data_available <- format.text.percent(sum(pr_outcomes$data_available=="Yes"),
+      #                                         nrow(pr_outcomes))
       
-      p_papers_passed_process_repro_assess <- format.text.percent(n_papers_passed_process_repro_assess,nrow(pr_outcomes))
+      # for (i in 2009:2018){
+      #   assign(paste0("p_data_available_",i),{
+      #     format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]$data_available=="Yes"),
+      #                         nrow(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]))
+      #   })
+      # }
       
-      p_data_available <- format.text.percent(sum(pr_outcomes$data_available=="Yes"),
-                                              nrow(pr_outcomes))
-      
-      for (i in 2009:2018){
-        assign(paste0("p_data_available_",i),{
-          format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]$data_available=="Yes"),
-                              nrow(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]))
-        })
-      }
-      
-      df.fields <- do.call(rbind,lapply(na.omit(unique(pr_outcomes_modified$COS_pub_category)),function(field){
-        p_process_reproducible <- sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes")/
-          nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,])
-        formatted_text_process_reproducible <- 
-          format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes"),
-                              nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]))
-        
-        data.frame(field,p_process_reproducible,formatted_text_process_reproducible)
-      }))
-      
-      field_most_passing_process_repro <- df.fields$field[which.max(df.fields$p_process_reproducible)]
-      
-      p_field_most_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.max(df.fields$p_process_reproducible)]
-      
-      field_least_passing_process_repro <- df.fields$field[which.min(df.fields$p_process_reproducible)]
-      
-      p_field_least_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.min(df.fields$p_process_reproducible)]
+      # df.fields <- do.call(rbind,lapply(na.omit(unique(pr_outcomes_modified$COS_pub_category)),function(field){
+      #   p_process_reproducible <- sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes")/
+      #     nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,])
+      #   formatted_text_process_reproducible <- 
+      #     format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes"),
+      #                         nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]))
+      #   
+      #   data.frame(field,p_process_reproducible,formatted_text_process_reproducible)
+      # }))
+      # 
+      # field_most_passing_process_repro <- df.fields$field[which.max(df.fields$p_process_reproducible)]
+      # 
+      # p_field_most_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.max(df.fields$p_process_reproducible)]
+      # 
+      # field_least_passing_process_repro <- df.fields$field[which.min(df.fields$p_process_reproducible)]
+      # 
+      # p_field_least_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.min(df.fields$p_process_reproducible)]
       
     }
     
@@ -599,8 +597,8 @@ tagged_stats <- function(iters = 100){
       rho_code_and_data_avail_v_year <- format.text.CI(rho[1],rho[2],rho[3],digits=2)
       
       rho <- SpearmanRho(x=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$pub_year),
-                         y=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$code_available=="Yes" &
-                                        pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$data_available=="Yes" ),
+                         y=as.numeric(pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$code_available_or_shared==TRUE &
+                                        pr_outcomes_modified[pr_outcomes_modified$data_available_or_shared==TRUE | pr_outcomes_modified$code_available_or_shared==TRUE,]$data_available_or_shared==TRUE ),
                          conf.level=.95)
       rho_code_and_data_avail_v_year_among_either <- format.text.CI(rho[1],rho[2],rho[3],digits=2)
       
@@ -707,7 +705,7 @@ tagged_stats <- function(iters = 100){
       n_papers_OR_at_least_one <- length(unique(repro_outcomes$paper_id))
       n_papers_at_exc_no_elig <- format.round(n_papers_OR_at_least_one-sum(repro_outcomes_OR$weight),1)
       
-      n_claims_at_exc_no_elig <- n_claims_OR_at_least_one-nrow(repro_outcomes_OR)
+      #n_claims_at_exc_no_elig <- n_claims_OR_at_least_one-nrow(repro_outcomes_OR)
       
       n_papers_not_attemptable <- repro_outcomes_orig %>%
         filter(!is_covid & repro_version_of_record == "T") %>%
