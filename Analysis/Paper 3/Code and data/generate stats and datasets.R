@@ -80,7 +80,7 @@
 }
 
 # Generate figures
-if(FALSE){
+if(TRUE){
   generated_figures <- figures()
   
   ggsave(

@@ -90,12 +90,12 @@ tagged_stats <- function(iters = 100){
           mutate(
             data_shared = ifelse(str_detect(OA_data_shared, "yes"), TRUE, FALSE),
             data_shared_type = factor(OA_data_shared,
-                                      levels=c("available_online","no","yes_private","yes_public"),
-                                      labels=c("available online","not shared","shared by authors privately","shared by authors publicly")),
+                                      levels=c("available_online","no","shared_on_request"),
+                                      labels=c("available online","not shared","shared on request")),
             code_shared = ifelse(str_detect(OA_code_shared, "yes"), TRUE, FALSE),
             code_shared_type = factor(OA_code_shared,
-                                      levels=c("available_online","no","yes_private","yes_public"),
-                                      labels=c("available online","not shared","shared by authors privately","shared by authors publicly")),
+                                      levels=c("available_online","no","shared_on_request"),
+                                      labels=c("available online","not shared","shared on request")),
           )
         
         pr_outcomes_modified$data_available_or_shared <- pr_outcomes_modified$data_available=="Yes" | pr_outcomes_modified$OA_data_shared!="no"
@@ -404,24 +404,17 @@ tagged_stats <- function(iters = 100){
     {
       table_s4 <- pr_outcomes %>% 
         filter(!covid) %>% 
-        mutate(
-          d = case_when(
-            str_detect(restricted_data, "Yes") ~ "restricted",
-            !str_detect(restricted_data, "Yes") & OA_data_shared == "available_online" ~ "open",
-            !str_detect(restricted_data, "Yes") & str_detect(OA_data_shared, "yes") ~ "shared",
-            OA_data_shared == "no" ~ "no"
-          ),
-          c = OA_code_shared != "no"
-        ) %>% 
+        rename(d = OA_data_shared, c = OA_code_shared) %>% 
         mutate(
           pr = case_when(
-            d == "open" & c ~ "Open data, code available",
-            d == "restricted" & c ~ "Data restricted, code available",
-            d == "shared" & c ~ "Data shared directly, code available",
-            d == "open" & !c ~ "Open data, code unavailable",
-            d == "shared" & !c ~ "Data shared directly, code unavailable",
-            d == "no" & c ~ "Data unavailable, code available",
-            d %in% c("no", "restricted") & !c ~ "Neither data nor code available"
+            d == "available_online" & c != "no" ~ "Open data, code available",
+            (restricted_data == "Yes_all" | restricted_data == "Yes_some") & c != "no" ~ "Data restricted, code available",
+            d == "shared_on_request" & c != "no" ~ "Data shared directly, code available",
+            d == "available_online" & c == "no" ~ "Open data, code unavailable",
+            (restricted_data == "Yes_all" | restricted_data == "Yes_some") & c == "no" ~ "Data restricted, code unavailable",
+            d == "shared_on_request" & c == "no" ~ "Data shared directly, code unavailable",
+            d == "no" & c != "no" ~ "Data unavailable, code available",
+            d == "no" & c == "no" ~ "Neither data nor code available"
           )
         ) %>% 
         left_join(paper_metadata %>% select(paper_id, journal = publication_standard, field = COS_pub_category), by = "paper_id") %>% 
@@ -432,12 +425,11 @@ tagged_stats <- function(iters = 100){
         ungroup() %>% 
         mutate(across(everything(), function(x) ifelse(is.na(x), 0, x))) %>% 
         select(field, journal, "Open data, code available", "Data restricted, code available", "Data shared directly, code available",
-               "Open data, code unavailable", "Data shared directly, code unavailable", "Data unavailable, code available",
-               "Neither data nor code available") %>% 
+               "Open data, code unavailable", "Data restricted, code unavailable",
+               "Data shared directly, code unavailable", "Data unavailable, code available", "Neither data nor code available") %>% 
         mutate(total = select(., -c(field, journal)) %>% apply(1, sum)) %>% 
         arrange(field) %>% 
-        select(-field) %>% 
-        as.data.frame()
+        select(-field)
       
       for (row in 1:nrow(table_s4)){
         for (col in 1:ncol(table_s4)){
@@ -1294,32 +1286,14 @@ tagged_stats <- function(iters = 100){
           ,0),"%")
       
       p_short_papers_OR_approx_or_precise_overall <- paste0(format.round(100*
-        bootstrap.clust(data=pr_outcomes,
-                        FUN=function(x) {
-                          paper_ids <- x$paper_id
-                          pr_outcomes_modified_int <- pr_outcomes_modified[pr_outcomes_modified$paper_id %in% paper_ids,]
-                          
-                          p_data_and_code <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE & pr_outcomes_modified_int$code_available_or_shared==TRUE)/
-                            nrow(pr_outcomes_modified_int)
-                          
-                          repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
-                            filter(!repro_outcome_overall=="none")
-                          
-                          p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR$weight*
-                                                                 (repro_outcomes_OR$repro_outcome_overall=="approximate" | 
-                                                                    repro_outcomes_OR$repro_outcome_overall=="precise" | 
-                                                                    repro_outcomes_OR$repro_outcome_overall=="push button"))/
-                            sum(repro_outcomes_OR$weight)
-                          
-                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data_and_code
-                          p_papers_OR_approx_or_precise_overall
-                        },
-                        clustervar = "paper_id",
-                        keepvars=c("paper_id"),
-                        alpha=.05,tails="two-tailed",iters=1,
-                        format.percent=TRUE,digits=1
-        )$point.estimate,1),"%")
-      
+          (sum(pr_outcomes_modified$data_available_or_shared==TRUE)/
+            nrow(pr_outcomes_modified))*
+          (sum(repro_outcomes[repro_outcomes$repro_outcome_overall!="none",]$weight*
+                (repro_outcomes[repro_outcomes$repro_outcome_overall!="none",]$repro_outcome_overall=="approximate" | 
+                   repro_outcomes[repro_outcomes$repro_outcome_overall!="none",]$repro_outcome_overall=="precise" | 
+                   repro_outcomes[repro_outcomes$repro_outcome_overall!="none",]$repro_outcome_overall=="push button"))/
+            sum(repro_outcomes[repro_outcomes$repro_outcome_overall!="none",]$weight)),
+          1),"%")
     }
     
     # Sampling frame and selection of claims for reproduction
@@ -1926,16 +1900,26 @@ figures <- function(){
   
   # Global aesthetic options
   {
+    # palette_process_repro_charts <- 
+    #   c(palette_score_charts[5],
+    #     lighten(palette_score_charts[5],amount=.3),
+    #     lighten(palette_score_charts[5],amount=.6),
+    #     palette_score_charts[2],
+    #     lighten(palette_score_charts[2],amount=.3),
+    #     palette_score_charts[1],
+    #     "grey90"
+    #   )
+    
     palette_process_repro_charts <- 
-      c(palette_score_charts[5],
-        lighten(palette_score_charts[5],amount=.3),
-        lighten(palette_score_charts[5],amount=.6),
-        palette_score_charts[2],
-        lighten(palette_score_charts[2],amount=.3),
-        palette_score_charts[1],
+      c(darken(palette_score_charts[5],amount=.2),
+        lighten(palette_score_charts[5],amount=0.25),
+        lighten(palette_score_charts[5],amount=.5),
+        darken(palette_score_charts[2],amount=.25),
+        lighten(palette_score_charts[2],amount=0),
+        lighten(palette_score_charts[2],amount=.35),
+        darken(palette_score_charts[1],amount=.1),
         "grey90"
       )
-
     
     palette_outcome_repro_charts <-
       c(palette_score_charts[7],
@@ -1957,18 +1941,28 @@ figures <- function(){
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>% 
-        filter(!covid) %>% 
-        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
-        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
-        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
-        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
-        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
-        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      data <- pr_outcomes %>%  filter(!covid) 
+      data$OA_data_shared <- data$OA_data_shared
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
+                                    "restricted",data$OA_data_shared)
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
+                                    "no data available",data$OA_data_shared)
+      data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
+      
+      data <- data %>%
+        mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
+               d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
+               d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
+               
+               d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
+               d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
+               d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
+               
+               d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
+               
+               d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
       
       data <- merge(data,paper_metadata[c("paper_id","pub_year")],by="paper_id",all.x =TRUE,all.y=FALSE)
@@ -1978,12 +1972,21 @@ figures <- function(){
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
       
       data$cat <- ordered(data$cat,
-                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
-                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
-                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
-                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                          levels = c("d_open_c_avail",
+                                     "d_restricted_c_avail",
+                                     "d_shared_c_avail",
+                                     "d_open_c_unavail",
+                                     "d_restricted_c_unavail",
+                                     "d_shared_c_unavail",
+                                     "d_not_avail_c_avail",
+                                     "d_not_avail_c_unavail"),
+                          labels = c("Data open,\ncode available",
+                                     "Data restricted,\ncode available", 
+                                     "Data shared directly,\ncode available",
+                                     "Data open,\ncode unavailable",
+                                     "Data restricted,\ncode unavailable", 
                                      "Data shared directly,\ncode unavailable",
-                                     "Data unavailable,\ncode available",
+                                     "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
       )
       # Define nesting structure
@@ -1991,17 +1994,6 @@ figures <- function(){
       nesting.structure <- data.frame(cat)
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
-      # nesting.structure$cat2 <- c("Both","Both","Both",
-      #                             "Either",
-      #                             "Either",
-      #                             "Either",
-      #                             "Neither")
-      # nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
-      # 
-      # nesting.structure$cat <- ordered(nesting.structure$cat)
-      # nesting.structure$cat2 <- ordered(nesting.structure$cat2)
-      # nesting.structure$cat3 <- ordered(nesting.structure$cat3)
       
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,paper_id)
@@ -2020,103 +2012,109 @@ figures <- function(){
       chart.palette <- palette_process_repro_charts
     }
     
-    # Group by group plots
-    plotlist <- lapply(1:length(group_order),function(x) {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-      
-      rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
-                                        chart.palette = chart.palette,
-                                        display_axis = FALSE)$plot
-      
-      snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
-                                  chart.palette = chart.palette,
-                                  n_bins_max=n_bins_max,
-                                  display_axis = FALSE,
-                                  collapsevar="paper_id")$plot
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    })
-    # Blank / right axis
-    group_label <- ggplot()+theme_nothing()
-    
-    rounded.bars_plot <- ggplot()+theme_nothing()
-    
-    snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
-                                chart.palette = "white",
-                                n_bins_max=n_bins_max,
-                                axis_only = TRUE)$plot+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    plotlist[[length(plotlist)+1]] <-
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    # Totals row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-    
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
+    # Plots
+    {
+      # Group by group plots
+      {
+        plotlist <- lapply(1:length(group_order),function(x) {
+          group_label <- ggplot()+theme_nothing()+
+            annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          
+          rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+                                            chart.palette = chart.palette,
+                                            display_axis = FALSE)$plot
+          
+          snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
                                       chart.palette = chart.palette,
-                                      display_axis = FALSE)$plot
-    
-    snakebins_plot <- ggplot()+theme_nothing()
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Axis row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = rep("white",length(chart.palette)),
-                                      axis_only = TRUE,)$plot+
-      scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    snakebins_plot <- snakebins(data,nesting.structure,
-                                chart.palette = rep("white",length(chart.palette)),
-                                n_bins_max=n_bins_max,
-                                display_axis = FALSE,
-                                collapsevar="paper_id")$plot+
-      xlim(0,n_bins_max)
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Spacer row
-    plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
-    # Legend row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    data.legend <- data %>% group_by(cat) %>% summarise(n=n())
-    cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$cats_rects
-    rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$plot+
-      geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                color=c("white","white","black","white","black","black","black"),size=legend_text_size,fontface="bold")+
-                #color=c("white","white","white","white","white","white","black"),size=legend_text_size,fontface="bold")+
+                                      n_bins_max=n_bins_max,
+                                      display_axis = FALSE,
+                                      collapsevar="paper_id")$plot
+          plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+        })
+      }
+      # Blank / right axis
+      {
+        group_label <- ggplot()+theme_nothing()
+        
+        rounded.bars_plot <- ggplot()+theme_nothing()
+        
+        snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
+                                    chart.palette = "white",
+                                    n_bins_max=n_bins_max,
+                                    axis_only = TRUE)$plot+
+          theme(axis.text.x= element_text(size=x_axis_text_size))
+        
+        plotlist[[length(plotlist)+1]] <-
+          plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      }
+      # Totals row
+      {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        rounded.bars_plot <- rounded.bars(data,nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis = FALSE)$plot
+        
+        snakebins_plot <- ggplot()+theme_nothing()
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      }
+      # Axis row
+      {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=0.5,y=1,label="")
+        rounded.bars_plot <- rounded.bars(data,nesting.structure,
+                                          chart.palette = rep("white",length(chart.palette)),
+                                          axis_only = TRUE,)$plot+
+          scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
+          theme(axis.text.x= element_text(size=x_axis_text_size))
+        
+        snakebins_plot <- snakebins(data,nesting.structure,
+                                    chart.palette = rep("white",length(chart.palette)),
+                                    n_bins_max=n_bins_max,
+                                    display_axis = FALSE,
+                                    collapsevar="paper_id")$plot+
+          xlim(0,n_bins_max)
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      }
       
-      geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
-      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
-      ylim(0,1.2)+
-      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-      # annotate("text",x=2/3+.02,
-      #          y=.25,label="Data only",
-      #          color="black",hjust=0,size=legend_text_size,fontface="bold")+
-      # annotate("text",x=2/3+.02,
-      #          y=.75,label="Code only",
-      #          color="black",hjust=0,size=legend_text_size,fontface="bold")
-    
-    snakebins_plot <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      # Spacer row
+      {
+        plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
+      }
+      # Legend row
+      {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=0.5,y=1,label="")
+        
+        data.legend <- data %>% group_by(cat) %>% summarise(n=n())
+        cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis=FALSE,legend=FALSE)$cats_rects
+        rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis=FALSE,legend=FALSE)$plot+
+          geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                    color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
+          geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
+          geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
+          ylim(0,1.2)+
+          annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+          annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+          annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+          
+        
+        snakebins_plot <- ggplot()+theme_nothing()+
+          annotate("text",x=0.5,y=1,label="")
+        
+        plotlist[[length(plotlist)+1]] <- 
+          plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      }
+    }
     # Display plots
     figure_1 <- 
       plot_grid(plotlist=plotlist,ncol=1,align = "v",
@@ -2127,30 +2125,34 @@ figures <- function(){
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>% 
-        filter(!covid) %>% 
-        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
-        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
-        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
-        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
-        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
-        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      data <- pr_outcomes %>%  filter(!covid) 
+      data$OA_data_shared <- data$OA_data_shared
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
+                                    "restricted",data$OA_data_shared)
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
+                                    "no data available",data$OA_data_shared)
+      data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
+      
+      data <- data %>%
+        mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
+               d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
+               d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
+               
+               d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
+               d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
+               d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
+               
+               d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
+               
+               d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
       
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
       
       data$field <- str_to_title(data$COS_pub_category)
       
-      # Assign group
-      # data$field <- str_to_title(data$COS_pub_category)
-      # data$field <- str_replace_all(data$field," ","\n")
-      # data$field <- str_replace_all(data$field,"And","and")
-      
-      #group_order <- fields.format.2.row
       group_order <- fields.abbreviated
       data$group <- ordered(data$COS_pub_category,
                             levels=fields.raw,
@@ -2158,12 +2160,21 @@ figures <- function(){
                             #labels=fields.format.2.row)
       
       data$cat <- ordered(data$cat,
-                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
-                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
-                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
-                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                          levels = c("d_open_c_avail",
+                                     "d_restricted_c_avail",
+                                     "d_shared_c_avail",
+                                     "d_open_c_unavail",
+                                     "d_restricted_c_unavail",
+                                     "d_shared_c_unavail",
+                                     "d_not_avail_c_avail",
+                                     "d_not_avail_c_unavail"),
+                          labels = c("Data open,\ncode available",
+                                     "Data restricted,\ncode available", 
+                                     "Data shared directly,\ncode available",
+                                     "Data open,\ncode unavailable",
+                                     "Data restricted,\ncode unavailable", 
                                      "Data shared directly,\ncode unavailable",
-                                     "Data unavailable,\ncode available",
+                                     "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
       )
       # Define nesting structure
@@ -2172,122 +2183,121 @@ figures <- function(){
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
       
-      # nesting.structure$cat2 <- c("Both","Both","Both",
-      #                             "Either",
-      #                             "Either",
-      #                             "Either",
-      #                             "Neither")
-      # nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
-      # 
-      # nesting.structure$cat <- ordered(nesting.structure$cat)
-      # nesting.structure$cat2 <- ordered(nesting.structure$cat2)
-      # nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
       # Trim data for speed
       data <- data %>% select(field,cat,group,paper_id)
       
     }
     
     # Aesthetic setup
-    bars_range <- c(0,1)
-    col_widths <- c(1.5,8,1.5)
-    n_bins_max <- 150
-    y_axis_text_size <- 8
-    x_axis_text_size <- 12
-    legend_text_size <- 4
-    
-    chart.palette <- palette_process_repro_charts
+    {
+      bars_range <- c(0,1)
+      col_widths <- c(1.5,8,1.5)
+      n_bins_max <- 150
+      y_axis_text_size <- 8
+      x_axis_text_size <- 12
+      legend_text_size <- 4
+
+      chart.palette <- palette_process_repro_charts
+    }
     
     # Group by group plots
-    plotlist <- lapply(1:length(group_order),function(x) {
-      group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+    {
+      plotlist <- lapply(1:length(group_order),function(x) {
+        group_label <- ggplot()+theme_nothing()+
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        
+        rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+                                          chart.palette = chart.palette,
+                                          display_axis = FALSE)$plot
+        
+        snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
+                                    chart.palette = chart.palette,
+                                    n_bins_max=n_bins_max,
+                                    display_axis = FALSE,
+                                    collapsevar="paper_id")$plot
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      })
+    }
+    # Blank / right axis
+    {
+      group_label <- ggplot()+theme_nothing()
       
-      rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
+      rounded.bars_plot <- ggplot()+theme_nothing()
+      
+      snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
+                                  chart.palette = "white",
+                                  n_bins_max=n_bins_max,
+                                  axis_only = TRUE)$plot+
+        theme(axis.text.x= element_text(size=x_axis_text_size))
+      
+      plotlist[[length(plotlist)+1]] <-
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+      }
+    # Totals row
+    {
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+      
+      rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = chart.palette,
                                         display_axis = FALSE)$plot
       
-      snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
-                                  chart.palette = chart.palette,
+      snakebins_plot <- ggplot()+theme_nothing()
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+    }
+    # Axis row
+    {
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      rounded.bars_plot <- rounded.bars(data,nesting.structure,
+                                        chart.palette = rep("white",length(chart.palette)),
+                                        axis_only = TRUE,)$plot+
+        scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
+        theme(axis.text.x= element_text(size=x_axis_text_size))
+      
+      snakebins_plot <- snakebins(data,nesting.structure,
+                                  chart.palette = rep("white",length(chart.palette)),
                                   n_bins_max=n_bins_max,
                                   display_axis = FALSE,
-                                  collapsevar="paper_id")$plot
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    })
-    # Blank / right axis
-    group_label <- ggplot()+theme_nothing()
-    
-    rounded.bars_plot <- ggplot()+theme_nothing()
-    
-    snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
-                                chart.palette = "white",
-                                n_bins_max=n_bins_max,
-                                axis_only = TRUE)$plot+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    plotlist[[length(plotlist)+1]] <-
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    # Totals row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-    
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis = FALSE)$plot
-    
-    snakebins_plot <- ggplot()+theme_nothing()
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
-    # Axis row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    rounded.bars_plot <- rounded.bars(data,nesting.structure,
-                                      chart.palette = rep("white",length(chart.palette)),
-                                      axis_only = TRUE,)$plot+
-      scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
-      theme(axis.text.x= element_text(size=x_axis_text_size))
-    
-    snakebins_plot <- snakebins(data,nesting.structure,
-                                chart.palette = rep("white",length(chart.palette)),
-                                n_bins_max=n_bins_max,
-                                display_axis = FALSE,
-                                collapsevar="paper_id")$plot+
-      xlim(0,n_bins_max)
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-    
+                                  collapsevar="paper_id")$plot+
+        xlim(0,n_bins_max)
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+    }
     # Spacer row
-    plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
-    
+    {
+      plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
+    }
     # Legend row
-    group_label <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    data.legend <- data %>% group_by(cat) %>% summarise(n=n())
-    cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$cats_rects
-    rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$plot+
-      geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                color=c("white","white","black","white","black","black","black"),fontface="bold")+
-      geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
-      geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
-      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
-      ylim(0,1.2)+
-      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-    
-    snakebins_plot <- ggplot()+theme_nothing()+
-      annotate("text",x=0.5,y=1,label="")
-    
-    plotlist[[length(plotlist)+1]] <- 
-      plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+    {
+      group_label <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      
+      data.legend <- data %>% group_by(cat) %>% summarise(n=n())
+      cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$cats_rects
+      rounded.bars_plot <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$plot+
+        geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                  color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
+        geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
+        geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
+        ylim(0,1.2)+
+        annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+      
+      snakebins_plot <- ggplot()+theme_nothing()+
+        annotate("text",x=0.5,y=1,label="")
+      
+      plotlist[[length(plotlist)+1]] <- 
+        plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
+    }
     # Display plots
     figure_2 <- 
       plot_grid(plotlist=plotlist,ncol=1,align = "v",
@@ -4136,24 +4146,30 @@ figures <- function(){
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>% 
-        filter(!covid) %>% 
-        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
-        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
-        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
-        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
-        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
-        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      data <- pr_outcomes %>%  filter(!covid) 
+      data$OA_data_shared <- data$OA_data_shared
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
+                                    "restricted",data$OA_data_shared)
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
+                                    "no data available",data$OA_data_shared)
+      data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
+      
+      data <- data %>%
+        mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
+               d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
+               d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
+               
+               d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
+               d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
+               d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
+               
+               d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
+               
+               d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
       
-      # data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
-      # 
-      # data$field <- str_to_title(data$COS_pub_category)
-      # 
       exp_fields <- paper_metadata %>% 
         select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
         mutate(
@@ -4175,12 +4191,21 @@ figures <- function(){
                             labels=sort(unique(exp_fields$field)))
       
       data$cat <- ordered(data$cat,
-                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
-                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
-                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
-                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                          levels = c("d_open_c_avail",
+                                     "d_restricted_c_avail",
+                                     "d_shared_c_avail",
+                                     "d_open_c_unavail",
+                                     "d_restricted_c_unavail",
+                                     "d_shared_c_unavail",
+                                     "d_not_avail_c_avail",
+                                     "d_not_avail_c_unavail"),
+                          labels = c("Data open,\ncode available",
+                                     "Data restricted,\ncode available", 
+                                     "Data shared directly,\ncode available",
+                                     "Data open,\ncode unavailable",
+                                     "Data restricted,\ncode unavailable", 
                                      "Data shared directly,\ncode unavailable",
-                                     "Data unavailable,\ncode available",
+                                     "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
       )
       # Define nesting structure
@@ -4283,14 +4308,15 @@ figures <- function(){
                                         chart.palette = chart.palette,
                                         display_axis=FALSE,legend=FALSE)$plot+
         geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                  color=c("white","white","black","white","black","black","black"),fontface="bold")+
-        geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
-        geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
+                  color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
+        geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
+        geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
+        
         #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
         ylim(0,1.2)+
-        annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-        annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-        annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+        annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
       
       snakebins_plot <- ggplot()+theme_nothing()+
         annotate("text",x=0.5,y=1,label="")
@@ -4308,32 +4334,50 @@ figures <- function(){
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>% 
-        filter(!covid) %>% 
-        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
-        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
-        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
-        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
-        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
-        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      data <- pr_outcomes %>%  filter(!covid) 
+      data$OA_data_shared <- data$OA_data_shared
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
+                                    "restricted",data$OA_data_shared)
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
+                                    "no data available",data$OA_data_shared)
+      data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
+      
+      data <- data %>%
+        mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
+               d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
+               d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
+               
+               d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
+               d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
+               d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
+               
+               d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
+               
+               d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
       
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
-      #data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
       
       data$cat <- ordered(data$cat,
-                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
-                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
-                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
-                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                          levels = c("d_open_c_avail",
+                                     "d_restricted_c_avail",
+                                     "d_shared_c_avail",
+                                     "d_open_c_unavail",
+                                     "d_restricted_c_unavail",
+                                     "d_shared_c_unavail",
+                                     "d_not_avail_c_avail",
+                                     "d_not_avail_c_unavail"),
+                          labels = c("Data open,\ncode available",
+                                     "Data restricted,\ncode available", 
+                                     "Data shared directly,\ncode available",
+                                     "Data open,\ncode unavailable",
+                                     "Data restricted,\ncode unavailable", 
                                      "Data shared directly,\ncode unavailable",
-                                     "Data unavailable,\ncode available",
+                                     "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
       )
       field_order <- fields.abbreviated
@@ -4353,8 +4397,6 @@ figures <- function(){
     # Aesthetic setup
     {
       chart.palette <- palette_process_repro_charts
-      
-      #chart.palette.largecat <- palette_outcome_repro_charts_attempts
       
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
@@ -4422,14 +4464,13 @@ figures <- function(){
                            chart.palette = chart.palette,
                            display_axis=TRUE,legend=FALSE)$plot+
       geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                color=c("white","white","black","white","black","black","black"),fontface="bold")+
-      geom_segment(x=3/7,xend=3/7,y=1,yend=1.6,linetype=3)+
-      geom_segment(x=6/7,xend=6/7,y=1,yend=1.6,linetype=3)+
-      #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+                color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
+      geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
+      geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
       ylim(0,1.6)+
-      annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+      annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
       theme(axis.text.x=element_text(size=x_axis_text_size))+
       scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
     
@@ -4445,32 +4486,50 @@ figures <- function(){
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>% 
-        filter(!covid) %>% 
-        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
-        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
-        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
-        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
-        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
-        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
+      data <- pr_outcomes %>%  filter(!covid) 
+      data$OA_data_shared <- data$OA_data_shared
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
+                                    "restricted",data$OA_data_shared)
+      data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
+                                    "no data available",data$OA_data_shared)
+      data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
+      
+      data <- data %>%
+        mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
+               d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
+               d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
+               
+               d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
+               d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
+               d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
+               
+               d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
+               
+               d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
 
       data <- merge(data,paper_metadata[c("paper_id","pub_year")],by="paper_id",all.x =TRUE,all.y=FALSE)
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
-      #data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
       
       data$cat <- ordered(data$cat,
-                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
-                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
-                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
-                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
+                          levels = c("d_open_c_avail",
+                                     "d_restricted_c_avail",
+                                     "d_shared_c_avail",
+                                     "d_open_c_unavail",
+                                     "d_restricted_c_unavail",
+                                     "d_shared_c_unavail",
+                                     "d_not_avail_c_avail",
+                                     "d_not_avail_c_unavail"),
+                          labels = c("Data open,\ncode available",
+                                     "Data restricted,\ncode available", 
+                                     "Data shared directly,\ncode available",
+                                     "Data open,\ncode unavailable",
+                                     "Data restricted,\ncode unavailable", 
                                      "Data shared directly,\ncode unavailable",
-                                     "Data unavailable,\ncode available",
+                                     "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
       )
       
@@ -4638,14 +4697,13 @@ figures <- function(){
                                chart.palette = chart.palette,
                                display_axis=TRUE,legend=FALSE)$plot+
           geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                    color=c("white","white","black","white","black","black","black"),fontface="bold")+
-          geom_segment(x=3/7,xend=3/7,y=1,yend=1.6,linetype=3)+
-          geom_segment(x=6/7,xend=6/7,y=1,yend=1.6,linetype=3)+
-          #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
+                    color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
+          geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
+          geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
           ylim(0,1.6)+
-          annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-          annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-          annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+          annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+          annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+          annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
           theme(axis.text.x=element_text(size=x_axis_text_size))+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
         
@@ -5193,190 +5251,6 @@ figures <- function(){
     figure_s10 <- 
       plot_grid(main_plots_top,main_plots_bottom,legend_bar,ncol=1,
                 rel_heights = c(1+length(unique(data$pub_year)),1+length(unique(data$pub_year)),1.8))
-  }
-  
-  # Figure X. Process reproducibility success rates by year of publication for economics and political science versus other disciplines
-  if(FALSE){
-    # Data wrangling
-    {
-      data <- pr_outcomes %>% 
-        filter(!covid) %>% 
-        mutate(d_c_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared != "no") %>% 
-        mutate(d_c_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared != "no") %>% 
-        mutate(d_only_open = data_available == "Yes" & restricted_data == "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_protect = data_available == "Yes" & restricted_data != "No" & OA_code_shared == "no") %>% 
-        mutate(d_only_sharing = str_detect(OA_data_shared, "yes") & OA_code_shared == "no") %>% 
-        mutate(no_data_code_available = OA_data_shared == "no" & OA_code_shared != "no") %>% 
-        mutate(no_data_no_code = OA_data_shared == "no" & OA_code_shared == "no") %>% 
-        select(paper_id, d_c_open, d_c_protect, d_c_sharing, d_only_open, d_only_sharing, no_data_code_available, no_data_no_code) %>% 
-        pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>% 
-        filter(response)
-      
-      data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
-      group_order <- seq(min(data$pub_year),max(data$pub_year,1))
-      #data$pub_year <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
-      data$cat <- ordered(data$cat,
-                          levels = c("d_c_open","d_c_protect","d_c_sharing","d_only_open",
-                                     "d_only_sharing","no_data_code_available","no_data_no_code"),
-                          labels = c("Open data,\ncode available", "Data restricted,\ncode available", 
-                                     "Data shared directly,\ncode available", "Open data,\ncode unavailable",
-                                     "Data shared directly,\ncode unavailable",
-                                     "Data unavailable,\ncode available",
-                                     "Neither data nor\ncode available")
-      )
-      data.econ.poli <- data[data$COS_pub_category=="economics and finance" | data$COS_pub_category=="political science",]
-      data.other <- data[!data$COS_pub_category=="economics and finance" & !data$COS_pub_category=="political science",]
-      # Define nesting structure
-      cat <- levels(data$cat)
-      nesting.structure <- data.frame(cat)
-      nesting.structure$cat2 <- nesting.structure$cat
-      nesting.structure$cat3 <- nesting.structure$cat
-      
-      # nesting.structure$cat2 <- c("Both","Both","Both",
-      #                             "Either",
-      #                             "Either",
-      #                             "Either",
-      #                             "Neither")
-      # nesting.structure$cat3 <- c(NA, NA, NA,"Data only","Data only","Code only",NA)
-      # 
-      # nesting.structure$cat <- ordered(nesting.structure$cat)
-      # nesting.structure$cat2 <- ordered(nesting.structure$cat2)
-      # nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-    }
-    
-    # Aesthetic setup
-    {
-      chart.palette <- palette_process_repro_charts
-      
-      title_text_size <- 8
-      y_axis_text_size <- 7
-      x_axis_text_size <- 12
-      legend_text_size <- 4
-      colwidths <- c(8,1,8)
-    }
-    
-    # Plots
-    {
-      plotlist.main <- 
-        lapply(1:length(group_order),function(x) 
-          plot_grid(rounded.bars(data.econ.poli[data.econ.poli$pub_year==group_order[x],],nesting.structure,
-                                 chart.palette = chart.palette,
-                                 display_axis = FALSE,
-                                 flip_x=TRUE)$plot+
-                      theme(axis.title.y=element_blank())+
-                      ylab(group_order[x]),
-                    ggplot()+theme_minimal() +
-                      theme(legend.position = "none",
-                            legend.title=element_blank(),
-                            panel.border = element_blank(),
-                            panel.grid = element_blank(),
-                            axis.title=element_blank(),
-                            axis.text = element_blank(),
-                            axis.line = element_blank(),
-                            axis.ticks = element_blank(),
-                            plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-                      lims(x= c(0,1), y = c(0,1))+
-                      annotate("text",x=0.5,y=0.5,
-                               label=group_order[x],size=y_axis_text_size,fontface="bold"),
-                    rounded.bars(data.other[data.other$pub_year==group_order[x],],nesting.structure,
-                                 chart.palette = chart.palette,
-                                 display_axis = FALSE,)$plot+
-                      theme(axis.title.y=element_blank())+
-                      ylab(group_order[x]),
-                    nrow=1,rel_widths = colwidths)
-        )
-      
-      plotlist.main[[length(plotlist.main)+1]] <- 
-        plot_grid(rounded.bars(data[data$pub_year==group_order[1],],nesting.structure,
-                               chart.palette = rep("white",length(group_order)),
-                               axis_only = TRUE,flip_x=TRUE)$plot+
-                    theme(axis.text.x=element_text(size=x_axis_text_size)),
-                  ggplot()+theme_nothing(),
-                  rounded.bars(data[data$pub_year==group_order[1],],nesting.structure,
-                               chart.palette = rep("white",length(group_order)),
-                               axis_only = TRUE)$plot+
-                    theme(axis.text.x=element_text(size=x_axis_text_size)),
-                  nrow=1,rel_widths = colwidths)
-      
-      plot.main <- plot_grid(plotlist=plotlist.main,ncol=1)
-      
-      
-      plot.top.labels <-
-        plot_grid(
-          ggplot()+theme_nothing() +
-            theme(legend.position = "none",
-                  legend.title=element_blank(),
-                  panel.border = element_blank(),
-                  panel.grid = element_blank(),
-                  axis.title=element_blank(),
-                  axis.text = element_blank(),
-                  axis.line = element_blank(),
-                  axis.ticks = element_blank(),
-                  plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-            scale_x_continuous(limits=c(-1,0),expand=c(0,0))+
-            scale_y_continuous(limits=c(0,1),expand=c(0,0))+
-            annotate("text",x=-.5,y=0.5,
-                     label="Economics and Political Science",hjust=0.5,size=title_text_size,fontface="bold"),
-          ggplot()+theme_nothing() +
-            theme(legend.position = "none",
-                  legend.title=element_blank(),
-                  panel.border = element_blank(),
-                  panel.grid = element_blank(),
-                  axis.title=element_blank(),
-                  axis.text = element_blank(),
-                  axis.line = element_blank(),
-                  axis.ticks = element_blank(),
-                  plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-            scale_x_continuous(limits=c(0,1),expand=c(0,0))+
-            scale_y_continuous(limits=c(0,1),expand=c(0,0))+
-            annotate("text",x=0.5,y=0.5,
-                     label=" "),
-          ggplot()+theme_nothing() +
-            theme(legend.position = "none",
-                  legend.title=element_blank(),
-                  panel.border = element_blank(),
-                  panel.grid = element_blank(),
-                  axis.title=element_blank(),
-                  axis.text = element_blank(),
-                  axis.line = element_blank(),
-                  axis.ticks = element_blank(),
-                  plot.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-            scale_x_continuous(limits=c(0,1),expand=c(0,0))+
-            scale_y_continuous(limits=c(0,1),expand=c(0,0))+
-            annotate("text",x=0.5,y=0.5,
-                     label="All other fields",hjust=0.5,size=title_text_size,fontface="bold"),
-          ncol=3,rel_widths = colwidths)
-      
-      # plot.main <- plot_grid(plot.left,plot.center,plot.right,ncol=3,rel_widths = c(width.ratio,1,width.ratio))
-      
-      data.legend <- data %>% group_by(cat) %>% summarise(n=n())
-      cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
-                                        chart.palette = chart.palette,
-                                        display_axis=FALSE,legend=FALSE)$cats_rects
-      legend <- rounded.bars(data.legend,nesting.structure,
-                             chart.palette = chart.palette,
-                             display_axis=FALSE,legend=FALSE)$plot+
-        geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                  color=c("white","white","black","white","black","black","black"),size=legend_text_size,fontface="bold")+
-        geom_segment(x=1/3,xend=1/3,y=1,yend=1.2,linetype=3)+
-        geom_segment(x=2/3,xend=2/3,y=1,yend=1.2,linetype=3)+
-        geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
-        ylim(0,1.2)+
-        geom_segment(x=3/7,xend=3/7,y=1,yend=1.2,linetype=3)+
-        geom_segment(x=6/7,xend=6/7,y=1,yend=1.2,linetype=3)+
-        #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
-        ylim(0,1.2)+
-        annotate("text",x=1.5/7,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-        annotate("text",x=4.5/7,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-        annotate("text",x=6.5/7,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-      
-    }
-    figure_3 <- 
-      plot_grid(plot.top.labels,plot.main,ggplot()+theme_nothing(),legend,
-                ncol=1,rel_heights = c(1/length(plotlist.main),1,0.1,3/length(plotlist.main)))
   }
   
   # Export
