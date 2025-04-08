@@ -13,6 +13,7 @@ library(targets)
 library(readr)
 library(googledrive)
 library(googlesheets4)
+library(dplyr)
 # Silly workaround to get renv to store these packages
 library(hashids)
 library(usethis)
@@ -969,6 +970,256 @@ list(
   tar_target(pr_outcomes,
              create_pr_analytic(pr_qc, oa_outreach))
   
+)
+
+```
+
+## Correlations Datasets
+
+```{targets correlations}
+list(
+  # Elicitations ----
+  # Elicitations phase 1
+  tar_target(melb_p1_osf,
+             "7n2qe"),
+  tar_target(melb_p1_mod_date, 
+             get_osf_mod_date(melb_p1_osf),
+             cue = tar_cue("always")), 
+  tar_target(melb_p1,
+             load_osf_csv(melb_p1_osf,
+                          melb_p1_mod_date)),
+  
+  # Elicitations phase 2
+  tar_target(melb_p2_osf,
+             "9khpj"),
+  tar_target(melb_p2_mod_date, 
+             get_osf_mod_date(melb_p2_osf),
+             cue = tar_cue("always")), 
+  tar_target(melb_p2,
+             load_osf_csv(melb_p2_osf,
+                          melb_p2_mod_date)),
+  
+  # Elicitations bushel
+  tar_target(melb_bushel_osf,
+             "wy9sv"),
+  tar_target(melb_bushel_mod_date, 
+             get_osf_mod_date(melb_bushel_osf),
+             cue = tar_cue("always")), 
+  tar_target(melb_bushel,
+             load_osf_csv(melb_bushel_osf,
+                          melb_bushel_mod_date)),
+  
+  # Prediction Markets ----
+  tar_target(kw_scores_osf,
+             "jn9dg"),
+  tar_target(kw_scores_mod_date, 
+             get_osf_mod_date(kw_scores_osf),
+             cue = tar_cue("always")), 
+  tar_target(kw_scores,
+             load_osf_csv(kw_scores_osf,
+                          kw_scores_mod_date)),
+  
+  # A+ ----
+  # A+ sprint 1
+  tar_target(ts_s1_osf,
+             "56xqd"),
+  tar_target(ts_s1_mod_date, 
+             get_osf_mod_date(ts_s1_osf),
+             cue = tar_cue("always")), 
+  tar_target(ts_s1,
+             load_osf_csv(ts_s1_osf,
+                          ts_s1_mod_date)),
+  
+  # A+ sprint 2
+  tar_target(ts_s2_osf,
+             "c28g4"),
+  tar_target(ts_s2_mod_date, 
+             get_osf_mod_date(ts_s2_osf),
+             cue = tar_cue("always")), 
+  tar_target(ts_s2,
+             load_osf_csv(ts_s2_osf,
+                          ts_s2_mod_date)),
+  
+  # A+ sprint 3
+  tar_target(ts_s3_osf,
+             "2z96n"),
+  tar_target(ts_s3_mod_date, 
+             get_osf_mod_date(ts_s3_osf),
+             cue = tar_cue("always")), 
+  tar_target(ts_s3,
+             load_osf_csv(ts_s3_osf,
+                          ts_s3_mod_date)),
+  
+  # A+ bushel
+  tar_target(ts_bushel_osf,
+             "d8kc3"),
+  tar_target(ts_bushel_mod_date, 
+             get_osf_mod_date(ts_bushel_osf),
+             cue = tar_cue("always")), 
+  tar_target(ts_bushel,
+             load_osf_csv(ts_bushel_osf,
+                          ts_bushel_mod_date)),
+  
+  # MACROSCORE ----
+  # MACROSCORE sprint 1
+  tar_target(usc_s1_osf,
+             "u8qea"),
+  tar_target(usc_s1_mod_date, 
+             get_osf_mod_date(usc_s1_osf),
+             cue = tar_cue("always")), 
+  tar_target(usc_s1,
+             load_osf_csv(usc_s1_osf,
+                          usc_s1_mod_date)),
+  
+  # MACROSCORE sprint 2
+  tar_target(usc_s2_osf,
+             "xc396"),
+  tar_target(usc_s2_mod_date, 
+             get_osf_mod_date(usc_s2_osf),
+             cue = tar_cue("always")), 
+  tar_target(usc_s2,
+             load_osf_csv(usc_s2_osf,
+                          usc_s2_mod_date)),
+  
+  # MACROSCORE sprint 3
+  tar_target(usc_s3_osf,
+             "9rcd7"),
+  tar_target(usc_s3_mod_date, 
+             get_osf_mod_date(usc_s3_osf),
+             cue = tar_cue("always")), 
+  tar_target(usc_s3,
+             load_osf_csv(usc_s3_osf,
+                          usc_s3_mod_date)),
+  
+  # MACROSCORE bushel
+  tar_target(usc_bushel_osf,
+             "jmdpk"),
+  tar_target(usc_bushel_mod_date, 
+             get_osf_mod_date(usc_bushel_osf),
+             cue = tar_cue("always")), 
+  tar_target(usc_bushel,
+             load_osf_csv(usc_bushel_osf,
+                          usc_bushel_mod_date)),
+  
+  # Synthetic Markets ----
+  # Synthetic markets sprint 1
+  tar_target(psu_s1_osf,
+             "u7dnr"),
+  tar_target(psu_s1_mod_date, 
+             get_osf_mod_date(psu_s1_osf),
+             cue = tar_cue("always")), 
+  tar_target(psu_s1,
+             load_osf_csv(psu_s1_osf,
+                          psu_s1_mod_date)),
+  
+  # Synthetic markets sprint 2
+  tar_target(psu_s2_osf,
+             "efp92"),
+  tar_target(psu_s2_mod_date, 
+             get_osf_mod_date(psu_s2_osf),
+             cue = tar_cue("always")), 
+  tar_target(psu_s2,
+             load_osf_csv(psu_s2_osf,
+                          psu_s2_mod_date)),
+  
+  # Synthetic markets sprint 3
+  tar_target(psu_s3_osf,
+             "rc6aw"),
+  tar_target(psu_s3_mod_date, 
+             get_osf_mod_date(psu_s3_osf),
+             cue = tar_cue("always")), 
+  tar_target(psu_s3,
+             load_osf_csv(psu_s3_osf,
+                          psu_s3_mod_date)),
+  
+  # Sciscore ----
+  tar_target(sciscore_file,
+             "1YSXZHGfSwEY3zSwReaq6iJQcUT4HT_qE"),
+  tar_target(sciscore_moddate,
+             get_google_mod_date(sciscore_file),
+             cue = tar_cue("always")),
+  tar_target(sciscore,
+             read_google_csv(sciscore_file,
+                             sciscore_moddate)),
+  
+  # StatCheck ----
+  tar_target(statcheck_file,
+             "1mcdyTvXchktzYl3IoOLF_pDFLADH2zKi"),
+  tar_target(statcheck_moddate,
+             get_google_mod_date(statcheck_file),
+             cue = tar_cue("always")),
+  tar_target(statcheck,
+             read_google_tsv(statcheck_file,
+                             statcheck_moddate)),
+  
+  # Robustness ----
+  tar_target(m100_file,
+             "1EvH6fblQZqMpumlNAj1U6CPH6e68RJMu"),
+  tar_target(m100_moddate,
+             get_google_mod_date(m100_file),
+             cue = tar_cue("always")),
+  tar_target(m100,
+             read_google_csv(m100_file,
+                             m100_moddate)),
+  
+  # Original claims effect sizes ----
+  tar_target(es_file,
+             "1k42kApZgmSyyC1A-EsUoimFmNEc5cDuJLZGk4GrQQjA"),
+  tar_target(es_moddate,
+             get_google_mod_date(es_file),
+             cue = tar_cue("always")),
+  tar_target(es,
+             read_google_sheet(es_file,
+                               es_moddate)),
+  
+  # Original claims significance ----
+  # stat_sig and stat_sig_p2 sheets needed, merged
+  tar_target(sig_file,
+             "1_ZRyWIrPOO3JwzGTUZOMMLo7fKcENAOwW6tmtSxQ_js"),
+  tar_target(sig_moddate,
+             get_google_mod_date(sig_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig,
+             read_google_sheet(sig_file,
+                               sig_moddate,
+                               sheet = "stat_sig")),
+  tar_target(stat_sig_p2,
+             read_google_sheet(sig_file,
+                               sig_moddate,
+                               sheet = "stat_sig_p2") %>%
+               add_column(p_value_avail = NA_character_)),
+  tar_target(sig,
+             rbind(stat_sig, stat_sig_p2)),
+  
+  # Hedging and humility ----
+  tar_target(hedge_file,
+             "16-7o5x0j2jJEEVw6E1vyUl_2vG2Xnjap"),
+  tar_target(hedge_moddate,
+             get_google_mod_date(hedge_file),
+             cue = tar_cue("always")),
+  tar_target(hedge,
+             read_google_tsv(hedge_file,
+                             hedge_moddate)),
+  
+  # Original author metadata ----
+  tar_target(oa_metadata_file,
+             "1YquUUy2-OdUe0DpTR-7qF29f0t5HxOOz"),
+  tar_target(oa_metadata_moddate,
+             get_google_mod_date(oa_metadata_file),
+             cue = tar_cue("always")),
+  tar_target(oa_metadata,
+             read_google_csv(oa_metadata_file,
+                             oa_metadata_moddate)),
+  
+  # Original author citations ----
+  tar_target(oa_citations_file,
+             "1arqr4Cmww6xfVZdD2o45sQ6O9olMCYeu"),
+  tar_target(oa_citations_moddate,
+             get_google_mod_date(oa_citations_file),
+             cue = tar_cue("always")),
+  tar_target(oa_citations,
+             read_google_csv(oa_citations_file,
+                             oa_citations_moddate))
 )
 
 ```
