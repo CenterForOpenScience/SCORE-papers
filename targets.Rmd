@@ -1221,7 +1221,7 @@ list(
   tar_target(oa_citations,
              read_google_csv(oa_citations_file,
                              oa_citations_moddate,
-                             col_types = "cdd"))
+                             col_types = "cddd"))
 )
 
 ```
