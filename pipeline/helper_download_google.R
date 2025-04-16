@@ -3,10 +3,10 @@
 # Note: for some reason this doesn't update when new form responses add rows
 get_google_mod_date <- function(file_id) {
   
-  drive_get(id = file_id) %>%
-    pull(drive_resource) %>%
-    flatten() %>%
-    pluck("modifiedTime")
+  googledrive::drive_get(id = file_id) %>%
+    dplyr::pull(drive_resource) %>%
+    purrr::list_flatten() %>%
+    purrr::pluck("modifiedTime")
   
 }
 
@@ -66,5 +66,31 @@ read_google_sheet <- function(file_id,
     read_sheet(sheet = sheet) %>%
     mutate(across(where(is.list), as.character)) %>%
     select(-any_of(drop_cols))
+  
+}
+
+read_google_rds <- function(file_id,
+                            mod_date) {
+  
+  # This triggers tar_make() to load data if the modification date has
+  # changed since last run
+  if (!lubridate::is.Date(as.Date(mod_date))) {
+    stop("File modification date invalid.")
+  }
+  
+  google_rds_file <- file_id %>%
+    googledrive::as_id() %>%
+    googledrive::drive_download(path = here::here("pipeline",
+                                                  "data_processing",
+                                                  "temp",
+                                                  "temp_rds.rds"),
+                                overwrite = TRUE) %>%
+    dplyr::pull(local_path)
+  
+  google_rds <- readr::read_rds(google_rds_file)
+  
+  file.remove(google_rds_file)
+  
+  return(google_rds)
   
 }

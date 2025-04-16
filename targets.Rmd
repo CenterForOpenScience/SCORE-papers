@@ -1213,15 +1213,26 @@ list(
   
   # Original author citations ----
   tar_target(oa_citations_file,
-             "1arqr4Cmww6xfVZdD2o45sQ6O9olMCYeu"),
+             "1gwj6SZfZI8Gw6fcWAsK6f65oKyDsyC-6"),
   tar_target(oa_citations_moddate,
              get_google_mod_date(oa_citations_file),
              cue = tar_cue("always")),
-  # Throws a warning because "NA" (char string) gets converted to NA.
   tar_target(oa_citations,
-             read_google_csv(oa_citations_file,
-                             oa_citations_moddate,
-                             col_types = "cddd"))
+             read_google_rds(oa_citations_file,
+                             oa_citations_moddate) %>%
+               # Warnings expected as "NA" the string changes to NA
+               mutate(cs = as.numeric(cs),
+                      log_count = as.numeric(log_count))),
+  
+  # DataSeer ----
+  tar_target(dataseer_file,
+             "1j9680t7HeRV9cRfOlROCNBrH_SAILNe5"),
+  tar_target(dataseer_moddate,
+             get_google_mod_date(dataseer_file),
+             cue = tar_cue("always")),
+  tar_target(dataseer,
+             read_google_rds(dataseer_file,
+                             dataseer_moddate))
 )
 
 ```
