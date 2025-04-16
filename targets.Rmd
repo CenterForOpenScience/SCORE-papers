@@ -1217,9 +1217,11 @@ list(
   tar_target(oa_citations_moddate,
              get_google_mod_date(oa_citations_file),
              cue = tar_cue("always")),
+  # Throws a warning because "NA" (char string) gets converted to NA.
   tar_target(oa_citations,
              read_google_csv(oa_citations_file,
-                             oa_citations_moddate))
+                             oa_citations_moddate,
+                             col_types = "cdd"))
 )
 
 ```
