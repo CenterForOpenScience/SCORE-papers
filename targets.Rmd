@@ -1232,7 +1232,28 @@ list(
              cue = tar_cue("always")),
   tar_target(dataseer,
              read_google_rds(dataseer_file,
-                             dataseer_moddate))
+                             dataseer_moddate)),
+  
+  # Automated bibliometric analyses ----
+  tar_target(ksu_file,
+             "1T1mD0wdCafBm5vu0JaHRl3HuSHVaxEJ2"),
+  tar_target(ksu_moddate,
+             get_google_mod_date(ksu_file),
+             cue = tar_cue("always")),
+  tar_target(ksu,
+             read_google_csv(ksu_file,
+                             ksu_moddate)),
+  
+  # Extracted open science indicators ----
+  tar_target(scholarcy_file,
+             "1G1ipJh-aaF5_GdNJU7qUb6Kd2nEWPzyn"),
+  tar_target(scholarcy_moddate,
+             get_google_mod_date(scholarcy_file),
+             cue = tar_cue("always")),
+  tar_target(scholarcy,
+             read_google_csv(scholarcy_file,
+                             scholarcy_moddate))
+  
 )
 
 ```
