@@ -373,11 +373,17 @@
     )
   }
   
-  format.round <- function(x,digits){
-    format(round(x,digits),nsmall=digits,trim=TRUE)
+  format.round <- function(x,digits,leading.zero=TRUE){
+    out <- format(round(x,digits),nsmall=digits,trim=TRUE)
+    if(leading.zero==FALSE){
+      out <- ifelse(substr(out, start = 1, stop = 2)=="0.",
+             substr(out, start = 2, stop = nchar(out)),
+             out)
+    }
+    return(out)
   }
   
-  format.text.CI <- function(point.estimate,CI.lb,CI.ub,alpha=.05,digits=1,format.percent=FALSE){
+  format.text.CI <- function(point.estimate,CI.lb,CI.ub,alpha=.05,digits=1,format.percent=FALSE,leading.zero=TRUE){
     if (format.percent==TRUE){
       point.estimate <- 100*point.estimate
       CI.lb <- 100*CI.lb
@@ -387,19 +393,19 @@
       end.notation <- ""
     }
     
-    paste0(format.round(point.estimate,digits),
+    paste0(format.round(point.estimate,digits,leading.zero=leading.zero),
            end.notation," [",100*(1-alpha),"% CI ",
-           format.round(CI.lb,digits)," - ",format.round(CI.ub,digits),
+           format.round(CI.lb,digits,leading.zero=leading.zero)," - ",format.round(CI.ub,digits,leading.zero=leading.zero),
            end.notation,"]")
   }
   
-  format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE){
+  format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE,leading.zero=TRUE){
     p <- binconf(x,n)
     text <- paste0(format.round(100*p[1],digits),"%")
     if(confint){
-      text <- format.text.CI(p[1],p[2],p[3],alpha,digits,format.percent = TRUE)
+      text <- format.text.CI(p[1],p[2],p[3],alpha,digits,format.percent = TRUE,leading.zero=leading.zero)
     } else
-      text <- paste0(format.round(100*p[1],digits=digits),"%")
+      text <- paste0(format.round(100*p[1],digits=digits,leading.zero=leading.zero),"%")
     text
   }
 }
@@ -408,7 +414,7 @@
 {
   bootstrap.clust <- function(data=NA,FUN=NA,keepvars=NA,clustervar=NA,
                               alpha=.05,tails="two-tailed",iters=200,
-                              format.percent=FALSE,digits=1,na.rm=TRUE){
+                              format.percent=FALSE,digits=1,leading.zero=TRUE,na.rm=TRUE){
     # Drop any variables from the dataframe that are not required for speed (optional)
     # and/or with missing values
     data.internal <- data
@@ -476,7 +482,7 @@
       output.list[["formatted.text"]] <- 
         format.text.CI(point.estimate=point.estimate,
                        "CI.lb"=CI.lb,"CI.ub"=CI.ub,
-                       alpha=alpha,digits=digits,
+                       alpha=alpha,digits=digits,leading.zero=leading.zero,
                        format.percent=format.percent)
     return(output.list)
   }

@@ -37,16 +37,33 @@
 # Note: Run at least this function when updating data, as everything else pulls
 # from this package of data and code
 {
+  # Load targets objects
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
   }
-
+  
+  # Save all data and files into 
   save(list=objects_to_load,file=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/analyst data.RData"))
   file.copy(from=paste0("Analysis/common functions.R"),to=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/common functions.R"),overwrite=TRUE)
-  file.copy(from=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"),to=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/tagged stats and figures.R"),overwrite=TRUE)
   
-  files2zip <- dir(paste0("Analysis/",paper_folder,"/Code and data/Analyst package"), full.names = TRUE)
-  zip(zipfile = paste0("Analysis/",paper_folder,"/Code and data/Analyst package/data and code.zip"), files = files2zip[!endsWith(files2zip,".zip")])
+  folder.analyst.package <- paste0("Analysis/",paper_folder,"/Code and data/Analyst package/")
+  file.copy(from=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"),to=paste0(folder.analyst.package,"tagged stats and figures.R"),overwrite=TRUE)
+  
+  # Put everything into a zip
+  zipit <- function(){
+    dir.orig <- getwd()
+    dir.new <- paste0(dir.orig,"/",folder.analyst.package)
+    setwd(dir.new)
+    if(file.exists("data and code.zip")) {file.remove("data and code.zip")}
+    
+    files2zip <- dir(full.names = TRUE)
+    
+    zip(zipfile = "data and code.zip", files = files2zip[!endsWith(files2zip,".zip")])
+    setwd(dir.orig)
+  }
+  zipit()
+  #files2zip <- dir(paste0("Analysis/",paper_folder,"/Code and data/Analyst package"), full.names = TRUE)
+  #zip(zipfile = paste0("Analysis/",paper_folder,"/Code and data/Analyst package/data and code.zip"), files = files2zip[!endsWith(files2zip,".zip")])
   
   source(file=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"))
 }
@@ -94,5 +111,4 @@ if(generate_figures==TRUE){
     plot = generated_figures$figure_1,
     width = 6000,height = 2500,units = "px",bg="white"
   )
-  
 }
