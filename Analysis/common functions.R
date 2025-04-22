@@ -379,13 +379,16 @@
       out <- ifelse(substr(out, start = 1, stop = 2)=="0.",
              substr(out, start = 2, stop = nchar(out)),
              out)
+      out <- ifelse(substr(out, start = 1, stop = 3)=="-0.",
+                    paste0("-",substr(out, start = 3, stop = nchar(out))),
+                    out)
     }
     return(out)
   }
   
   format.text.CI <- function(point.estimate,CI.lb,CI.ub,alpha=.05,digits=1,
                              format.percent=FALSE,leading.zero=TRUE,
-                             CI.sep=" - ",CI.bracket=c("[","]")){
+                             CI.prefix = TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
     if (format.percent==TRUE){
       point.estimate <- 100*point.estimate
       CI.lb <- 100*CI.lb
@@ -396,18 +399,19 @@
     }
     
     paste0(format.round(point.estimate,digits,leading.zero=leading.zero),
-           end.notation," ",CI.bracket[1],100*(1-alpha),"% CI ",
+           end.notation," ",CI.bracket[1],
+           {if(CI.prefix){ paste0(100*(1-alpha),"% CI ")} else {""}},
            format.round(CI.lb,digits,leading.zero=leading.zero),CI.sep,format.round(CI.ub,digits,leading.zero=leading.zero),
            end.notation,CI.bracket[2])
   }
   
   format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE,leading.zero=TRUE,
-                                  CI.sep=" - ",CI.bracket=c("[","]")){
+                                  CI.prefix=TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
     p <- binconf(x,n)
     text <- paste0(format.round(100*p[1],digits),"%")
     if(confint){
       text <- format.text.CI(p[1],p[2],p[3],alpha,digits,format.percent = TRUE,
-                             leading.zero=leading.zero,CI.sep=CI.sep,CI.bracket=CI.bracket)
+                             leading.zero=leading.zero,CI.prefix=CI.prefix,CI.sep=CI.sep,CI.bracket=CI.bracket)
     } else
       text <- paste0(format.round(100*p[1],digits=digits,leading.zero=leading.zero),"%")
     text
@@ -418,8 +422,9 @@
 {
   bootstrap.clust <- function(data=NA,FUN=NA,keepvars=NA,clustervar=NA,
                               alpha=.05,tails="two-tailed",iters=200,
+                              parallel=FALSE, parallel.cores = NA,parallel.exp.obs=c(),
                               format.percent=FALSE,digits=1,leading.zero=TRUE,na.rm=TRUE,
-                              CI.sep=" - ",CI.bracket=c("[","]")){
+                              CI.prefix=TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
     # Drop any variables from the dataframe that are not required for speed (optional)
     # and/or with missing values
     data.internal <- data
@@ -441,15 +446,32 @@
     # Generate original target variable
       point.estimate <- FUN(data.internal)
     # Create distribution of bootstrapped samples
-      estimates.bootstrapped <- replicate(iters,{
-        # Generate sample of clusters to include
+      if (parallel==FALSE) {
+          estimates.bootstrapped <- replicate(iters,{
+          # Generate sample of clusters to include
+            clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+          # Build dataset from cluster list
+            data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+            data.clust <- data.internal[unlist(data.clust),]
+          # Run function on new data
+            tryCatch(FUN(data.clust),finally=NA)
+        },simplify=TRUE)
+      } else {
+        library(parallel)
+        cl <- makeCluster(detectCores()-1)
+        clusterExport(cl,c("data.internal","cluster.set","clustervar","FUN",parallel.exp.obs))
+        #clusterSetRNGStream(cl)
+        estimates.bootstrapped <- parSapply(cl=cl, X=1:iters, FUN=function(X) {
+          # Generate sample of clusters to include
           clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
-        # Build dataset from cluster list
+          # Build dataset from cluster list
           data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
           data.clust <- data.internal[unlist(data.clust),]
-        # Run function on new data
+          # Run function on new data
           tryCatch(FUN(data.clust),finally=NA)
-      },simplify=TRUE)
+        },simplify=TRUE)
+        stopCluster(cl)
+      }
     # Generate outcomes measures
       if(is.matrix(estimates.bootstrapped)){
         n_estimates <- nrow(estimates.bootstrapped)
@@ -489,9 +511,17 @@
                        "CI.lb"=CI.lb,"CI.ub"=CI.ub,
                        alpha=alpha,digits=digits,leading.zero=leading.zero,
                        format.percent=format.percent,
-                       CI.sep=CI.sep,CI.bracket=CI.bracket)
+                       CI.prefix=CI.prefix,CI.sep=CI.sep,CI.bracket=CI.bracket)
     return(output.list)
   }
+  
+  # test clusters
+  myData <- data.frame(person=sample(1:10,200,replace=TRUE))
+  myData$height <- rnorm(200)+myData$person*0.2
+  
+  bootstrap.clust(data=myData,FUN=function(x){
+    mean(x$height)
+  },clustervar = "person",parallel = TRUE)
   
   # Probability/Risk ratio
   probability.ratio <- function(data=NA,exposure,outcome,weight=NA){
