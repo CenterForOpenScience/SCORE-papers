@@ -25,7 +25,11 @@
   generate_tagged_stats <- TRUE # enables generating tagged statistics and outputting them into the google sheet
   generate_figures <- TRUE # enables generating figures and expoprting them to the project folder
   
-  objects_to_load <- c("paper_metadata","repli_outcomes","repro_outcomes","orig_outcomes","pr_outcomes")
+  objects_to_load <- c("p2_id_key", "melb_p1", "melb_p2", "melb_bushel", "stitched_claims", "kw_scores", "ts_s1", "ts_s2", "ts_s3", 
+                       "ts_bushel", "usc_s1", "usc_s2", "usc_s3", "usc_bushel", "psu_s1", "psu_s2", "psu_s3", "repli_outcomes", 
+                       "repro_outcomes", "status", "m100", "pr_outcomes", "extracted_claims", "paper_metadata", "es", "sig", "hedge", 
+                       "oa_metadata", "oa_citations", "statcheck", "sciscore", "CR_metadata_prepool", "publications", "repli_binary", 
+                       "dataseer", "scholarcy", "ksu")
   
   drive_auth(Sys.getenv("google_oauth_email")) # set a google_oauth_email = <email address> in your .Rprofile so this doesn't need to be changed 
   paper_folder <- "Paper 2"

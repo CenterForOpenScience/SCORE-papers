@@ -879,7 +879,6 @@ tagged_stats <- function(){
         
       }
       
-    }
     
     # Text tags
     {
@@ -898,6 +897,10 @@ tagged_stats <- function(){
   {
     return(rev(as.list(environment())))
   }
+  
+}
+  
+
 
 
 # Figures
