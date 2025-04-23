@@ -422,8 +422,8 @@
 {
   bootstrap.clust <- function(data=NA,FUN=NA,keepvars=NA,clustervar=NA,
                               alpha=.05,tails="two-tailed",iters=200,
-                              parallel=FALSE, parallel.cores = NA,parallel.exp.obs=c(),
-                              format.percent=FALSE,digits=1,leading.zero=TRUE,na.rm=TRUE,
+                              parallel=FALSE,
+                              format.percent=FALSE,digits=1,leading.zero=TRUE,na.rm=FALSE,
                               CI.prefix=TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
     # Drop any variables from the dataframe that are not required for speed (optional)
     # and/or with missing values
@@ -458,10 +458,8 @@
         },simplify=TRUE)
       } else {
         library(parallel)
-        cl <- makeCluster(detectCores()-1)
-        clusterExport(cl,c("data.internal","cluster.set","clustervar","FUN",parallel.exp.obs))
-        #clusterSetRNGStream(cl)
-        estimates.bootstrapped <- parSapply(cl=cl, X=1:iters, FUN=function(X) {
+        
+        estimates.bootstrapped <- do.call(c,mclapply(1:iters,FUN=function(i){
           # Generate sample of clusters to include
           clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
           # Build dataset from cluster list
@@ -469,8 +467,7 @@
           data.clust <- data.internal[unlist(data.clust),]
           # Run function on new data
           tryCatch(FUN(data.clust),finally=NA)
-        },simplify=TRUE)
-        stopCluster(cl)
+        }))
       }
     # Generate outcomes measures
       if(is.matrix(estimates.bootstrapped)){
@@ -514,14 +511,6 @@
                        CI.prefix=CI.prefix,CI.sep=CI.sep,CI.bracket=CI.bracket)
     return(output.list)
   }
-  
-  # test clusters
-  myData <- data.frame(person=sample(1:10,200,replace=TRUE))
-  myData$height <- rnorm(200)+myData$person*0.2
-  
-  bootstrap.clust(data=myData,FUN=function(x){
-    mean(x$height)
-  },clustervar = "person",parallel = TRUE)
   
   # Probability/Risk ratio
   probability.ratio <- function(data=NA,exposure,outcome,weight=NA){
