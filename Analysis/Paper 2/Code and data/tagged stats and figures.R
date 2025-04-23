@@ -878,7 +878,6 @@ tagged_stats <- function(){
       }
       
       # Table S4
-      
       {
         table_name <- "table_s4"
         
@@ -915,7 +914,304 @@ tagged_stats <- function(){
           assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
         
       }
+      
+      # Table S5
+      {
+        table_name <- "table_s5"
         
+        table <- CR_metadata_prepool %>% 
+          semi_join(status %>% filter(p1_delivery | p2_delivery), by = "paper_id") %>% 
+          select(paper_id, year = pub_year, publication_standard) %>% 
+          left_join(publications %>% select(publication_standard, field = COS_pub_category), by = "publication_standard") %>% 
+          group_by(field) %>% 
+          mutate(j = length(unique(publication_standard))) %>% 
+          ungroup() %>% 
+          group_by(year, field, j) %>% 
+          dplyr::summarize(t = n()) %>% 
+          ungroup() %>% 
+          pivot_wider(names_from = "year", values_from = "t") %>% 
+          mutate(Total = select(., c(`2009`:`2018`)) %>% apply(1, sum)) %>% 
+          mutate(p = (100*(Total/sum(Total))) %>% round(1)) %>% 
+          mutate(field = str_to_sentence(field)) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          mutate(field = ifelse(is.na(field), "Total", field))
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+        
+      }
+      
+      # Table S6
+      {
+        table_name <- "table_s6"
+        
+        # prepare the claims columns separately
+        b_claims <- stitched_claims %>% 
+          left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id") %>% 
+          group_by(field) %>% 
+          dplyr::summarize(claims = n()) %>% 
+          ungroup()
+        
+        table <- CR_metadata_prepool %>% 
+          semi_join(status %>% filter(p1_delivery | p2_delivery), by = "paper_id") %>% 
+          select(paper_id, publication_standard) %>% 
+          left_join(publications %>% select(publication_standard, field = COS_pub_category), by = "publication_standard") %>% 
+          group_by(field) %>% 
+          mutate(j = length(unique(publication_standard)), .after = paper_id) %>% 
+          ungroup() %>% 
+          select(-publication_standard) %>% 
+          left_join(status, by = "paper_id") %>% 
+          group_by(field, j) %>% 
+          dplyr::summarize(
+            annotation = sum(p1_delivery | p2_delivery),
+            evidence = sum(RR),
+            bushel = sum(bushel)
+          ) %>% 
+          ungroup() %>% 
+          left_join(b_claims, by = "field") %>% 
+          mutate(
+            across(
+              .cols = -c(field, j),
+              .fns = function(x) ((x/sum(x))*100) %>% round(1),
+              .names = "{.col}_perc"
+            )
+          ) %>% 
+          select(field, j, annotation, annotation_perc, evidence, evidence_perc, bushel, bushel_perc, claims, claims_perc) %>% 
+          bind_rows(summarize_at(., vars(-field), sum)) %>% 
+          mutate(field = ifelse(is.na(field), "Total", field)) %>% 
+          mutate(field = str_to_sentence(field))
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+        
+      }
+      
+      # Table S7
+      {
+        table_name <- "table_s7"
+        
+        table <- status %>% 
+          filter(p1_delivery | p2_delivery) %>% 
+          select(paper_id) %>% 
+          left_join(paper_metadata %>% select(paper_id, publication_standard, pub_year, field = COS_pub_category), by = "paper_id") %>% 
+          select(-paper_id) %>% 
+          group_by(publication_standard, field, pub_year) %>% 
+          dplyr::summarize(t = n()) %>% 
+          ungroup() %>% 
+          pivot_wider(names_from = "pub_year", values_from = "t") %>% 
+          mutate(field = str_to_sentence(field)) %>% 
+          mutate(total = select(., c(`2009`:`2018`)) %>% apply(1, function(x) sum(x, na.rm = T))) %>% 
+          bind_rows(summarize_at(., vars(-c(publication_standard, field)), function(x) sum(x, na.rm = T))) %>% 
+          mutate(publication_standard = ifelse(is.na(publication_standard), "Total", publication_standard)) %>% 
+          mutate(
+            across(
+              .cols = everything(),
+              .fns = function(x) ifelse(is.na(x), "--", x)
+            )
+          )
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+        
+      }
+      
+      # Table S11
+      {
+        table_name <- "table_s11"
+        
+        table <- status %>% 
+          filter(prepool) %>% 
+          left_join(paper_fields, by = "paper_id") %>% 
+          group_by(field) %>% 
+          dplyr::summarize(
+            rr_samp = sum(RR),
+            bushel_samp = sum(bushel)
+          ) %>% 
+          ungroup() %>% 
+          mutate(rr_prop = round(100*rr_samp/sum(rr_samp), 1), .after = rr_samp) %>% 
+          mutate(bush_prop = round(100*bushel_samp/sum(bushel_samp), 1)) %>% 
+          bind_rows(summarize_at(., vars(-field), function(x) sum(x, na.rm = T))) %>% 
+          mutate(field = ifelse(is.na(field), "Total", field)) %>% 
+          mutate(across(contains("prop"), ~as.character(glue_data(list(x = .x), "{x}%"))))
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+        
+        
+      }
+        
+      # Table S12
+      {
+        table_name <- "table_s12"
+        
+        table <- stitched_claims %>% 
+          left_join(paper_fields, by = "paper_id") %>% 
+          group_by(field) %>% 
+          dplyr::summarize(
+            papers = length(unique(paper_id)),
+            n_claims = n(),
+            n_focal = sum(focal)
+          ) %>% 
+          mutate(claims = round(n_claims/papers, 1)) %>% 
+          mutate(focal = round(n_focal/papers, 1)) %>% 
+          select(-contains("n_"))
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+
+      }
+      
+      # Table S17
+      {
+        table_name <- "table_s17"
+        
+        table <- repli_binary %>% 
+          rename_with(., function(x) str_remove_all(x, "repli_"), everything()) %>% 
+          left_join(repli_outcomes %>% select(report_id, claim_id, binary_score = repli_score_criteria_met), by = "report_id") %>% 
+          select(-report_id) %>% 
+          relocate(claim_id, .before = binary_analyst) %>% 
+          left_join(replicability %>% select(-paper_id), by = "claim_id") %>% 
+          full_join(robust %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
+          full_join(process %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
+          full_join(outcome %>% select(-paper_id), by = "claim_id") %>% 
+          pivot_longer(cols = contains("binary"), names_to = "measure", values_to = "outcome") %>% 
+          pivot_longer(cols = c(score, supported, pr, reproduced), names_to = "indicator", values_to = "value") %>% 
+          mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>% 
+          group_by(paper_id, measure, indicator) %>% 
+          mutate(weight = 1/n()) %>% 
+          ungroup() %>% 
+          group_by(measure, indicator) %>% 
+          group_modify(
+            ~ {bootstrap.clust(
+              data = .,
+              FUN = function(x) {
+                weightedCorr(x$outcome, x$value, method = "Pearson", weights = x$weight)
+              },
+              clustervar = "paper_id",
+              keepvars = c("outcome", "value", "weight"),
+              alpha = .05, tails = "two-tailed", iters = iters,
+              format.percent = F, digits = 2, leading.zero = F, CI.sep = ", ", na.rm = T
+            )$formatted.text %>% enframe()
+            }
+          ) %>% 
+          ungroup() %>% 
+          select(-name) %>% 
+          mutate(measure = select(., measure) %>% apply(1, function(x) str_remove_all(x, "binary_"))) %>% 
+          pivot_wider(names_from = indicator, values_from = value) %>% 
+          select(measure, score, supported, pr, reproduced) %>% 
+          mutate(score = ifelse(measure == "score", "--", score)) %>% 
+          mutate(
+            measure = case_match(
+              measure,
+              "analyst" ~ "Analyst interpretation",
+              "bayes_rep" ~ "Replication Bayes factor",
+              "bf_result" ~ "Bayes factor",
+              "bma_result" ~ "Bayesian meta-analysis",
+              "correspondence" ~ "Correspondence test",
+              "meta_success" ~ "Meta-analysis",
+              "orig_wthn" ~ "Orig. in rep. CI",
+              "rep_wthn" ~ "Rep. in orig. CI",
+              "score" ~ "Sig. + pattern",
+              "skep_p" ~ "Skeptical p-value",
+              "sum_p" ~ "Sum of p-values",
+              "telescopes" ~ "Small telescopes",
+              "wthn_pi" ~ "Prediction interval"
+            )
+          )
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+        
+      }
+      
+      # Table S18
+      {
+        table_name <- "table_s18"
+        
+        tab_s18_data <- melbourne %>% select(claim_id, melb = pc1) %>% 
+          left_join(keyw %>% select(claim_id, kw = pc1), by = "claim_id") %>% 
+          left_join(twosix %>% select(claim_id, ts = pc1), by = "claim_id") %>% 
+          left_join(usc %>% select(claim_id, u = pc1), by = "claim_id") %>% 
+          left_join(psu %>% select(claim_id, p = pc1), by = "claim_id") %>% 
+          left_join(texas %>% select(claim_id, a = pc1), by = "claim_id") %>% 
+          left_join(replicability %>% select(claim_id, score), by = "claim_id") %>% 
+          pivot_longer(cols = -claim_id, names_to = "measure", values_to = "value") %>% 
+          drop_na() %>% 
+          mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>% 
+          mutate(weight = 1)
+        
+        table <- tab_s18_data %>%  
+          group_by(measure) %>% 
+          dplyr::summarize(
+            N = round(sum(weight), 1),
+            Median = round(weighted.median(value, weight), 2),
+            Mean = round(weighted.mean(value, weight), 2),
+            SD = round(sqrt(wtd.var(value, weight)), 2)
+          ) %>% 
+          left_join(
+            tab_s18_data %>% 
+              semi_join(repli_outcomes %>% filter(!is_covid & repli_version_of_record), by = "claim_id") %>% 
+              group_by(measure) %>% 
+              dplyr::summarize(
+                N = round(sum(weight), 1),
+                Median = round(weighted.median(value, weight), 2),
+                Mean = round(weighted.mean(value, weight), 2),
+                SD = round(sqrt(wtd.var(value, weight)), 2)
+              ),
+            by = "measure"
+          ) %>% 
+          mutate(across(c(where(is.numeric), -N.x, -N.y), function(x) formatC(x, 2, format = "f", digits = 2) %>% as.character() %>% str_replace_all(., "^0\\.", "."))) %>% 
+          mutate(measure = as_factor(measure) %>% fct_relevel(., "melb", "kw", "ts", "u", "p", "a", "score")) %>% 
+          arrange(measure) %>% 
+          mutate(
+            measure = case_match(
+              measure,
+              "melb" ~ "Structured elicitations",
+              "kw" ~ "Prediction markets",
+              "ts" ~ "A+",
+              "u" ~ "MACROSCORE",
+              "p" ~ "Synthetic markets A",
+              "a" ~ "Synthetic markets B",
+              "score" ~ "Replicability"
+            )
+          ) %>% 
+          mutate(across(everything(), as.character)) %>% 
+          mutate(across(contains(c("Median", "Sd")), function(x) ifelse(measure == "Replicability", "--", x)))
+        
+        # Assign an object of the name of the table for later extraction
+        assign(table_name,table)
+        
+        # Generate an object for each cell of the table for tagging in the termplate
+        for (row in 1:nrow(get(table_name))){ for (col in 1:ncol(get(table_name))){
+          assign(paste0(table_name,"_",row,"_",col),as.character(get(table_name)[row,col]))}}
+        
+        
+      }
+      
       }
       
     
