@@ -25,7 +25,11 @@
   generate_tagged_stats <- TRUE # enables generating tagged statistics and outputting them into the google sheet
   generate_figures <- TRUE # enables generating figures and expoprting them to the project folder
   
-  objects_to_load <- c("paper_metadata","repli_outcomes","repro_outcomes","orig_outcomes","pr_outcomes")
+  objects_to_load <- c("p2_id_key", "melb_p1", "melb_p2", "melb_bushel", "stitched_claims", "kw_scores", "ts_s1", "ts_s2", "ts_s3", 
+                       "ts_bushel", "usc_s1", "usc_s2", "usc_s3", "usc_bushel", "psu_s1", "psu_s2", "psu_s3", "repli_outcomes", 
+                       "repro_outcomes", "status", "m100", "pr_outcomes", "extracted_claims", "paper_metadata", "es", "sig", "hedge", 
+                       "oa_metadata", "oa_citations", "statcheck", "sciscore", "CR_metadata_prepool", "publications", "repli_binary", 
+                       "dataseer", "scholarcy", "ksu")
   
   drive_auth(Sys.getenv("google_oauth_email")) # set a google_oauth_email = <email address> in your .Rprofile so this doesn't need to be changed 
   paper_folder <- "Paper 2"
@@ -37,16 +41,33 @@
 # Note: Run at least this function when updating data, as everything else pulls
 # from this package of data and code
 {
+  # Load targets objects
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
   }
-
+  
+  # Save all data and files into 
   save(list=objects_to_load,file=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/analyst data.RData"))
   file.copy(from=paste0("Analysis/common functions.R"),to=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/common functions.R"),overwrite=TRUE)
-  file.copy(from=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"),to=paste0("Analysis/",paper_folder,"/Code and data/Analyst package/tagged stats and figures.R"),overwrite=TRUE)
   
-  files2zip <- dir(paste0("Analysis/",paper_folder,"/Code and data/Analyst package"), full.names = TRUE)
-  zip(zipfile = paste0("Analysis/",paper_folder,"/Code and data/Analyst package/data and code.zip"), files = files2zip[!endsWith(files2zip,".zip")])
+  folder.analyst.package <- paste0("Analysis/",paper_folder,"/Code and data/Analyst package/")
+  file.copy(from=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"),to=paste0(folder.analyst.package,"tagged stats and figures.R"),overwrite=TRUE)
+  
+  # Put everything into a zip
+  zipit <- function(){
+    dir.orig <- getwd()
+    dir.new <- paste0(dir.orig,"/",folder.analyst.package)
+    setwd(dir.new)
+    if(file.exists("data and code.zip")) {file.remove("data and code.zip")}
+    
+    files2zip <- dir(full.names = TRUE)
+    
+    zip(zipfile = "data and code.zip", files = files2zip[!endsWith(files2zip,".zip")])
+    setwd(dir.orig)
+  }
+  zipit()
+  #files2zip <- dir(paste0("Analysis/",paper_folder,"/Code and data/Analyst package"), full.names = TRUE)
+  #zip(zipfile = paste0("Analysis/",paper_folder,"/Code and data/Analyst package/data and code.zip"), files = files2zip[!endsWith(files2zip,".zip")])
   
   source(file=paste0("Analysis/",paper_folder,"/Code and data/tagged stats and figures.R"))
 }
@@ -94,5 +115,4 @@ if(generate_figures==TRUE){
     plot = generated_figures$figure_1,
     width = 6000,height = 2500,units = "px",bg="white"
   )
-  
 }
