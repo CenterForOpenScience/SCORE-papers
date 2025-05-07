@@ -1,10 +1,36 @@
 # SCORE Papers
 
-This project uses the R packages `renv` and `{targets}` to facilitate reproducibility. 
+This project uses the R package `{targets}` to facilitate reproducibility. 
 
 ## Quick Start Guide
 
-For first time setup of this repository, open the project in R Studio and run `renv::restore()` in the console. This will install **all** packages used in the project in the versions that were used during development. 
+For first time setup of this repository, open the project in R Studio install the following packages:
+install.packages(c("BayesFactor",
+                   "BayesRep",
+                   "BFF",
+                   "dplyr",
+                   "effectsize",
+                   "ggExtra",
+                   "glue",
+                   "googlesheets4",
+                   "googledrive",
+                   "here",
+                   "kableExtra",
+                   "lubridate",
+                   "metaBMA",
+                   "metafor",
+                   "osfr",
+                   "purrr",
+                   "pwr",
+                   "readr",
+                   "ReplicationSuccess",
+                   "sjPlot",
+                   "stringr",
+                   "targets",
+                   "tibble",
+                   "tidyr",
+                   "usethis",
+                   "visNetwork"))
 
 Next, run `usethis::edit_r_environ()` in the console to open your .Renviron file. Enter 'google_oauth_email="youremail@cos.io"' as a new line in the file, making sure to replace "youremail@cos.io" with your actual email within quotations. This will allow Google to silently authenticate without needing to change any code. To set this option, run `googledrive::drive_auth(email = Sys.getenv("google_oauth_email"))` and `googlesheets4::gs4_auth(email = Sys.getenv("google_oauth_email"))` in the console. You may need to complete a one-time authentication through your browser if you have not used these packages before. 
 
@@ -12,11 +38,9 @@ If you have not used osfr before, you may also need to complete authentication u
 
 Finally, run `rmarkdown::render("targets.Rmd")` in the console. This will set up of the reproducible targets pipeline on your computer. 
 
-Please read through the rest of this document for more information on `renv`, `{targets}`, and best practices for working on project code. 
+Please read through the rest of this document for more information on `{targets}` and best practices for working on project code. 
 
 ## Troubleshooting First Time Setup 
-
-The biggest failure point in project installation seems to be with the renv package. If you are encountering errors while running `renv::restore()`, start by making sure your installation of R and its [mandatory tools](https://mac.r-project.org/tools/) are up to date. If that does not solve the issue, try `install.packages("renv")` to update the package, then run `renv::restore()`. 
 
 If you encounter issues while running `rmarkdown::render("targets.Rmd")`, the most likely issue is that you do not have permission to access one or more online sources it pulls raw data from. Contact the data manager to get appropriate access here.
 
