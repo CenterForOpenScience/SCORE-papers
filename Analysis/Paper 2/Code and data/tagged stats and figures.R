@@ -7,7 +7,6 @@
 generate_all <- function(){
   
   results_tagged_stats <<- tagged_stats()
-  
   results_figures <<- figures()
   
 }

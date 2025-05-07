@@ -422,7 +422,7 @@
 {
   bootstrap.clust <- function(data=NA,FUN=NA,keepvars=NA,clustervar=NA,
                               alpha=.05,tails="two-tailed",iters=200,
-                              parallel=FALSE,
+                              parallel=FALSE,progressbar=FALSE,
                               format.percent=FALSE,digits=1,leading.zero=TRUE,na.rm=FALSE,
                               CI.prefix=TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
     # Drop any variables from the dataframe that are not required for speed (optional)
@@ -446,7 +446,7 @@
     # Generate original target variable
       point.estimate <- FUN(data.internal)
     # Create distribution of bootstrapped samples
-      if (parallel==FALSE) {
+      if (parallel==FALSE & progressbar==FALSE) {
           estimates.bootstrapped <- replicate(iters,{
           # Generate sample of clusters to include
             clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
@@ -456,7 +456,7 @@
           # Run function on new data
             tryCatch(FUN(data.clust),finally=NA)
         },simplify=TRUE)
-      } else {
+      } else if (parallel==TRUE & progressbar==FALSE) {
         library(parallel)
         
         estimates.bootstrapped <- do.call(c,mclapply(1:iters,FUN=function(i){
@@ -468,6 +468,31 @@
           # Run function on new data
           tryCatch(FUN(data.clust),finally=NA)
         }))
+      } else if (parallel==FALSE & progressbar==TRUE) {
+        library(pbapply)
+        
+        estimates.bootstrapped <- pbreplicate(iters,{
+          # Generate sample of clusters to include
+          clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+          # Build dataset from cluster list
+          data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+          data.clust <- data.internal[unlist(data.clust),]
+          # Run function on new data
+          tryCatch(FUN(data.clust),finally=NA)
+        },simplify=TRUE,cl=detectCores()-1)
+      } else if (parallel==TRUE & progressbar==TRUE) {
+        library(parallel)
+        library(pbapply)
+        
+        estimates.bootstrapped <- do.call(c,pblapply(1:iters,FUN=function(i){
+          # Generate sample of clusters to include
+          clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+          # Build dataset from cluster list
+          data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+          data.clust <- data.internal[unlist(data.clust),]
+          # Run function on new data
+          tryCatch(FUN(data.clust),finally=NA)
+        },cl=detectCores()-1))
       }
     # Generate outcomes measures
       if(is.matrix(estimates.bootstrapped)){
