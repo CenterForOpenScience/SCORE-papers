@@ -1,43 +1,204 @@
+# Reproducible manuscript
+{
+  # Available in package form for testing purposes at https://github.com/CenterForOpenScience/reproduciblemanuscript
+  # Synced on May 23, 2025
+  
+  # Knit placeholders to/from docx files
+  # This function knits together an output .docx document from a template .docx document with placeholders and analysis code
+  # template_docx_file The input .docx file containing the placeholders (in this case text in curly brackets{})
+  # template_drive_ID The Google Drive ID of the template document containing the placeholders (in this case text in curly brackets{}). May be either a .docx or a Google Doc.
+  # knitted_docx_file The output .docx file that knits together the figures/text/stats from the code
+  # knitted_docx_google_ID The Google Drive ID of the output knit .docx file that will be overwritten on the knit. Note that this must point to an EXISTING .docx on google drive (can be a blank file uploaded for the purpose)
+  # placeholder_object_source (optional) If NA, the code will extract placeholder objects from the current global environment. Alternatively, this can be pointed to an existing .R script to run, runs the code, and will extract the placeholders from that run environment. Finally, this could be a list (as in the output of an envirnment made into a list) and given directly.
+  
+  knit_docx <- function(template_docx_file=NA,
+                        template_drive_ID=NA,
+                        knitted_docx_file = NA,
+                        knitted_docx_google_ID=NA,
+                        placeholder_object_source = NA ){
+    # Libraries
+    library(officer)
+    library(ggplot2)
+    library(pandoc)
+    
+    # Authorize google docs if needed
+    if(!is.na(template_drive_ID) | !is.na(knitted_docx_google_ID)) {
+      library(googledrive)
+      drive_auth()
+    }
+    
+    # Throw an error if file paths are not specified
+    if (is.na(template_docx_file) & is.na(template_drive_ID)) {
+      errorCondition("You must specify a path or google drive ID for the template doc.")
+    }
+    if (is.na(knitted_docx_file) & is.na(knitted_docx_google_ID)) {
+      errorCondition("You must specify a path or google drive ID for the knitted doc.")
+    }
+    
+    # Throw an error if BOTH file paths are not specified
+    if (!is.na(template_docx_file) & !is.na(template_drive_ID)) {
+      errorCondition("You must choose either a path or google drive ID for the template doc, not both.")
+    }
+    if (!is.na(knitted_docx_file) & !is.na(knitted_docx_google_ID)) {
+      errorCondition("You must specify either a path or google drive ID for the knitted doc, not both.")
+    }
+    
+    # Get all objects in the specified environment
+    
+    if (is.list(placeholder_object_source)){
+      # List of objects
+      generated_objects <- placeholder_object_source
+    } else if (is.na(placeholder_object_source)){
+      # Unlisted (use global)
+      generated_objects <- rev(as.list(globalenv()))
+    } else if (endsWith(placeholder_object_source,".R")){
+      # Source script
+      get_environment <- function(file){
+        source(file,local=TRUE)
+        return(rev(as.list(environment())))
+      }
+      generated_objects <- get_environment(placeholder_object_source)
+    } else {
+      # Not found
+      errorCondition("Source not identified")
+    }
+    
+    
+    # Get and prep the template doc
+    # Run docx-docx conversion hack to merge .docx chunks if native .docx.
+    # This step is necessary because text blocks are stored in chunks, including
+    # in some instances within the same word. To make things find/replaceable, the
+    # full placeholder name must be all in one chunk. "Converting" the file reorganizes
+    # the text chunks, allowing placeholders to be found/replaced consistently.
+    docx_out <- tempfile(fileext = ".docx")
+    if (!is.na(template_drive_ID)) {
+      drive_file_name <- drive_get(as_id(template_drive_ID))$name
+      if (substr(drive_file_name, nchar(drive_file_name)-4, nchar(drive_file_name))==".docx"){
+        pandoc::pandoc_convert(file = docx_out, from="docx", to = "docx",output=docx_out)
+        
+      } else {native.docx <- FALSE}
+      drive_download(file=as_id(template_drive_ID), path = docx_out)
+    } else {
+      pandoc::pandoc_convert(file = template_docx_file, from="docx", to = "docx",output=docx_out)
+    }
+
+    doc <- read_docx(path = docx_out)
+    
+    # Check classes of objects so they can be set in appropriate types
+    object_names <- objects(generated_objects,sorted = FALSE)
+    object_classes <- do.call(c,lapply(object_names,
+                                       function(obj_name) { paste(class(generated_objects[[obj_name]]),collapse=",")
+                                       }))
+    
+    text_object_class_blacklist <- c("function","gg","ggplot","ggplot,gg","gg,ggplot","bundled_ggplot")
+    pontential_text_objects <- object_names[!object_classes %in% text_object_class_blacklist]
+    
+    pontential_figure_objects <- object_names[object_classes == "bundled_ggplot"]
+    
+    # Search the generated text placeholders and replace them if found in the template document
+    for (obj_name in pontential_text_objects) {
+      #print(obj_name)
+      doc <- cursor_begin(doc)
+      if (cursor_reach_test(doc, paste0("\\{",obj_name,"\\}"))){
+        tryCatch(doc <- invisible(
+          body_replace_all_text(
+            doc,
+            old_value = paste0("{",obj_name,"}"),
+            new_value = as.character(generated_objects[[obj_name]]),
+            #warn=FALSE,
+            fixed=TRUE
+          )
+        ), error=function(e) {e}, warning=function(w) {w}
+        )
+      }
+    }
+    
+    # Insert figures
+    for (figure_name in pontential_figure_objects) {
+      # Save ggplot object to a temporary file
+      png_out <- tempfile(fileext = ".png")
+      ggsave(filename = png_out,
+             plot = generated_objects[[figure_name]]$plot,
+             height = generated_objects[[figure_name]]$height,
+             width = generated_objects[[figure_name]]$width,
+             units = generated_objects[[figure_name]]$units,
+             bg = generated_objects[[figure_name]]$bg)
+      
+      # Find and replace figure placeholders
+      if (cursor_reach_test(doc, paste0("\\{",figure_name,"\\}"))){
+        doc <- cursor_begin(doc)
+        doc <- cursor_reach(doc, paste0("\\{",figure_name,"\\}"))
+        if(generated_objects[[figure_name]]$scaling=="autowidth"){
+          doc <- body_add_img(x = doc, src = png_out,pos="on",
+                              height=6.5*generated_objects[[figure_name]]$height/generated_objects[[figure_name]]$width,
+                              width=6.5,
+                              unit="in")
+        } else {
+          doc <- body_add_img(x = doc, src = png_out,pos="on",
+                              height=generated_objects[[figure_name]]$height,
+                              width=generated_objects[[figure_name]]$width,
+                              unit=generated_objects[[figure_name]]$units)
+        }
+        
+      }
+    }
+    
+    # Export knitted doc
+    if (!is.na(knitted_docx_file)) { print(doc, target=knitted_docx_file)}
+    if (!is.na(knitted_docx_google_ID)) {
+      temp_for_upload <- tempfile(fileext = ".docx")
+      print(doc, target=temp_for_upload)
+      drive_update(media=temp_for_upload,file=as_id(knitted_docx_google_ID))
+    }
+  }
+  
+
+  # Bundles ggplot object with dimensions
+  # A wrapper function for ggplot objects that specifies the dimensions they will be in. Needed because .docx and other document types require dimensions for images
+  # A ggplot plot
+  # Numerical width of the ggplot # needed to insert into documents
+  # Numerical height of the ggplot # needed to insert into documents
+  # The units the height and width are in (defaults to "in")
+  bundle_ggplot <- function(plot,width=6.5,height=4,units="in",bg="white",scaling="autowidth"){
+    structure(list(plot=plot,
+                   height=height,
+                   width=width,
+                   units=units,
+                   bg=bg,
+                   scaling=scaling),
+              class="bundled_ggplot")
+  }
+
+  # reviews bundled ggplot object as it will appear in print
+  # A convenience function so that you can preview what the bundle_ggplot object will look like in the specified dimensions
+  # bundled_ggplot The bundled ggplot from the bundle_ggplot object
+  # Quality of life function to show ggplot objects in their assigned scaling
+  # Code adapted from https://github.com/nflverse/nflplotR/blob/main/R/ggpreview.R
+  
+  preview_bundled_ggplot <- function(bundled_ggplot){
+    file <- tempfile()
+    ggplot2::ggsave(
+      file,
+      plot = bundled_ggplot$plot,
+      device = "png",
+      scale = 1,
+      width = bundled_ggplot$width,
+      height = bundled_ggplot$height,
+      units = bundled_ggplot$unit,
+      limitsize = TRUE,
+      bg = NULL
+    )
+    rstudioapi::viewer(file)
+  }
+}
 
 # Aesthetic functions and presets
 {
-  # GeomSplitViolin
+  # Charts
   {
-    GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
-                             draw_group = function(self, data, ..., draw_quantiles = NULL) {
-                               data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
-                               grp <- data[1, "group"]
-                               newdata <- plyr::arrange(transform(data, x = if (grp %% 2 == 1) xminv else xmaxv), if (grp %% 2 == 1) y else -y)
-                               newdata <- rbind(newdata[1, ], newdata, newdata[nrow(newdata), ], newdata[1, ])
-                               newdata[c(1, nrow(newdata) - 1, nrow(newdata)), "x"] <- round(newdata[1, "x"])
-                               
-                               if (length(draw_quantiles) > 0 & !scales::zero_range(range(data$y))) {
-                                 stopifnot(all(draw_quantiles >= 0), all(draw_quantiles <=
-                                                                           1))
-                                 quantiles <- ggplot2:::create_quantile_segment_frame(data, draw_quantiles)
-                                 aesthetics <- data[rep(1, nrow(quantiles)), setdiff(names(data), c("x", "y")), drop = FALSE]
-                                 aesthetics$alpha <- rep(1, nrow(quantiles))
-                                 both <- cbind(quantiles, aesthetics)
-                                 quantile_grob <- GeomPath$draw_panel(both, ...)
-                                 ggplot2:::ggname("geom_split_violin", grid::grobTree(GeomPolygon$draw_panel(newdata, ...), quantile_grob))
-                               }
-                               else {
-                                 ggplot2:::ggname("geom_split_violin", GeomPolygon$draw_panel(newdata, ...))
-                               }
-                             })
-  
-    geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
-                                draw_quantiles = NULL, trim = TRUE, scale = "area", na.rm = FALSE, 
-                                show.legend = NA, inherit.aes = TRUE) {
-    layer(data = data, mapping = mapping, stat = stat, geom = GeomSplitViolin, 
-          position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
-          params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
-    }
-  }
-    
     rounded.bars <- function(data,nesting.structure,chart.palette=NA,
-                                   display_axis=TRUE,axis_only=FALSE,legend=FALSE,legend.color="black",
-                                   flip_x = FALSE,weightvar=NA){
+                             display_axis=TRUE,axis_only=FALSE,legend=FALSE,legend.color="black",
+                             flip_x = FALSE,weightvar=NA){
       # Data manipulation
       {
         data.nested <- merge(data,nesting.structure,by="cat",all.x=TRUE,all.y=FALSE)
@@ -196,9 +357,9 @@
           
           plot <- plot +
             scale_x_continuous(#expand=expansion(add = c(0, .05)),
-                               labels = labels,
-                               breaks=breaks,
-                               limits=limits)+
+              labels = labels,
+              breaks=breaks,
+              limits=limits)+
             theme_light() +
             theme(legend.position = "none",
                   legend.title=element_blank(),
@@ -235,9 +396,9 @@
     }
     
     snakebins <- function(data,nesting.structure,chart.palette=NA,
-                                   display_axis=TRUE,axis_only=FALSE,legend.color="black",
-                                   n_bins=6,n_bins_max=NA,bin_width_x=1,
-                                   flip_x = FALSE,collapsevar=NA){
+                          display_axis=TRUE,axis_only=FALSE,legend.color="black",
+                          n_bins=6,n_bins_max=NA,bin_width_x=1,
+                          flip_x = FALSE,collapsevar=NA){
       # Data manipulation
       snake_bins <- function(n,n_bins){
         do.call(rbind,lapply(1:ceiling(n/n_bins), function (i){
@@ -282,7 +443,7 @@
       }
       
       data.bins <- cbind(arrange(data,data$cat),snake_bins(n=nrow(data),n_bins))
-
+      
       # Chart generation
       {
         if(!axis_only){
@@ -290,7 +451,7 @@
             funkyheatmap::geom_rounded_rect(
               radius=unit(3, "points"),show.legend=FALSE,
               color="black",size=0)
-              #)
+          #)
         } else {
           snakebin_plot <- ggplot(data=data.bins,aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,fill=cat))+
             funkyheatmap::geom_rounded_rect(
@@ -312,9 +473,9 @@
           scale_x_continuous(#expand=expansion(add = c(0, .05)),
             expand=c(0,2),
             #expand=expansion(add = c(10, 10)),
-                             labels = labels,
-                             breaks= breaks,
-                             limits = limits)+
+            labels = labels,
+            breaks= breaks,
+            limits = limits)+
           theme_light() +
           theme(legend.position = "none",
                 legend.title=element_blank(),
@@ -335,7 +496,7 @@
           if (!anyNA(chart.palette)){
             snakebin_plot <- snakebin_plot + scale_fill_manual(values=chart.palette[levels(data$cat) %in% data$cat])
           }
-        }
+          }
         # Output
         {
           snakebin_plot
@@ -343,64 +504,66 @@
         }
       }
     }
-  
-  # Color palette
-  {
-    palette_weezer_blue <- c("#00a2e7","#dee5cd","#010c09","#083259","#b2915f","#d7b1b7","#00374b","#124e80", "#001212")
-    palette_weezer_pinkerton <- c("#d5bf98","#14140b","#70624b","#8a8d82","#304251","#465656","#945a2d","#708090")
-    palette_weezer_green <- c("#bece30","#020100","#4f6238","#cac986","#981f2c","#c13f33","#461005")
-    palette_weezer_maladroit <- c("#e0dcce","#575b61","#b69e44","#953d31","#e5b066","#343729","#3e3131")
-    palette_weezer_make_believe <- c("#000000","#EAECEB","#C2C2C2","#A0A0A0","#313131")
-    palette_weezer_red <- c("#ED1B34","#8A817C","#141311","#8B8D9C","#332E28")
-    palette_weezer_raditude <- c("#EC2221","#FBFFFB","#FDF600","#CEB181","#4E1110")
-    palette_weezer_everything <- c("#E8A662","#F4F5F1","#463D47","#7F3009","#35180E","#F6F3CF")
-    palette_weezer_white <- c("#FDFDFD","#242424","#E3E3E3","#B6B6B6","#EEEDED")
-    palette_weezer_pacific_daydream <- c("#1E3555","#5C6455","#FBE4BC","#1D1F1E","#69797B","#F8E6CF","#F8E6CF")
-    palette_weezer_teal <- c("#1DBBBE","#D6A8CD","#F8F8F8","#182633","#90C5DF")
-    palette_weezer_black <- c("#2D2B2C","#060606","#E9E7E8","#0E0E0E")
-    palette_weezer_ok_human <- c("#B2A17A","#B3B470","#B1A78F","#D1BE8F","#726D5C","#B8B6A6","#5B4F3F")
-    palette_weezer_van_weezer <- c("#B2023E","#E933D3","#770265","#170032","#FDF8FF","#170032","#5329F9","#F3FED5")
     
-    palette_score_charts <- c(palette_weezer_blue[1],
-                              palette_weezer_red[1],
-                              palette_weezer_green[1],
-                              palette_weezer_teal[1],
-                              palette_weezer_van_weezer[3],
-                              palette_weezer_pinkerton[5],
-                              palette_weezer_blue[4],
-                              palette_weezer_van_weezer[1]
-    )
+    # Color palette
+    {
+      palette_score_charts <- c("#00a2e7",
+                                "#ED1B34",
+                                "#bece30",
+                                "#1DBBBE",
+                                "#770265",
+                                "#304251",
+                                "#083259",
+                                "#B2023E"
+      )
+    }
   }
   
-  format.round <- function(x,digits){
-    format(round(x,digits),nsmall=digits,trim=TRUE)
-  }
-  
-  
-  format.text.CI <- function(point.estimate,CI.lb,CI.ub,alpha=.05,digits=1,format.percent=FALSE){
-    if (format.percent==TRUE){
-      point.estimate <- 100*point.estimate
-      CI.lb <- 100*CI.lb
-      CI.ub <- 100*CI.ub
-      end.notation <- "%"
-    } else {
-      end.notation <- ""
+  # Text formatting
+  {
+    format.round <- function(x,digits,leading.zero=TRUE){
+      out <- format(round(x,digits),nsmall=digits,trim=TRUE)
+      if(leading.zero==FALSE){
+        out <- ifelse(substr(out, start = 1, stop = 2)=="0.",
+                      substr(out, start = 2, stop = nchar(out)),
+                      out)
+        out <- ifelse(substr(out, start = 1, stop = 3)=="-0.",
+                      paste0("-",substr(out, start = 3, stop = nchar(out))),
+                      out)
+      }
+      return(out)
     }
     
-    paste0(format.round(point.estimate,digits),
-           end.notation," [",100*(1-alpha),"% CI ",
-           format.round(CI.lb,digits)," - ",format.round(CI.ub,digits),
-           end.notation,"]")
-  }
-  
-  format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE){
-    p <- binconf(x,n)
-    text <- paste0(format.round(100*p[1],digits),"%")
-    if(confint){
-      text <- format.text.CI(p[1],p[2],p[3],alpha,digits,format.percent = TRUE)
-    } else
-      text <- paste0(format.round(100*p[1],digits=digits),"%")
-    text
+    format.text.CI <- function(point.estimate,CI.lb,CI.ub,alpha=.05,digits=1,
+                               format.percent=FALSE,leading.zero=TRUE,
+                               CI.prefix = TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
+      if (format.percent==TRUE){
+        point.estimate <- 100*point.estimate
+        CI.lb <- 100*CI.lb
+        CI.ub <- 100*CI.ub
+        end.notation <- "%"
+      } else {
+        end.notation <- ""
+      }
+      
+      paste0(format.round(point.estimate,digits,leading.zero=leading.zero),
+             end.notation," ",CI.bracket[1],
+             {if(CI.prefix){ paste0(100*(1-alpha),"% CI ")} else {""}},
+             format.round(CI.lb,digits,leading.zero=leading.zero),CI.sep,format.round(CI.ub,digits,leading.zero=leading.zero),
+             end.notation,CI.bracket[2])
+    }
+    
+    format.text.percent <- function(x,n,alpha=.05,digits=1,confint=TRUE,leading.zero=TRUE,
+                                    CI.prefix=TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
+      p <- binconf(x,n)
+      text <- paste0(format.round(100*p[1],digits),"%")
+      if(confint){
+        text <- format.text.CI(p[1],p[2],p[3],alpha,digits,format.percent = TRUE,
+                               leading.zero=leading.zero,CI.prefix=CI.prefix,CI.sep=CI.sep,CI.bracket=CI.bracket)
+      } else
+        text <- paste0(format.round(100*p[1],digits=digits,leading.zero=leading.zero),"%")
+      text
+    }
   }
 }
 
@@ -408,7 +571,9 @@
 {
   bootstrap.clust <- function(data=NA,FUN=NA,keepvars=NA,clustervar=NA,
                               alpha=.05,tails="two-tailed",iters=200,
-                              format.percent=FALSE,digits=1,na.rm=TRUE){
+                              parallel=FALSE,progressbar=FALSE,
+                              format.percent=FALSE,digits=1,leading.zero=TRUE,na.rm=FALSE,
+                              CI.prefix=TRUE,CI.sep=" - ",CI.bracket=c("[","]")){
     # Drop any variables from the dataframe that are not required for speed (optional)
     # and/or with missing values
     data.internal <- data
@@ -430,15 +595,54 @@
     # Generate original target variable
       point.estimate <- FUN(data.internal)
     # Create distribution of bootstrapped samples
-      estimates.bootstrapped <- replicate(iters,{
-        # Generate sample of clusters to include
+      if (parallel==FALSE & progressbar==FALSE) {
+          estimates.bootstrapped <- replicate(iters,{
+          # Generate sample of clusters to include
+            clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+          # Build dataset from cluster list
+            data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+            data.clust <- data.internal[unlist(data.clust),]
+          # Run function on new data
+            tryCatch(FUN(data.clust),finally=NA)
+        },simplify=TRUE)
+      } else if (parallel==TRUE & progressbar==FALSE) {
+        library(parallel)
+        
+        estimates.bootstrapped <- do.call(c,mclapply(1:iters,FUN=function(i){
+          # Generate sample of clusters to include
           clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
-        # Build dataset from cluster list
+          # Build dataset from cluster list
           data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
           data.clust <- data.internal[unlist(data.clust),]
-        # Run function on new data
+          # Run function on new data
           tryCatch(FUN(data.clust),finally=NA)
-      },simplify=TRUE)
+        }))
+      } else if (parallel==FALSE & progressbar==TRUE) {
+        library(pbapply)
+        
+        estimates.bootstrapped <- pbreplicate(iters,{
+          # Generate sample of clusters to include
+          clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+          # Build dataset from cluster list
+          data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+          data.clust <- data.internal[unlist(data.clust),]
+          # Run function on new data
+          tryCatch(FUN(data.clust),finally=NA)
+        },simplify=TRUE,cl=detectCores()-1)
+      } else if (parallel==TRUE & progressbar==TRUE) {
+        library(parallel)
+        library(pbapply)
+        
+        estimates.bootstrapped <- do.call(c,pblapply(1:iters,FUN=function(i){
+          # Generate sample of clusters to include
+          clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
+          # Build dataset from cluster list
+          data.clust <- sapply(clust.list, function(x) which(data.internal[,"cluster.id"]==x))
+          data.clust <- data.internal[unlist(data.clust),]
+          # Run function on new data
+          tryCatch(FUN(data.clust),finally=NA)
+        },cl=detectCores()-1))
+      }
     # Generate outcomes measures
       if(is.matrix(estimates.bootstrapped)){
         n_estimates <- nrow(estimates.bootstrapped)
@@ -476,8 +680,9 @@
       output.list[["formatted.text"]] <- 
         format.text.CI(point.estimate=point.estimate,
                        "CI.lb"=CI.lb,"CI.ub"=CI.ub,
-                       alpha=alpha,digits=digits,
-                       format.percent=format.percent)
+                       alpha=alpha,digits=digits,leading.zero=leading.zero,
+                       format.percent=format.percent,
+                       CI.prefix=CI.prefix,CI.sep=CI.sep,CI.bracket=CI.bracket)
     return(output.list)
   }
   

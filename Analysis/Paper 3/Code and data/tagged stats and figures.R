@@ -6,16 +6,29 @@
 
 # Note: packages are current CRAN versions as of March 18, 2025
 
-generate_all <- function(){
+knit_manuscript <- function(template_docx_file="template manuscript.docx",
+                            template_drive_ID=NA,
+                            knitted_docx_file = "knitted manuscript.docx",
+                            knitted_docx_google_ID=NA)
+{
+  source("common functions.R")
+  # Place all numeric and character tagged placeholders into the current function environment
+  results_placeholder_stats <<- placeholder_stats(iters = 100)
+  results_figures <<- figures(iters = 100)
   
-  results_tagged_stats <<- tagged_stats(iters = 1000)
+  results_all <- append(results_placeholder_stats, results_figures)
   
-  results_figures <<- figures(iters = 1000)
+  #test <- list(unlist(results_placeholder_stats),unlist(results_figures))
+  knit_docx(template_docx_file="template manuscript.docx",
+            template_drive_ID=NA,
+            knitted_docx_file = "knitted manuscript.docx",
+            knitted_docx_google_ID=NA,
+            placeholder_object_source = results_all)
   
 }
 
-# Create an object that contains the tagged stats
-tagged_stats <- function(iters = 100){
+# Generate placeholder text and statistics
+placeholder_stats <- function(iters=100){
 
   # Load libraries
   {
@@ -33,18 +46,13 @@ tagged_stats <- function(iters = 100){
     library(ggside)
     library(weights)
     library(glue)
+    library(DescTools)
   }
   
   # Load data and common functions
   {
-    # Check if loading locally
-    if(file.exists("common functions.R") & file.exists("analyst data.RData")){
-      load("analyst data.RData")
-      source("common functions.R")
-    } else {
-      load("Analysis/Paper 3/Code and data/Analyst package/analyst data.RData")
-      source("Analysis/Paper 3/Code and data/Analyst package/common functions.R")
-    }
+    load("analyst data.RData")
+    source("common functions.R")
   }
   
   # Data preparation
@@ -1807,7 +1815,7 @@ tagged_stats <- function(iters = 100){
 }
 
 # Figures
-figures <- function(){
+figures <- function(iters=100){
   # Setup and initialization
   {
     # Libraries
@@ -2116,49 +2124,50 @@ figures <- function(){
       }
     }
     # Display plots
-    figure_1 <- 
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                rel_heights = c(rep(1,length(plotlist)-5),0.5,1.2,0.6,0.6,3))
+    figure_1 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                       rel_heights = c(rep(1,length(plotlist)-5),0.5,1.2,0.6,0.6,3)),
+      width = 6000,height = 2500,units = "px",bg="white")
   }
   
   # Figure 2. Process reproducibility success rates by field
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>%  filter(!covid) 
+      data <- pr_outcomes %>%  filter(!covid)
       data$OA_data_shared <- data$OA_data_shared
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
                                     "restricted",data$OA_data_shared)
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
                                     "no data available",data$OA_data_shared)
       data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
-      
+
       data <- data %>%
         mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
                d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
                d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
-               
+
                d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
                d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
                d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
-               
+
                d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
-               
+
                d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
-        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>%
         pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data$field <- str_to_title(data$COS_pub_category)
-      
+
       group_order <- fields.abbreviated
       data$group <- ordered(data$COS_pub_category,
                             levels=fields.raw,
                             labels=fields.abbreviated)
                             #labels=fields.format.2.row)
-      
+
       data$cat <- ordered(data$cat,
                           levels = c("d_open_c_avail",
                                      "d_restricted_c_avail",
@@ -2169,10 +2178,10 @@ figures <- function(){
                                      "d_not_avail_c_avail",
                                      "d_not_avail_c_unavail"),
                           labels = c("Data open,\ncode available",
-                                     "Data restricted,\ncode available", 
+                                     "Data restricted,\ncode available",
                                      "Data shared directly,\ncode available",
                                      "Data open,\ncode unavailable",
-                                     "Data restricted,\ncode unavailable", 
+                                     "Data restricted,\ncode unavailable",
                                      "Data shared directly,\ncode unavailable",
                                      "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
@@ -2182,12 +2191,12 @@ figures <- function(){
       nesting.structure <- data.frame(cat)
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       # Trim data for speed
       data <- data %>% select(field,cat,group,paper_id)
-      
+
     }
-    
+
     # Aesthetic setup
     {
       bars_range <- c(0,1)
@@ -2199,17 +2208,17 @@ figures <- function(){
 
       chart.palette <- palette_process_repro_charts
     }
-    
+
     # Group by group plots
     {
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
                                           chart.palette = chart.palette,
                                           display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -2221,15 +2230,15 @@ figures <- function(){
     # Blank / right axis
     {
       group_label <- ggplot()+theme_nothing()
-      
+
       rounded.bars_plot <- ggplot()+theme_nothing()
-      
+
       snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                   chart.palette = "white",
                                   n_bins_max=n_bins_max,
                                   axis_only = TRUE)$plot+
         theme(axis.text.x= element_text(size=x_axis_text_size))
-      
+
       plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
@@ -2237,14 +2246,14 @@ figures <- function(){
     {
       group_label <- ggplot()+theme_nothing()+
         annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-      
+
       rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = chart.palette,
                                         display_axis = FALSE)$plot
-      
+
       snakebins_plot <- ggplot()+theme_nothing()
-      
-      plotlist[[length(plotlist)+1]] <- 
+
+      plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
     }
     # Axis row
@@ -2256,15 +2265,15 @@ figures <- function(){
                                         axis_only = TRUE,)$plot+
         scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
         theme(axis.text.x= element_text(size=x_axis_text_size))
-      
+
       snakebins_plot <- snakebins(data,nesting.structure,
                                   chart.palette = rep("white",length(chart.palette)),
                                   n_bins_max=n_bins_max,
                                   display_axis = FALSE,
                                   collapsevar="paper_id")$plot+
         xlim(0,n_bins_max)
-      
-      plotlist[[length(plotlist)+1]] <- 
+
+      plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
     }
     # Spacer row
@@ -2275,7 +2284,7 @@ figures <- function(){
     {
       group_label <- ggplot()+theme_nothing()+
         annotate("text",x=0.5,y=1,label="")
-      
+
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
       cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
                                         chart.palette = chart.palette,
@@ -2291,19 +2300,22 @@ figures <- function(){
         annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
         annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
         annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-      
+
       snakebins_plot <- ggplot()+theme_nothing()+
         annotate("text",x=0.5,y=1,label="")
-      
-      plotlist[[length(plotlist)+1]] <- 
+
+      plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
     }
     # Display plots
-    figure_2 <- 
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                rel_heights = c(rep(1,length(plotlist)-5),0.5,1.2,0.6,0.6,2))
+    figure_2 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                       rel_heights = c(rep(1,length(plotlist)-5),0.5,1.2,0.6,0.6,2)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+      
   }
-  
+
   # Figure 3. Outcome reproducibility by data and code availability
   {
     # Data wrangling
@@ -2311,52 +2323,52 @@ figures <- function(){
       data <- repro_outcomes
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE & !is.na(data$repro_version_of_record) &
                    data$repro_version_of_record=="T",]
-  
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       data$field <- str_to_title(data$COS_pub_category)
-      
+
       group_order <- c("Data and code\navailable",
                        "Only data\navailable","Data reconstructed\nfrom source")
-      
-      data$group <- 
+
+      data$group <-
         ordered(data$repro_type,
                 labels=c("Data and code\navailable","Data and code\navailable",
                          "Only data\navailable","Data reconstructed\nfrom source"),
                 levels=c("Push Button Reproduction","Extended Push Button Reproduction",
                          "Author Data Reproduction","Source Data Reproduction")
         )
-      
+
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
                                            "not attempted",
                                            data$repro_outcome_overall)
 
       data$cat <- data$repro_outcome_overall_consolidated
-      
+
       # Drop not attempteds / missing repro types
       data <- data[!is.na(data$repro_type) & !is.na(data$cat),]
 
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
     }
-    
+
     # Aesthetic options
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       # Aesthetic setup
       bars_range <- c(0,1)
       col_widths <- c(1,4,1)
@@ -2365,29 +2377,29 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 5
     }
-    
+
     # Plots
     {
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x])
-        
+
         cats_rects <- rounded.bars(data.group,nesting.structure,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
-        
+
         cats_rects_final <- cats_rects[nrow(cats_rects),]
         rounded.bars.cutoff <- rounded.bars(data.group,nesting.structure,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -2398,16 +2410,16 @@ figures <- function(){
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
         theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
@@ -2415,12 +2427,12 @@ figures <- function(){
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data,nesting.structure,
                                    weightvar="weight",
                                    #chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
-        
+
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
@@ -2428,17 +2440,17 @@ figures <- function(){
           xlim(bars_range)+
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -2448,23 +2460,26 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
     }
     # Plot outputs
-    figure_3 <- plot_grid(plotlist=plotlist,ncol=1,align = "v",
-              rel_heights = c(rep(1,length(plotlist)-3),0.5,1.2,0.5))
+    figure_3 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                       rel_heights = c(rep(1,length(plotlist)-3),0.5,1.2,0.5)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
   }
-  
+
   # Figure 4. Outcome reproducibility by year of publication
   {
     # Data with attempteds in
@@ -2479,25 +2494,25 @@ figures <- function(){
             select(claim_id)
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
-      
+
       repro_outcomes.trimmed <-  repro_outcomes %>%
         filter(repro_version_of_record=="T") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
-      data <- merge(data,repro_outcomes.trimmed,  
+      data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
-      
+
       #data <- data[data$repro_outcome_overall!="none",]
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
       data$field <- str_to_title(data$COS_pub_category)
-      
+
       data$cat <- ifelse(is.na(data$repro_outcome_overall_consolidated),
                                "Not\nAttempted",
                                as.character(data$repro_outcome_overall_consolidated))
@@ -2510,70 +2525,70 @@ figures <- function(){
       # Assign group
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep(" Attempted",3),"Not attempted ")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Data with the attempteds out
     {
       data.trimmed <- data[data$cat!=as.character(data$cat[length(levels(data$cat))]),]
       data.trimmed$cat <- ordered(data.trimmed$cat,
                                   labels=levels(repro_outcomes$repro_outcome_overall_consolidated),
                                   levels=levels(repro_outcomes$repro_outcome_overall_consolidated))
-        
+
       # Define nesting structure
       cat <- levels(data.trimmed$cat)
       nesting.structure.trimmed <- data.frame(cat)
-      
+
       nesting.structure.trimmed$cat2 <- nesting.structure.trimmed$cat
       nesting.structure.trimmed$cat3 <- nesting.structure.trimmed$cat
-      
+
       nesting.structure.trimmed$cat <- ordered(nesting.structure.trimmed$cat)
       nesting.structure.trimmed$cat2 <- ordered(nesting.structure.trimmed$cat2)
       nesting.structure.trimmed$cat3 <- ordered(nesting.structure.trimmed$cat3)
-      
+
       data.trimmed <- data.trimmed #%>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-      
+
       # Trim data for speed
       data.trimmed <- data.trimmed %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       n_bins_max <- 80
@@ -2581,41 +2596,41 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 6
     }
-    
+
     # Plots
     {
-    
+
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x])# %>%
           # group_by(paper_id) %>%
           # mutate(weight=1/n())
-        
+
         data.trimmed.group <- data.trimmed %>%
           filter(group==group_order[x]) # %>%
           # group_by(paper_id) %>%
           # mutate(weight=1/n())
-        
+
         data.largecat.group <- data.largecat %>%
           filter(group==group_order[x]) # %>%
           # group_by(paper_id) %>%
           # mutate(weight=1/n())
-        
+
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
                                               weightvar="weight",
                                               chart.palette = chart.palette.largecat,
                                               display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -2626,18 +2641,18 @@ figures <- function(){
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         rounded.bars.largecat <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
@@ -2645,7 +2660,7 @@ figures <- function(){
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
@@ -2657,7 +2672,7 @@ figures <- function(){
           xlim(bars_range)+
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")
-        
+
         cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                    weightvar="weight",
                                    chart.palette = chart.palette.largecat,
@@ -2670,11 +2685,11 @@ figures <- function(){
                     color=c("black","black"),size=legend_text_size,
                     hjust=c(0,1),vjust=c(1,0),fontface="bold")
         snakebins_plot <- ggplot()+theme_nothing()
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -2684,33 +2699,34 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
-        
+
+
         rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
                                               chart.palette = rep("white",length(chart.palette.largecat)),
                                               axis_only = TRUE)$plot+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
-      # Display plots
-      figure_4 <- 
-        plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                  rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5))
+
+
     }
-    
+    # Export plots
+    figure_4 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                       rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
   }
-  
   # Figure 5. Outcome reproducibility by discipline
   {
     # Data with attempteds in
@@ -2728,24 +2744,24 @@ figures <- function(){
       repro_outcomes.trimmed <-  repro_outcomes %>%
         filter(repro_version_of_record=="T") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
-      
-      data <- merge(data,repro_outcomes.trimmed,  
+
+      data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
-      
+
       #data <- data[data$repro_outcome_overall!="none",]
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       data$cat <- ifelse(is.na(data$repro_outcome_overall_consolidated),
                          "Not\nAttempted",
                          as.character(data$repro_outcome_overall_consolidated))
-      
+
       data$cat <- ordered(data$cat,
                           labels=c(levels(data$repro_outcome_overall_consolidated),
                                    "Not\nAttempted"),
@@ -2756,38 +2772,38 @@ figures <- function(){
       data$group <- ordered(data$COS_pub_category,
                             levels=fields.raw,
                             labels=fields.abbreviated)
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep(" Attempted",3),"Not attempted ")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Data with the attempteds out
     {
       data.trimmed <- data[data$cat!=as.character(data$cat[length(levels(data$cat))]),]
@@ -2817,9 +2833,9 @@ figures <- function(){
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.8,1.2,4,1)
       n_bins_max <- 150
@@ -2827,40 +2843,40 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 6
     }
-      
+
     # Plots
     {
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x]) #%>%
           # group_by(paper_id) %>%
           # mutate(weight=1/n())
-        
+
         data.trimmed.group <- data.trimmed %>%
           filter(group==group_order[x]) #%>%
           # group_by(paper_id) %>%
           # mutate(weight=1/n())
-        
+
         data.largecat.group <- data.largecat %>%
           filter(group==group_order[x])# %>%
           # group_by(paper_id) %>%
           # mutate(weight=1/n())
-        
+
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
                                               weightvar="weight",
                                               chart.palette = chart.palette.largecat,
                                               display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -2871,27 +2887,27 @@ figures <- function(){
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         rounded.bars.largecat <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
@@ -2905,7 +2921,7 @@ figures <- function(){
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")+
           geom_text(data=cats_rects,aes(x=c(0,0.5,1),y=c(1.35,0.5,-.35),label=c("","","")),
                     hjust=c(0,0.5,1),vjust=c(1,0.5,0))
-        
+
         cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                    weightvar="weight",
                                    chart.palette = chart.palette.largecat,
@@ -2919,11 +2935,11 @@ figures <- function(){
                     color=c("black","black"),size=legend_text_size,fontface="bold",
                     hjust=c(0,1),vjust=c(1,0))
         snakebins_plot <- ggplot()+theme_nothing()
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -2933,38 +2949,41 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
-        
+
+
         rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
                                               chart.palette = rep("white",length(chart.palette.largecat)),
                                               axis_only = TRUE)$plot+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
     }
     # Display plots
-    figure_5 <- 
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5))
     
+    figure_5 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+
   }
-  
+
   # Figure 6: Data and code sharing policies for 62 social and behavioral science journals by discipline in 2024
   {
     # Data wrangling
     {
       publications <- na.omit(publications)
-      
+
       publications$field <- ordered(publications$COS_pub_category,
                                     labels=c(fields.abbreviated),
                                     levels=c(fields.raw))
@@ -2979,22 +2998,22 @@ figures <- function(){
       pubs_code_sharing <- publications[c("field","code_sharing")]
       colnames(pubs_code_sharing) <- c("group","cat")
       group_order <- fields.abbreviated
-      
+
       cat <- levels(pubs_data_sharing$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
     }
-    
+
     # Aesthetic options
     {
       chart.palette <- palette_journal_TOP_factor_charts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(0.4,1,0.5,1,0.5)
       n_bins_max <- 20
@@ -3003,12 +3022,12 @@ figures <- function(){
       legend_text_size <- 6
       n_bins_vert <- 4
     }
-    
+
     # Plots
     {
       # Main plots by field
       plotlist <- lapply(0:length(group_order),function(x) {
-        
+
         if(x==0){
           left_label <-ggplot()+theme_nothing()+xlim(0,1)+ylim(0,1)+
             annotate("text",x=0.5,y=0.5,label="Data Sharing Policy",size=y_axis_text_size,fontface="bold",hjust=0.5)+
@@ -3022,14 +3041,14 @@ figures <- function(){
 
           group_label <- ggplot()+theme_nothing()+
             annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-          
+
           rounded.bars.data.sharing <- rounded.bars(pubs_data_sharing[pubs_data_sharing$group==group_order[x],],nesting.structure,
                                      chart.palette = chart.palette,
                                      display_axis = FALSE)$plot
           rounded.bars.code.sharing <- rounded.bars(pubs_code_sharing[pubs_code_sharing$group==group_order[x],],nesting.structure,
                                                     chart.palette = chart.palette,
                                                     display_axis = FALSE)$plot
-    
+
           snakebins.data.sharing <- snakebins(pubs_data_sharing[pubs_data_sharing$group==group_order[x],],nesting.structure,
                                       chart.palette = chart.palette,
                                       n_bins=n_bins_vert,
@@ -3043,7 +3062,7 @@ figures <- function(){
           plot_grid(group_label,rounded.bars.data.sharing,snakebins.data.sharing,
                     rounded.bars.code.sharing,snakebins.code.sharing,
                     nrow=1,rel_widths = col_widths)
-          
+
         }
       })
       # Blank / Axis row
@@ -3061,35 +3080,35 @@ figures <- function(){
                                             n_bins=n_bins_vert,
                                             n_bins_max=n_bins_max,
                                             display_axis = TRUE)$plot
-        plotlist[[length(plotlist)+1]] <- 
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.data.sharing,snakebins.data.sharing,
                     rounded.bars.code.sharing,snakebins.code.sharing,
                     nrow=1,rel_widths = col_widths)
-        
+
       }
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         rounded.bars.data.sharing <- rounded.bars(pubs_data_sharing,nesting.structure,
                                                   chart.palette = chart.palette,
                                                   display_axis = TRUE)$plot
         rounded.bars.code.sharing <- rounded.bars(pubs_code_sharing,nesting.structure,
                                                   chart.palette = chart.palette,
                                                   display_axis = TRUE)$plot
-        
+
         snakebins.data.sharing <- ggplot()+theme_nothing()
         snakebins.code.sharing <- ggplot()+theme_nothing()
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.data.sharing,snakebins.data.sharing,
                   rounded.bars.code.sharing,snakebins.code.sharing,
                   nrow=1,rel_widths = col_widths)
       }
       # Spacer
         plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
-      
+
       # Legend
       {
         data.legend <- rbind(pubs_data_sharing,pubs_code_sharing) %>% group_by(cat) %>% summarise(n=1)
@@ -3102,17 +3121,18 @@ figures <- function(){
           theme_nothing()+
           geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
                     color=c("white","white","black","white"),size=legend_text_size,fontface="bold")
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(ggplot()+theme_nothing(),legend,
                     nrow=1,rel_widths = c(col_widths[1],sum(col_widths)-col_widths[1]))
       }
-
-      figure_6 <- plot_grid(plotlist=plotlist,ncol=1,rel_heights = c(1.5,rep(1,length(group_order)),.5,1.5,0.5,1.5))
-      
     }
+    figure_6 <- bundle_ggplot(
+      plot_grid(plotlist=plotlist,ncol=1,rel_heights = c(1.5,rep(1,length(group_order)),.5,1.5,0.5,1.5)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
   }
-  
+
   # Figure S1. Outcome reproducibility by data and code availability, claims level
   {
     # Data wrangling
@@ -3120,56 +3140,56 @@ figures <- function(){
       data <- repro_outcomes
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE & !is.na(data$repro_version_of_record) & data$repro_version_of_record=="T",]
-      
+
       data$field <- str_to_title(data$COS_pub_category)
-      
+
       group_order <- c("Data and code\navailable",
                        "Only data\navailable","Data reconstructed\nfrom source")
-      
-      data$group <- 
+
+      data$group <-
         ordered(data$repro_type,
                 labels=c("Data and code\navailable","Data and code\navailable",
                          "Only data\navailable","Data reconstructed\nfrom source"),
                 levels=c("Push Button Reproduction","Extended Push Button Reproduction",
                          "Author Data Reproduction","Source Data Reproduction")
         )
-      
+
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
                                            "not attempted",
                                            data$repro_outcome_overall)
-      
-      
+
+
       data$cat <- data$repro_outcome_overall_consolidated
-      
+
       # Drop not attempteds / missing repro types
       data <- data[!is.na(data$repro_type) & !is.na(data$cat),]
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         #mutate(weight=1/n())
         mutate(weight=1)
-      
+
       # # Drop un needed variables (for speed)
       # data <- data[c("paper_id","claim_id","group","weight","cat","field","pub_year")]
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
     }
-    
+
     # Aesthetic options
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       # Aesthetic setup
       bars_range <- c(0,1)
       col_widths <- c(1,4,1)
@@ -3178,52 +3198,52 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 5
     }
-    
+
     # Plots
     {
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x]) #%>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         cats_rects <- rounded.bars(data.group,nesting.structure,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
-        
+
         cats_rects_final <- cats_rects[nrow(cats_rects),]
         rounded.bars.cutoff <- rounded.bars(data.group,nesting.structure,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE)$plot
                                     #collapsevar="paper_id")$plot
-                                    
+
         plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       })
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
@@ -3231,12 +3251,12 @@ figures <- function(){
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data,nesting.structure,
                                    weightvar="weight",
                                    #chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
-        
+
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
@@ -3244,18 +3264,18 @@ figures <- function(){
           xlim(bars_range)+
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot
-        
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -3265,23 +3285,27 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       }
     }
     # Plot outputs
-    figure_s1 <- plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                          rel_heights = c(rep(1,length(plotlist)-3),0.5,1.2,0.5))
+    figure_s1 <- bundle_ggplot(
+      plot=plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                          rel_heights = c(rep(1,length(plotlist)-3),0.5,1.2,0.5)),
+      width = 6000,height = 1200,units = "px",bg="white"
+    )
   }
-  
+  # width = 6000,height = 1200,units = "px",bg="white"
+
   # Figure S2. Outcome reproducibility by year of publication, claims level
   {
     # Data with attempteds in
@@ -3296,30 +3320,30 @@ figures <- function(){
             select(claim_id)
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
-      
+
       repro_outcomes.trimmed <-  repro_outcomes %>%
         filter(repro_version_of_record=="T") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
-      data <- merge(data,repro_outcomes.trimmed,  
+      data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
-      
+
       #data <- data[data$repro_outcome_overall!="none",]
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1)
         #mutate(weight=1/n())
       data$field <- str_to_title(data$COS_pub_category)
-      
+
       data$cat <- ifelse(is.na(data$repro_outcome_overall_consolidated),
                          "Not\nAttempted",
                          as.character(data$repro_outcome_overall_consolidated))
-      
+
       data$cat <- ordered(data$cat,
                           labels=c(levels(data$repro_outcome_overall_consolidated),
                                    "Not\nAttempted"),
@@ -3328,70 +3352,70 @@ figures <- function(){
       # Assign group
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep(" Attempted",3),"Not attempted ")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Data with the attempteds out
     {
       data.trimmed <- data[data$cat!=as.character(data$cat[length(levels(data$cat))]),]
       data.trimmed$cat <- ordered(data.trimmed$cat,
                                   labels=levels(repro_outcomes$repro_outcome_overall_consolidated),
                                   levels=levels(repro_outcomes$repro_outcome_overall_consolidated))
-      
+
       # Define nesting structure
       cat <- levels(data.trimmed$cat)
       nesting.structure.trimmed <- data.frame(cat)
-      
+
       nesting.structure.trimmed$cat2 <- nesting.structure.trimmed$cat
       nesting.structure.trimmed$cat3 <- nesting.structure.trimmed$cat
-      
+
       nesting.structure.trimmed$cat <- ordered(nesting.structure.trimmed$cat)
       nesting.structure.trimmed$cat2 <- ordered(nesting.structure.trimmed$cat2)
       nesting.structure.trimmed$cat3 <- ordered(nesting.structure.trimmed$cat3)
-      
+
       data.trimmed <- data.trimmed #%>%
       # group_by(paper_id) %>%
       # mutate(weight=1/n())
-      
+
       # Trim data for speed
       data.trimmed <- data.trimmed %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       n_bins_max <- 600
@@ -3399,41 +3423,41 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 6
     }
-    
+
     # Plots
     {
-      
+
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x])# %>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         data.trimmed.group <- data.trimmed %>%
           filter(group==group_order[x]) # %>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         data.largecat.group <- data.largecat %>%
           filter(group==group_order[x]) # %>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
                                               weightvar="weight",
                                               chart.palette = chart.palette.largecat,
                                               display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -3443,18 +3467,18 @@ figures <- function(){
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         rounded.bars.largecat <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
@@ -3462,7 +3486,7 @@ figures <- function(){
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
@@ -3474,7 +3498,7 @@ figures <- function(){
           xlim(bars_range)+
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")
-        
+
         cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                    weightvar="weight",
                                    chart.palette = chart.palette.largecat,
@@ -3487,11 +3511,11 @@ figures <- function(){
                     color=c("black","black"),size=legend_text_size,
                     hjust=c(0,1),vjust=c(1,0),fontface="bold")
         snakebins_plot <- ggplot()+theme_nothing()
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -3501,33 +3525,33 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
-        
+
+
         rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
                                               chart.palette = rep("white",length(chart.palette.largecat)),
                                               axis_only = TRUE)$plot+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
-      # Display plots
-      figure_s2 <- 
-        plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                  rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5))
     }
-    
+    # Display plots
+    figure_s2 <- bundle_ggplot(
+      plot=plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                     rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5)),
+      width = 10000,height = 4000,units = "px",bg="white"
+    )
   }
-  
+
   # Figure S3. Outcome reproducibility by discipline, claims level
   {
     # Data with attempteds in
@@ -3545,25 +3569,25 @@ figures <- function(){
       repro_outcomes.trimmed <-  repro_outcomes %>%
         filter(repro_version_of_record=="T") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
-      
-      data <- merge(data,repro_outcomes.trimmed,  
+
+      data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
-      
+
       #data <- data[data$repro_outcome_overall!="none",]
       data <- data %>%
         group_by(paper_id) %>%
         #mutate(weight=1/n())
         mutate(weight=1)
-      
+
       data$cat <- ifelse(is.na(data$repro_outcome_overall_consolidated),
                          "Not\nAttempted",
                          as.character(data$repro_outcome_overall_consolidated))
-      
+
       data$cat <- ordered(data$cat,
                           labels=c(levels(data$repro_outcome_overall_consolidated),
                                    "Not\nAttempted"),
@@ -3574,70 +3598,70 @@ figures <- function(){
       data$group <- ordered(data$COS_pub_category,
                             levels=fields.raw,
                             labels=fields.abbreviated)
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep(" Attempted",3),"Not attempted ")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Data with the attempteds out
     {
       data.trimmed <- data[data$cat!=as.character(data$cat[length(levels(data$cat))]),]
       data.trimmed$cat <- ordered(data.trimmed$cat,
                                   labels=levels(repro_outcomes$repro_outcome_overall_consolidated),
                                   levels=levels(repro_outcomes$repro_outcome_overall_consolidated))
-      
+
       # Define nesting structure
       cat <- levels(data.trimmed$cat)
       nesting.structure.trimmed <- data.frame(cat)
-      
+
       nesting.structure.trimmed$cat2 <- nesting.structure.trimmed$cat
       nesting.structure.trimmed$cat3 <- nesting.structure.trimmed$cat
-      
+
       nesting.structure.trimmed$cat <- ordered(nesting.structure.trimmed$cat)
       nesting.structure.trimmed$cat2 <- ordered(nesting.structure.trimmed$cat2)
       nesting.structure.trimmed$cat3 <- ordered(nesting.structure.trimmed$cat3)
-      
+
       # data.trimmed <- data.trimmed %>%
       #   group_by(paper_id) %>%
       #   mutate(weight=1/n())
-      
+
       # Trim data for speed
       #data.trimmed <- data.trimmed %>% select(field,pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.8,1.2,4,1)
       n_bins_max <- 1000
@@ -3645,40 +3669,40 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 6
     }
-    
+
     # Plots
     {
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x]) #%>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         data.trimmed.group <- data.trimmed %>%
           filter(group==group_order[x]) #%>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         data.largecat.group <- data.largecat %>%
           filter(group==group_order[x])# %>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
                                               weightvar="weight",
                                               chart.palette = chart.palette.largecat,
                                               display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -3688,27 +3712,27 @@ figures <- function(){
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         rounded.bars.largecat <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
@@ -3722,7 +3746,7 @@ figures <- function(){
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")+
           geom_text(data=cats_rects,aes(x=c(0,0.5,1),y=c(1.35,0.5,-.35),label=c("","","")),
                     hjust=c(0,0.5,1),vjust=c(1,0.5,0))
-        
+
         cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                    weightvar="weight",
                                    chart.palette = chart.palette.largecat,
@@ -3736,11 +3760,11 @@ figures <- function(){
                     color=c("black","black"),size=legend_text_size,fontface="bold",
                     hjust=c(0,1),vjust=c(1,0))
         snakebins_plot <- ggplot()+theme_nothing()
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -3750,32 +3774,33 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
-        
+
+
         rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
                                               chart.palette = rep("white",length(chart.palette.largecat)),
                                               axis_only = TRUE)$plot+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
     }
     # Display plots
-    figure_s3 <- 
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5))
-    
+    figure_s3 <- bundle_ggplot(
+      plot =  plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                rel_heights = c(rep(1,length(plotlist)-3),0.5,1.5,0.5)),
+      width = 10000,height = 2000,units = "px",bg="white"
+    )
   }
-  
+
   # Figure S4. Outcome reproducibility by discipline and year
   {
     # Data manipulation
@@ -3798,10 +3823,10 @@ figures <- function(){
         select(c("claim_id","repro_outcome_overall"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
@@ -3811,22 +3836,22 @@ figures <- function(){
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       field_order <- fields.abbreviated
       data$field <- ordered(data$COS_pub_category,
                             levels=fields.raw,
                             labels=fields.abbreviated)
-      
+
       # Assign group
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
                                            "not attempted",
                                            data$repro_outcome_overall)
-      
+
       data$repro_outcome_overall <- str_to_title(data$repro_outcome_overall)
-      
+
       data$cat <- ordered(data$repro_outcome_overall,
                           labels=c( "Precisely\nReproduced",
                                     "Precisely\nReproduced",
@@ -3838,47 +3863,47 @@ figures <- function(){
                                     "Approximate",
                                     "Not",
                                     "Not Attempted"))
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
-      
+
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep("Attempted",4),"Not attempted")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       #chart.palette.largecat <- c(palette_score_charts[6],chart.palette[5])
-      
+
       # Trim data for speed
       data <- data %>% select(field,pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       y_axis_text_size <- 6
@@ -3886,19 +3911,19 @@ figures <- function(){
       legend_text_size <- 6
       fields_text_size <- 8
     }
-    
+
     # Plots
     {
       # Group by field plots
       plotlist_field <- lapply(levels(data$field),function(field) {
         data_field <- data[data$field==field,]
-        
+
         plotlist <- lapply(1:length(group_order),function(x) {
           data.field.group <- data_field %>%
             filter(group==group_order[x]) %>%
             group_by(paper_id) %>%
             mutate(weight=1/n())
-          
+
           cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                      weightvar="weight",
                                      chart.palette = chart.palette,
@@ -3916,15 +3941,15 @@ figures <- function(){
             xlim(bars_range)
           rounded.bars.cutoff
         })
-        
+
         plotlist <- append(list(ggplot() + theme_nothing()+
                                   annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                            plotlist)
-        
+
         plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
       })
       plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
-      
+
       # Year labels
       plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
         ggplot() + theme_nothing()+
@@ -3934,10 +3959,10 @@ figures <- function(){
                                            annotate("text",x=0.5,y=1,label="")),
                                     plotlist_yearlabels)
       year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-      
-      
+
+
       main_plots <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
-      
+
       # Legend
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
       cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
@@ -3954,10 +3979,12 @@ figures <- function(){
                                 annotate("text",x=0.5,y=1,label=""),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
     }
-    figure_s4 <- 
-      plot_grid(main_plots,legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),1.8))
+    figure_s4 <- bundle_ggplot(
+      plot = plot_grid(main_plots,legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),1.8)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
   }
-  
+
   # Figure S5. Outcome reproducibility by discipline and year for all claims
   {
     # Data manipulation
@@ -3980,10 +4007,10 @@ figures <- function(){
         select(c("claim_id","repro_outcome_overall"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
@@ -3994,22 +4021,22 @@ figures <- function(){
         group_by(paper_id) %>%
         # mutate(weight=1/n())
         mutate(weight=1)
-      
+
       field_order <- fields.abbreviated
       data$field <- ordered(data$COS_pub_category,
                             levels=fields.raw,
                             labels=fields.abbreviated)
-      
+
       # Assign group
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
                                            "not attempted",
                                            data$repro_outcome_overall)
-      
+
       data$repro_outcome_overall <- str_to_title(data$repro_outcome_overall)
-      
+
       data$cat <- ordered(data$repro_outcome_overall,
                           labels=c( "Precisely\nReproduced",
                                     "Precisely\nReproduced",
@@ -4021,47 +4048,47 @@ figures <- function(){
                                     "Approximate",
                                     "Not",
                                     "Not Attempted"))
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
-      
+
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep("Attempted",4),"Not attempted")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       #chart.palette.largecat <- c(palette_score_charts[6],chart.palette[5])
-      
+
       # Trim data for speed
       data <- data %>% select(field,pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       y_axis_text_size <- 6
@@ -4069,20 +4096,20 @@ figures <- function(){
       legend_text_size <- 6
       fields_text_size <- 8
     }
-    
+
     # Plots
     {
       # Group by field plots
       plotlist_field <- lapply(levels(data$field),function(field) {
         data_field <- data[data$field==field,]
-        
+
         plotlist <- lapply(1:length(group_order),function(x) {
           data.field.group <- data_field %>%
             filter(group==group_order[x]) %>%
             group_by(paper_id) %>%
             #mutate(weight=1/n())
             mutate(weight=1)
-          
+
           cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                      weightvar="weight",
                                      chart.palette = chart.palette,
@@ -4100,15 +4127,15 @@ figures <- function(){
             xlim(bars_range)
           rounded.bars.cutoff
         })
-        
+
         plotlist <- append(list(ggplot() + theme_nothing()+
                                   annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                            plotlist)
-        
+
         plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
       })
       plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
-      
+
       # Year labels
       plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
         ggplot() + theme_nothing()+
@@ -4118,10 +4145,10 @@ figures <- function(){
                                            annotate("text",x=0.5,y=1,label="")),
                                     plotlist_yearlabels)
       year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-      
-      
+
+
       main_plots <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
-      
+
       # Legend
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
       cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
@@ -4138,40 +4165,43 @@ figures <- function(){
                                 annotate("text",x=0.5,y=1,label=""),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
     }
-    figure_s5 <- 
-      plot_grid(main_plots,legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),1.8))
+    figure_s5 <- bundle_ggplot(
+      plot=plot_grid(main_plots,legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),1.8)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+      
   }
   
   # Figure S6. Process reproducibility success rates by 12 subfields
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>%  filter(!covid) 
+      data <- pr_outcomes %>%  filter(!covid)
       data$OA_data_shared <- data$OA_data_shared
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
                                     "restricted",data$OA_data_shared)
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
                                     "no data available",data$OA_data_shared)
       data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
-      
+
       data <- data %>%
         mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
                d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
                d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
-               
+
                d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
                d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
                d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
-               
+
                d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
-               
+
                d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
-        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>%
         pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
-      
-      exp_fields <- paper_metadata %>% 
-        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+
+      exp_fields <- paper_metadata %>%
+        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>%
         mutate(
           field = case_when(
             str_detect(pub, "financ|Financ") ~ "finance",
@@ -4182,14 +4212,14 @@ figures <- function(){
           )
         )
       exp_fields$field <- str_to_title(exp_fields$field)
-      
+
       data <- merge(data,exp_fields[c("paper_id","field")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
       group_order <- sort(unique(exp_fields$field))
       data$group <- ordered(data$field,
                             levels=sort(unique(exp_fields$field)),
                             labels=sort(unique(exp_fields$field)))
-      
+
       data$cat <- ordered(data$cat,
                           levels = c("d_open_c_avail",
                                      "d_restricted_c_avail",
@@ -4200,10 +4230,10 @@ figures <- function(){
                                      "d_not_avail_c_avail",
                                      "d_not_avail_c_unavail"),
                           labels = c("Data open,\ncode available",
-                                     "Data restricted,\ncode available", 
+                                     "Data restricted,\ncode available",
                                      "Data shared directly,\ncode available",
                                      "Data open,\ncode unavailable",
-                                     "Data restricted,\ncode unavailable", 
+                                     "Data restricted,\ncode unavailable",
                                      "Data shared directly,\ncode unavailable",
                                      "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
@@ -4213,12 +4243,12 @@ figures <- function(){
       nesting.structure <- data.frame(cat)
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       # Trim data for speed
       data <- data %>% select(field,cat,group,paper_id)
-      
+
     }
-    
+
     # Aesthetic setup
     {
       bars_range <- c(0,1)
@@ -4227,7 +4257,7 @@ figures <- function(){
       y_axis_text_size <- 8
       x_axis_text_size <- 12
       legend_text_size <- 4
-      
+
       chart.palette <- palette_process_repro_charts
     }
     # Plots
@@ -4236,11 +4266,11 @@ figures <- function(){
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
                                           chart.palette = chart.palette,
                                           display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[x],],nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -4250,30 +4280,30 @@ figures <- function(){
       })
       # Blank / right axis
       group_label <- ggplot()+theme_nothing()
-      
+
       rounded.bars_plot <- ggplot()+theme_nothing()
-      
+
       snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                   chart.palette = "white",
                                   n_bins_max=n_bins_max,
                                   axis_only = TRUE)$plot+
         theme(axis.text.x= element_text(size=x_axis_text_size))
-      
+
       plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       # Totals row
       group_label <- ggplot()+theme_nothing()+
         annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-      
+
       rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = chart.palette,
                                         display_axis = FALSE)$plot
-      
+
       snakebins_plot <- ggplot()+theme_nothing()
-      
-      plotlist[[length(plotlist)+1]] <- 
+
+      plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-      
+
       # Axis row
       group_label <- ggplot()+theme_nothing()+
         annotate("text",x=0.5,y=1,label="")
@@ -4282,24 +4312,24 @@ figures <- function(){
                                         axis_only = TRUE,)$plot+
         scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
         theme(axis.text.x= element_text(size=x_axis_text_size))
-      
+
       snakebins_plot <- snakebins(data,nesting.structure,
                                   chart.palette = rep("white",length(chart.palette)),
                                   n_bins_max=n_bins_max,
                                   display_axis = FALSE,
                                   collapsevar="paper_id")$plot+
         xlim(0,n_bins_max)
-      
-      plotlist[[length(plotlist)+1]] <- 
+
+      plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
-      
+
       # Spacer row
       plotlist[[length(plotlist)+1]] <- ggplot()+theme_nothing()
-      
+
       # Legend row
       group_label <- ggplot()+theme_nothing()+
         annotate("text",x=0.5,y=1,label="")
-      
+
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
       cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
                                         chart.palette = chart.palette,
@@ -4311,57 +4341,60 @@ figures <- function(){
                   color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
         geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
         geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
-        
+
         #geom_segment(x=2/3,xend=2/3+.05,y=.5,yend=0.5,linetype=3)+
         ylim(0,1.2)+
         annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
         annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
         annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
-      
+
       snakebins_plot <- ggplot()+theme_nothing()+
         annotate("text",x=0.5,y=1,label="")
-      
-      plotlist[[length(plotlist)+1]] <- 
+
+      plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
     }
     # Display plots
-    figure_s6 <- 
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                rel_heights = c(rep(1,length(plotlist)-5),0.5,1.2,0.6,0.6,2))
+    figure_s6 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                       rel_heights = c(rep(1,length(plotlist)-5),0.5,1.2,0.6,0.6,2)),
+      width = 6000,height = 4000,units = "px",bg="white"
+    )
+      
   }
   
   # Figure S7. Process reproducibility success rates by year of publication for all disciplines
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>%  filter(!covid) 
+      data <- pr_outcomes %>%  filter(!covid)
       data$OA_data_shared <- data$OA_data_shared
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
                                     "restricted",data$OA_data_shared)
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
                                     "no data available",data$OA_data_shared)
       data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
-      
+
       data <- data %>%
         mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
                d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
                d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
-               
+
                d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
                d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
                d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
-               
+
                d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
-               
+
                d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
-        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>%
         pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       data$cat <- ordered(data$cat,
                           levels = c("d_open_c_avail",
                                      "d_restricted_c_avail",
@@ -4372,10 +4405,10 @@ figures <- function(){
                                      "d_not_avail_c_avail",
                                      "d_not_avail_c_unavail"),
                           labels = c("Data open,\ncode available",
-                                     "Data restricted,\ncode available", 
+                                     "Data restricted,\ncode available",
                                      "Data shared directly,\ncode available",
                                      "Data open,\ncode unavailable",
-                                     "Data restricted,\ncode unavailable", 
+                                     "Data restricted,\ncode unavailable",
                                      "Data shared directly,\ncode unavailable",
                                      "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
@@ -4384,7 +4417,7 @@ figures <- function(){
       data$field <- ordered(data$COS_pub_category,
                             levels=fields.raw,
                             labels=fields.abbreviated)
-      
+
       data.econ.poli <- data[data$COS_pub_category=="economics and finance" | data$COS_pub_category=="political science",]
       data.other <- data[!data$COS_pub_category=="economics and finance" & !data$COS_pub_category=="political science",]
       # Define nesting structure
@@ -4392,12 +4425,12 @@ figures <- function(){
       nesting.structure <- data.frame(cat)
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
     }
     # Aesthetic setup
     {
       chart.palette <- palette_process_repro_charts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       y_axis_text_size <- 6
@@ -4405,115 +4438,120 @@ figures <- function(){
       legend_text_size <- 6
       fields_text_size <- 8
     }
-    
+    # Plots
+    {    
     # Group by field plots
-    plotlist_field <- lapply(levels(data$field),function(field) {
-      data_field <- data[data$field==field,]
-      
-      plotlist <- lapply(1:length(group_order),function(x) {
-        data.field.group <- data_field %>%
-          filter(group==group_order[x]) %>%
-          group_by(paper_id) %>%
-          mutate(weight=1/n())
-        
-        cats_rects <- rounded.bars(data.field.group,nesting.structure,
-                                   weightvar="weight",
-                                   chart.palette = chart.palette,
-                                   display_axis = FALSE)$cats_rects
-        cats_rects_final <- cats_rects[nrow(cats_rects),]
-        rounded.bars.cutoff <- rounded.bars(data.field.group,nesting.structure,
-                                            weightvar="weight",
-                                            chart.palette = chart.palette,
-                                            display_axis = FALSE)$plot+
-          funkyheatmap::geom_rounded_rect(data_field=cats_rects_final,aes(xmin=cats_rects_final$xmin,
-                                                                          ymin=cats_rects_final$ymin,
-                                                                          xmax=bars_range[2],
-                                                                          ymax=cats_rects_final$ymax),
-                                          radius=unit(3, "points"),size=0,fill=chart.palette[length(chart.palette)])+
-          xlim(bars_range)
-        rounded.bars.cutoff
-      })
-      
-      plotlist <- append(list(ggplot() + theme_nothing()+
-                                annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
-                         plotlist)
-      
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-    })
-    plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
-    
-    # Year labels
-    plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
-      ggplot() + theme_nothing()+
-        annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
-    })
-    plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
-                                         annotate("text",x=0.5,y=1,label="")),
-                                  plotlist_yearlabels)
-    year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-    
-    
-    main_plots <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
-    
-    # Legend
-    data.legend <- data %>% group_by(cat) %>% summarise(n=n())
-    cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
-                                      chart.palette = chart.palette,
-                                      display_axis=FALSE,legend=FALSE)$cats_rects
-    legend <- rounded.bars(data.legend,nesting.structure,
-                           chart.palette = chart.palette,
-                           display_axis=TRUE,legend=FALSE)$plot+
-      geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
-                color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
-      geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
-      geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
-      ylim(0,1.6)+
-      annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-      theme(axis.text.x=element_text(size=x_axis_text_size))+
-      scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
-    
-    legend_bar <- plot_grid(ggplot()+theme_nothing()+
-                              annotate("text",x=0.5,y=1,label=""),
-                            legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
-    
-    figure_s7 <- 
-      plot_grid(main_plots,ggplot()+theme_nothing(),legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),0.4,2.5))
-  }
+      plotlist_field <- lapply(levels(data$field),function(field) {
+        data_field <- data[data$field==field,]
   
+        plotlist <- lapply(1:length(group_order),function(x) {
+          data.field.group <- data_field %>%
+            filter(group==group_order[x]) %>%
+            group_by(paper_id) %>%
+            mutate(weight=1/n())
+  
+          cats_rects <- rounded.bars(data.field.group,nesting.structure,
+                                     weightvar="weight",
+                                     chart.palette = chart.palette,
+                                     display_axis = FALSE)$cats_rects
+          cats_rects_final <- cats_rects[nrow(cats_rects),]
+          rounded.bars.cutoff <- rounded.bars(data.field.group,nesting.structure,
+                                              weightvar="weight",
+                                              chart.palette = chart.palette,
+                                              display_axis = FALSE)$plot+
+            funkyheatmap::geom_rounded_rect(data_field=cats_rects_final,aes(xmin=cats_rects_final$xmin,
+                                                                            ymin=cats_rects_final$ymin,
+                                                                            xmax=bars_range[2],
+                                                                            ymax=cats_rects_final$ymax),
+                                            radius=unit(3, "points"),size=0,fill=chart.palette[length(chart.palette)])+
+            xlim(bars_range)
+          rounded.bars.cutoff
+        })
+  
+        plotlist <- append(list(ggplot() + theme_nothing()+
+                                  annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
+                           plotlist)
+  
+        plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
+      })
+      plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
+  
+      # Year labels
+      plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
+        ggplot() + theme_nothing()+
+          annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
+      })
+      plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                           annotate("text",x=0.5,y=1,label="")),
+                                    plotlist_yearlabels)
+      year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
+  
+  
+      main_plots <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
+  
+      # Legend
+      data.legend <- data %>% group_by(cat) %>% summarise(n=n())
+      cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
+                                        chart.palette = chart.palette,
+                                        display_axis=FALSE,legend=FALSE)$cats_rects
+      legend <- rounded.bars(data.legend,nesting.structure,
+                             chart.palette = chart.palette,
+                             display_axis=TRUE,legend=FALSE)$plot+
+        geom_text(data=cats_rects_legend,aes(x=xcenter,y=ycenter,label=cat),
+                  color=c("white","white","black","white","white","black","black","black"),fontface="bold")+
+        geom_segment(x=3/8,xend=3/8,y=1,yend=1.6,linetype=3)+
+        geom_segment(x=7/8,xend=7/8,y=1,yend=1.6,linetype=3)+
+        ylim(0,1.6)+
+        annotate("text",x=1.5/8,y=1.05,label="Both Code and Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=5/8,y=1.05,label="Either Code or Data",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
+        theme(axis.text.x=element_text(size=x_axis_text_size))+
+        scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
+  
+      legend_bar <- plot_grid(ggplot()+theme_nothing()+
+                                annotate("text",x=0.5,y=1,label=""),
+                              legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
+      }
+
+    figure_s7 <- bundle_ggplot(
+      plot = plot_grid(main_plots,ggplot()+theme_nothing(),legend_bar,ncol=1,rel_heights = c(1+length(unique(data$pub_year)),0.4,2.5)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+      
+  }
+
   # Figure S8. Process reproducibility success rates by year of publication by 12 subfields
   {
     # Data wrangling
     {
-      data <- pr_outcomes %>%  filter(!covid) 
+      data <- pr_outcomes %>%  filter(!covid)
       data$OA_data_shared <- data$OA_data_shared
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
                                     "restricted",data$OA_data_shared)
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
                                     "no data available",data$OA_data_shared)
       data$OA_code_shared_simple <- ifelse(data$OA_code_shared!="no","code available","code unavailable")
-      
+
       data <- data %>%
         mutate(d_open_c_avail = OA_data_shared=="available_online" & OA_code_shared_simple == "code available",
                d_restricted_c_avail = OA_data_shared=="restricted" & OA_code_shared_simple == "code available",
                d_shared_c_avail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code available",
-               
+
                d_open_c_unavail = OA_data_shared=="available_online" & OA_code_shared_simple == "code unavailable",
                d_restricted_c_unavail = OA_data_shared=="restricted" & OA_code_shared_simple == "code unavailable",
                d_shared_c_unavail = OA_data_shared=="shared_on_request" & OA_code_shared_simple == "code unavailable",
-               
+
                d_not_avail_c_avail = OA_data_shared=="no data available" & OA_code_shared_simple == "code available",
-               
+
                d_not_avail_c_unavail = OA_data_shared=="no data available" & OA_code_shared_simple == "code unavailable") %>%
-        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>% 
+        select(paper_id,d_open_c_avail,d_restricted_c_avail,d_shared_c_avail,d_open_c_unavail,d_restricted_c_unavail,d_shared_c_unavail,d_not_avail_c_avail,d_not_avail_c_unavail) %>%
         pivot_longer(cols = -paper_id, names_to = "cat", values_to = "response") %>%
         filter(response)
 
       data <- merge(data,paper_metadata[c("paper_id","pub_year")],by="paper_id",all.x =TRUE,all.y=FALSE)
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       data$cat <- ordered(data$cat,
                           levels = c("d_open_c_avail",
                                      "d_restricted_c_avail",
@@ -4524,17 +4562,17 @@ figures <- function(){
                                      "d_not_avail_c_avail",
                                      "d_not_avail_c_unavail"),
                           labels = c("Data open,\ncode available",
-                                     "Data restricted,\ncode available", 
+                                     "Data restricted,\ncode available",
                                      "Data shared directly,\ncode available",
                                      "Data open,\ncode unavailable",
-                                     "Data restricted,\ncode unavailable", 
+                                     "Data restricted,\ncode unavailable",
                                      "Data shared directly,\ncode unavailable",
                                      "Data not available,\ncode available",
                                      "Neither data nor\ncode available")
       )
-      
-      exp_fields <- paper_metadata %>% 
-        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+
+      exp_fields <- paper_metadata %>%
+        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>%
         mutate(
           field = case_when(
             str_detect(pub, "financ|Financ") ~ "finance",
@@ -4545,15 +4583,15 @@ figures <- function(){
           )
         )
       exp_fields$field <- str_to_title(exp_fields$field)
-      
+
       data <- merge(data,exp_fields[c("paper_id","field")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
       field_order <- sort(unique(exp_fields$field))
-      
+
       data$field <- ordered(data$field,
                             levels=sort(unique(exp_fields$field)),
                             labels=sort(unique(exp_fields$field)))
-      
+
       data.econ.poli <- data[data$COS_pub_category=="economics and finance" | data$COS_pub_category=="political science",]
       data.other <- data[!data$COS_pub_category=="economics and finance" & !data$COS_pub_category=="political science",]
       # Define nesting structure
@@ -4561,14 +4599,14 @@ figures <- function(){
       nesting.structure <- data.frame(cat)
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
     }
     # Aesthetic setup
     {
       chart.palette <- palette_process_repro_charts
-      
+
       #chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       y_axis_text_size <- 6
@@ -4576,7 +4614,7 @@ figures <- function(){
       legend_text_size <- 6
       fields_text_size <- 8
     }
-    
+
     # Plots
     {
       # Top half
@@ -4585,13 +4623,13 @@ figures <- function(){
         {
           plotlist_field <- lapply(levels(data$field)[1:6],function(field) {
             data_field <- data[data$field==field,]
-            
+
             plotlist <- lapply(1:length(group_order),function(x) {
               data.field.group <- data_field %>%
                 filter(group==group_order[x]) %>%
                 group_by(paper_id) %>%
                 mutate(weight=1/n())
-              
+
               cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                          weightvar="weight",
                                          chart.palette = chart.palette,
@@ -4609,11 +4647,11 @@ figures <- function(){
                 xlim(bars_range)
               rounded.bars.cutoff
             })
-            
+
             plotlist <- append(list(ggplot() + theme_nothing()+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
-            
+
             plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
           })
           plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
@@ -4628,8 +4666,8 @@ figures <- function(){
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-          
-          
+
+
           main_plots_top <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
         }
       }
@@ -4639,13 +4677,13 @@ figures <- function(){
         {
           plotlist_field <- lapply(levels(data$field)[7:12],function(field) {
             data_field <- data[data$field==field,]
-            
+
             plotlist <- lapply(1:length(group_order),function(x) {
               data.field.group <- data_field %>%
                 filter(group==group_order[x]) %>%
                 group_by(paper_id) %>%
                 mutate(weight=1/n())
-              
+
               cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                          weightvar="weight",
                                          chart.palette = chart.palette,
@@ -4663,11 +4701,11 @@ figures <- function(){
                 xlim(bars_range)
               rounded.bars.cutoff
             })
-            
+
             plotlist <- append(list(ggplot() + theme_nothing()+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
-            
+
             plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
           })
           plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
@@ -4682,8 +4720,8 @@ figures <- function(){
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-          
-          
+
+
           main_plots_bottom <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
         }
       }
@@ -4706,22 +4744,25 @@ figures <- function(){
           annotate("text",x=7.5/8,y=1.05,label="Neither",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
           theme(axis.text.x=element_text(size=x_axis_text_size))+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
-        
+
         legend_bar <- plot_grid(ggplot()+theme_nothing()+
                                   annotate("text",x=0.5,y=1,label=""),
                                 legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
       }
     }
-    
-    figure_s8 <- 
-      plot_grid(main_plots_top,
-                main_plots_bottom,
-                ggplot()+theme_nothing(),
-                legend_bar,
-                ncol=1,
-                rel_heights = c(1+length(unique(data$pub_year)),1+length(unique(data$pub_year)),0.4,2.5))
+
+    figure_s8 <- bundle_ggplot(
+      plot = plot_grid(main_plots_top,
+                       main_plots_bottom,
+                       ggplot()+theme_nothing(),
+                       legend_bar,
+                       ncol=1,
+                       rel_heights = c(1+length(unique(data$pub_year)),1+length(unique(data$pub_year)),0.4,2.5)),
+      width = 6000,height = 5000,units = "px",bg="white"
+    )
+      
   }
-  
+
   # Figure S9. Outcome reproducibility by discipline
   {
     # Data with attempteds in
@@ -4739,24 +4780,24 @@ figures <- function(){
       repro_outcomes.trimmed <-  repro_outcomes %>%
         filter(repro_version_of_record=="T") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
-      
-      data <- merge(data,repro_outcomes.trimmed,  
+
+      data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
-      
+
       #data <- data[data$repro_outcome_overall!="none",]
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       data$cat <- ifelse(is.na(data$repro_outcome_overall_consolidated),
                          "Not\nAttempted",
                          as.character(data$repro_outcome_overall_consolidated))
-      
+
       data$cat <- ordered(data$cat,
                           labels=c(levels(data$repro_outcome_overall_consolidated),
                                    "Not\nAttempted"),
@@ -4767,9 +4808,9 @@ figures <- function(){
       # data$group <- ordered(data$COS_pub_category,
       #                       levels=fields.raw,
       #                       labels=fields.abbreviated)
-      
-      exp_fields <- paper_metadata %>% 
-        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+
+      exp_fields <- paper_metadata %>%
+        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>%
         mutate(
           field = case_when(
             str_detect(pub, "financ|Financ") ~ "finance",
@@ -4780,77 +4821,77 @@ figures <- function(){
           )
         )
       exp_fields$field <- str_to_title(exp_fields$field)
-      
+
       data <- merge(data,exp_fields[c("paper_id","field")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
       group_order <- sort(unique(exp_fields$field))
       data$group <- ordered(data$field,
                             levels=sort(unique(exp_fields$field)),
                             labels=sort(unique(exp_fields$field)))
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep(" Attempted",3),"Not attempted ")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Trim data for speed
       data <- data %>% select(pub_year,cat,group,weight)
     }
-    
+
     # Data with the attempteds out
     {
       data.trimmed <- data[data$cat!=as.character(data$cat[length(levels(data$cat))]),]
       data.trimmed$cat <- ordered(data.trimmed$cat,
                                   labels=levels(repro_outcomes$repro_outcome_overall_consolidated),
                                   levels=levels(repro_outcomes$repro_outcome_overall_consolidated))
-      
+
       # Define nesting structure
       cat <- levels(data.trimmed$cat)
       nesting.structure.trimmed <- data.frame(cat)
-      
+
       nesting.structure.trimmed$cat2 <- nesting.structure.trimmed$cat
       nesting.structure.trimmed$cat3 <- nesting.structure.trimmed$cat
-      
+
       nesting.structure.trimmed$cat <- ordered(nesting.structure.trimmed$cat)
       nesting.structure.trimmed$cat2 <- ordered(nesting.structure.trimmed$cat2)
       nesting.structure.trimmed$cat3 <- ordered(nesting.structure.trimmed$cat3)
-      
+
       # data.trimmed <- data.trimmed %>%
       #   group_by(paper_id) %>%
       #   mutate(weight=1/n())
-      
+
       # Trim data for speed
       #data.trimmed <- data.trimmed %>% select(field,pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(1.2,1.2,3.2,1)
       n_bins_max <- 150
@@ -4858,40 +4899,40 @@ figures <- function(){
       x_axis_text_size <- 12
       legend_text_size <- 6
     }
-    
+
     # Plots
     {
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         data.group <- data %>%
           filter(group==group_order[x]) #%>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         data.trimmed.group <- data.trimmed %>%
           filter(group==group_order[x]) #%>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         data.largecat.group <- data.largecat %>%
           filter(group==group_order[x])# %>%
         # group_by(paper_id) %>%
         # mutate(weight=1/n())
-        
+
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
                                             display_axis = FALSE)$plot+
           xlim(bars_range)
-        
+
         rounded.bars.largecat <- rounded.bars(data.largecat.group,nesting.structure.largecat,
                                               weightvar="weight",
                                               chart.palette = chart.palette.largecat,
                                               display_axis = FALSE)$plot
-        
+
         snakebins_plot <- snakebins(data.group,nesting.structure,
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
@@ -4902,27 +4943,27 @@ figures <- function(){
       # Blank / right axis
       {
         group_label <- ggplot()+theme_nothing()
-        
+
         rounded.bars.cutoff <- ggplot()+theme_nothing()
-        
+
         rounded.bars.largecat <- ggplot()+theme_nothing()
-        
+
         snakebins_plot <- snakebins(data[data$group==group_order[1],],nesting.structure,
                                     chart.palette = "white",
                                     n_bins_max=n_bins_max,
                                     axis_only = TRUE,
                                     collapsevar="paper_id")$plot+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
           annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
-        
+
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
@@ -4936,7 +4977,7 @@ figures <- function(){
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")+
           geom_text(data=cats_rects,aes(x=c(0,0.5,1),y=c(1.35,0.5,-.35),label=c("","","")),
                     hjust=c(0,0.5,1),vjust=c(1,0.5,0))
-        
+
         cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                    weightvar="weight",
                                    chart.palette = chart.palette.largecat,
@@ -4950,11 +4991,11 @@ figures <- function(){
                     color=c("black","black"),size=legend_text_size,fontface="bold",
                     hjust=c(0,1),vjust=c(1,0))
         snakebins_plot <- ggplot()+theme_nothing()
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,ncol=4,rel_widths = col_widths,align="v")
       }
-      
+
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
@@ -4964,33 +5005,35 @@ figures <- function(){
                                             axis_only = TRUE,)$plot+
           scale_x_continuous(limits=bars_range,labels=scales::percent_format())+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
-        
+
+
         rounded.bars.largecat <- rounded.bars(data.largecat,nesting.structure.largecat,
                                               chart.palette = rep("white",length(chart.palette.largecat)),
                                               axis_only = TRUE)$plot+
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))+
           theme(axis.text.x=element_text(size=x_axis_text_size))
-        
+
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE,
                                     collapsevar="paper_id")$plot+
           xlim(0,n_bins_max)
-        
-        plotlist[[length(plotlist)+1]] <- 
+
+        plotlist[[length(plotlist)+1]] <-
           plot_grid(group_label,rounded.bars.largecat,rounded.bars.cutoff,snakebins_plot,
                     ncol=4,rel_widths = col_widths,align="v")
       }
     }
     # Display plots
-    figure_s9 <- 
-      plot_grid(plotlist=plotlist,ncol=1,align = "v",
-                rel_heights = c(rep(1,length(plotlist)-3),0.5,3,0.5))
-    
+    figure_s9 <- bundle_ggplot(
+      plot = plot_grid(plotlist=plotlist,ncol=1,align = "v",
+                       rel_heights = c(rep(1,length(plotlist)-3),0.5,3,0.5)),
+      width = 6000,height = 2000,units = "px",bg="white"
+    )
+      
+
   }
-  
   # Figure S10. Outcome reproducibility by 12 subfields and by year
   {
     # Data manipulation
@@ -5013,10 +5056,10 @@ figures <- function(){
         select(c("claim_id","repro_outcome_overall"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
-      
+
       data <- merge(data,paper_metadata[c("paper_id","pub_year","COS_pub_category","is_covid")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
-      
+
       data<-data[data$is_covid==FALSE,]
       data$is_covid <- NULL
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
@@ -5027,9 +5070,9 @@ figures <- function(){
         group_by(paper_id) %>%
         # mutate(weight=1/n())
         mutate(weight=1)
-      
-      exp_fields <- paper_metadata %>% 
-        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>% 
+
+      exp_fields <- paper_metadata %>%
+        select(paper_id, pub = publication_standard, field = COS_pub_expanded) %>%
         mutate(
           field = case_when(
             str_detect(pub, "financ|Financ") ~ "finance",
@@ -5040,26 +5083,26 @@ figures <- function(){
           )
         )
       exp_fields$field <- str_to_title(exp_fields$field)
-      
+
       data <- merge(data,exp_fields[c("paper_id","field")],
                     by="paper_id",all.x =TRUE,all.y=FALSE)
       field_order <- sort(unique(exp_fields$field))
-      
+
       data$field <- ordered(data$field,
                             levels=sort(unique(exp_fields$field)),
                             labels=sort(unique(exp_fields$field)))
-      
-      
+
+
       # Assign group
       group_order <- seq(min(data$pub_year),max(data$pub_year,1))
       data$group <- ordered(data$pub_year,levels=group_order,labels=group_order)
-      
+
       data$repro_outcome_overall <- ifelse(is.na(data$repro_outcome_overall),
                                            "not attempted",
                                            data$repro_outcome_overall)
-      
+
       data$repro_outcome_overall <- str_to_title(data$repro_outcome_overall)
-      
+
       data$cat <- ordered(data$repro_outcome_overall,
                           labels=c( "Precisely\nReproduced",
                                     "Precisely\nReproduced",
@@ -5071,47 +5114,47 @@ figures <- function(){
                                     "Approximate",
                                     "Not",
                                     "Not Attempted"))
-      
+
       data <- data %>%
         group_by(paper_id) %>%
         mutate(weight=1/n())
-      
+
       # Define nesting structure
       cat <- levels(data$cat)
       nesting.structure <- data.frame(cat)
-      
+
       nesting.structure$cat2 <- nesting.structure$cat
       nesting.structure$cat3 <- nesting.structure$cat
-      
+
       nesting.structure$cat <- ordered(nesting.structure$cat)
       nesting.structure$cat2 <- ordered(nesting.structure$cat2)
       nesting.structure$cat3 <- ordered(nesting.structure$cat3)
-      
-      
+
+
       data.largecat <- data
       levels(data.largecat$cat) <- c(rep("Attempted",4),"Not attempted")
       cat <- levels(data.largecat$cat)
       nesting.structure.largecat <- data.frame(cat)
-      
+
       nesting.structure.largecat$cat2 <- nesting.structure.largecat$cat
       nesting.structure.largecat$cat3 <- nesting.structure.largecat$cat
-      
+
       nesting.structure.largecat$cat <- ordered(nesting.structure.largecat$cat)
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
-      
+
       #chart.palette.largecat <- c(palette_score_charts[6],chart.palette[5])
-      
+
       # Trim data for speed
       data <- data %>% select(field,pub_year,cat,group,weight)
     }
-    
+
     # Aesthetic setup
     {
       chart.palette <- palette_outcome_repro_charts
-      
+
       chart.palette.largecat <- palette_outcome_repro_charts_attempts
-      
+
       bars_range <- c(0,1)
       col_widths <- c(.4,1.2,4,1)
       y_axis_text_size <- 6
@@ -5119,7 +5162,7 @@ figures <- function(){
       legend_text_size <- 6
       fields_text_size <- 8
     }
-    
+
     # Plots
     {
       # Main plots top half
@@ -5128,14 +5171,14 @@ figures <- function(){
         {
           plotlist_field <- lapply(levels(data$field)[1:6],function(field) {
             data_field <- data[data$field==field,]
-            
+
             plotlist <- lapply(1:length(group_order),function(x) {
               data.field.group <- data_field %>%
                 filter(group==group_order[x]) %>%
                 group_by(paper_id) %>%
                 #mutate(weight=1/n())
                 mutate(weight=1)
-              
+
               cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                          weightvar="weight",
                                          chart.palette = chart.palette,
@@ -5153,11 +5196,11 @@ figures <- function(){
                 xlim(bars_range)
               rounded.bars.cutoff
             })
-            
+
             plotlist <- append(list(ggplot() + theme_nothing()+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
-            
+
             plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
           })
           plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
@@ -5172,9 +5215,9 @@ figures <- function(){
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-          
+
         }
-        
+
         main_plots_top <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
       }
       # Main plots bottom half
@@ -5183,14 +5226,14 @@ figures <- function(){
         {
           plotlist_field <- lapply(levels(data$field)[7:12],function(field) {
             data_field <- data[data$field==field,]
-            
+
             plotlist <- lapply(1:length(group_order),function(x) {
               data.field.group <- data_field %>%
                 filter(group==group_order[x]) %>%
                 group_by(paper_id) %>%
                 #mutate(weight=1/n())
                 mutate(weight=1)
-              
+
               cats_rects <- rounded.bars(data.field.group,nesting.structure,
                                          weightvar="weight",
                                          chart.palette = chart.palette,
@@ -5208,11 +5251,11 @@ figures <- function(){
                 xlim(bars_range)
               rounded.bars.cutoff
             })
-            
+
             plotlist <- append(list(ggplot() + theme_nothing()+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
-            
+
             plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
           })
           plots_field <- plot_grid(plotlist=plotlist_field,nrow=1)
@@ -5227,9 +5270,9 @@ figures <- function(){
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
-          
+
         }
-        
+
         main_plots_bottom <- plot_grid(year_labels,plots_field,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
       }
       # Legend
@@ -5248,11 +5291,14 @@ figures <- function(){
                                 annotate("text",x=0.5,y=1,label=""),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
     }
-    figure_s10 <- 
-      plot_grid(main_plots_top,main_plots_bottom,legend_bar,ncol=1,
-                rel_heights = c(1+length(unique(data$pub_year)),1+length(unique(data$pub_year)),1.8))
+    figure_s10 <- bundle_ggplot(
+      plot=plot_grid(main_plots_top,main_plots_bottom,legend_bar,ncol=1,
+                     rel_heights = c(1+length(unique(data$pub_year)),1+length(unique(data$pub_year)),1.8)),
+      width = 6000,height = 5000,units = "px",bg="white"
+    )
+      
   }
-  
+
   # Export
   {
     return(list(

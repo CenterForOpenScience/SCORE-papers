@@ -1,7 +1,9 @@
-This folder contains three files:
+This folder contains the following files:
 “tagged stats and figures.R” contains all the main analysis functions
 “analyst data.RData” contains all datasets needed to generate the stats and figures
 “common functions.R” contains helper functions for statistics and figures
+“template manuscript.docx” is the full manuscript file, where all statistics and figures are placeholders to be calculated
+"Analyst package.Rproj" is an R Project file for setting the root directory
  
  The submission contains a version of the manuscript with tagged statistics and text contained in {} brackets.
  
@@ -9,14 +11,21 @@ This folder contains three files:
  
  Preparation:
  1. Extract all files noted above into the same folder
+ 2. (Optional) Open the "Analyst package.Rproj" to ensure all files run from the correct directory
  2. Open the “tagged stats and figures.R” file
  3. Install any R packages needed (packages are current CRAN versions as of Marcy 18, 2025)
  
  Generating tagged statistics and figures:
  1) Run the "tagged stats and figures.R" file to prepare all functions needed
- 2) In the console, generate_all() function ]
- 3) This will load all data and functions needed and generate the full set of statistics and figures into the R environment as two objects: "results_tagged_stats" containing all the statistics contained within the manuscript, and "results_figures" containing all the figures as ggplot objects
- 4) To access those statistics and figures, simply locate them with $, as in results_tagged_stats$n_claims or results_figures$figure_2
+ 2) In the console, knit_manuscript() function
+ 3) This will do as follows:
+   a) Load all data and functions needed
+   b) Generate the full set of statistics and figures into the R environment as two objects:
+      i) "results_placeholder_stats" containing all the statistics contained within the manuscript, and 
+      iii) "results_figures" containing all the figures as ggplot objects
+   c) Search the template manuscript document for placeholders contained in {} brackets
+   d) Replace all placeholders with calculated text and figures (i.e. "knit" the manuscript document) and create/replace the "knitted manuscript.docx" file
+ 4) To access those statistics and figures in the global environment, simply locate them with $, as in results_placeholder_stats$n_claims or results_figures$figure_2
  
  Tested with:
  R version 4.4.2 (2024-10-31)
