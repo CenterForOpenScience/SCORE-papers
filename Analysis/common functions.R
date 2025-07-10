@@ -8,13 +8,13 @@
   # template_docx_file The input .docx file containing the placeholders (in this case text in curly brackets{})
   # template_drive_ID The Google Drive ID of the template document containing the placeholders (in this case text in curly brackets{}). May be either a .docx or a Google Doc.
   # knitted_docx_file The output .docx file that knits together the figures/text/stats from the code
-  # knitted_docx_google_ID The Google Drive ID of the output knit .docx file that will be overwritten on the knit. Note that this must point to an EXISTING .docx on google drive (can be a blank file uploaded for the purpose)
+  # knitted_drive_ID The Google Drive ID of the output knit .docx file that will be overwritten on the knit. Note that this must point to an EXISTING .docx on google drive (can be a blank file uploaded for the purpose)
   # placeholder_object_source (optional) If NA, the code will extract placeholder objects from the current global environment. Alternatively, this can be pointed to an existing .R script to run, runs the code, and will extract the placeholders from that run environment. Finally, this could be a list (as in the output of an envirnment made into a list) and given directly.
   
-  knit_docx <- function(template_docx_file=NA,
-                        template_drive_ID=NA,
+  knit_docx <- function(template_docx_file = NA,
+                        template_drive_ID = NA,
                         knitted_docx_file = NA,
-                        knitted_docx_google_ID=NA,
+                        knitted_drive_ID = NA,
                         placeholder_object_source = NA ){
     # Libraries
     library(officer)
@@ -22,7 +22,7 @@
     library(pandoc)
     
     # Authorize google docs if needed
-    if(!is.na(template_drive_ID) | !is.na(knitted_docx_google_ID)) {
+    if(!is.na(template_drive_ID) | !is.na(knitted_drive_ID)) {
       library(googledrive)
       drive_auth()
     }
@@ -31,7 +31,7 @@
     if (is.na(template_docx_file) & is.na(template_drive_ID)) {
       errorCondition("You must specify a path or google drive ID for the template doc.")
     }
-    if (is.na(knitted_docx_file) & is.na(knitted_docx_google_ID)) {
+    if (is.na(knitted_docx_file) & is.na(knitted_drive_ID)) {
       errorCondition("You must specify a path or google drive ID for the knitted doc.")
     }
     
@@ -39,7 +39,7 @@
     if (!is.na(template_docx_file) & !is.na(template_drive_ID)) {
       errorCondition("You must choose either a path or google drive ID for the template doc, not both.")
     }
-    if (!is.na(knitted_docx_file) & !is.na(knitted_docx_google_ID)) {
+    if (!is.na(knitted_docx_file) & !is.na(knitted_drive_ID)) {
       errorCondition("You must specify either a path or google drive ID for the knitted doc, not both.")
     }
     
@@ -73,12 +73,15 @@
     docx_out <- tempfile(fileext = ".docx")
     if (!is.na(template_drive_ID)) {
       drive_file_name <- drive_get(as_id(template_drive_ID))$name
-      if (substr(drive_file_name, nchar(drive_file_name)-4, nchar(drive_file_name))==".docx"){
-        pandoc::pandoc_convert(file = docx_out, from="docx", to = "docx",output=docx_out)
-        
-      } else {native.docx <- FALSE}
       drive_download(file=as_id(template_drive_ID), path = docx_out)
+      if (substr(drive_file_name, nchar(drive_file_name)-4, nchar(drive_file_name))==".docx"){
+
+        pandoc::pandoc_convert(file = docx_out, from="docx", to = "docx",output=docx_out)
+      }
     } else {
+      # Get styles before conversion (which loses them)
+      doc <- read_docx(path = template_docx_file)
+      styles <- styles_info(doc)
       pandoc::pandoc_convert(file = template_docx_file, from="docx", to = "docx",output=docx_out)
     }
 
@@ -139,16 +142,19 @@
                               width=generated_objects[[figure_name]]$width,
                               unit=generated_objects[[figure_name]]$units)
         }
-        
       }
     }
     
     # Export knitted doc
-    if (!is.na(knitted_docx_file)) { print(doc, target=knitted_docx_file)}
-    if (!is.na(knitted_docx_google_ID)) {
+    if (!is.na(knitted_docx_file)) {
+      print("Saving knitted document locally")
+      print(doc, target=knitted_docx_file)
+      }
+    if (!is.na(knitted_drive_ID)) {
+      print("Uploading knitted doc to Google Drive")
       temp_for_upload <- tempfile(fileext = ".docx")
       print(doc, target=temp_for_upload)
-      drive_update(media=temp_for_upload,file=as_id(knitted_docx_google_ID))
+      drive_update(media=temp_for_upload,file=as_id(knitted_drive_ID))
     }
   }
   
