@@ -131,7 +131,7 @@
       if (cursor_reach_test(doc, paste0("\\{",figure_name,"\\}"))){
         doc <- cursor_begin(doc)
         doc <- cursor_reach(doc, paste0("\\{",figure_name,"\\}"))
-        if(generated_objects[[figure_name]]$scaling=="autowidth"){
+        if(generated_objects[[figure_name]]$scaling=="autoheight"){
           doc <- body_add_img(x = doc, src = png_out,pos="on",
                               height=6.5*generated_objects[[figure_name]]$height/generated_objects[[figure_name]]$width,
                               width=6.5,
@@ -165,7 +165,7 @@
   # Numerical width of the ggplot # needed to insert into documents
   # Numerical height of the ggplot # needed to insert into documents
   # The units the height and width are in (defaults to "in")
-  bundle_ggplot <- function(plot,width=6.5,height=4,units="in",bg="white",scaling="autowidth"){
+  bundle_ggplot <- function(plot,width=6.5,height=4,units="in",bg="white",scaling="autoheight"){
     structure(list(plot=plot,
                    height=height,
                    width=width,
@@ -195,6 +195,20 @@
       bg = NULL
     )
     rstudioapi::viewer(file)
+  }
+  
+  export_bundled_ggplot <- function(bundled_ggplot,file,device="png"){
+    ggplot2::ggsave(
+      file,
+      plot = bundled_ggplot$plot,
+      device = device,
+      scale = 1,
+      width = bundled_ggplot$width,
+      height = bundled_ggplot$height,
+      units = bundled_ggplot$unit,
+      limitsize = TRUE,
+      bg = NULL
+    )
   }
 }
 
@@ -612,7 +626,7 @@
             tryCatch(FUN(data.clust),finally=NA)
         },simplify=TRUE)
       } else if (parallel==TRUE & progressbar==FALSE) {
-        library(parallel)
+        #library(parallel)
         
         estimates.bootstrapped <- do.call(c,mclapply(1:iters,FUN=function(i){
           # Generate sample of clusters to include
@@ -636,7 +650,7 @@
           tryCatch(FUN(data.clust),finally=NA)
         },simplify=TRUE,cl=detectCores()-1)
       } else if (parallel==TRUE & progressbar==TRUE) {
-        library(parallel)
+        #library(parallel)
         library(pbapply)
         
         estimates.bootstrapped <- do.call(c,pblapply(1:iters,FUN=function(i){

@@ -12,6 +12,10 @@
   run_knit <- TRUE
   knit_from <- "local" # sets source of the template doc from "google drive" or "local"
   knit_to <- "local" # sets source of the knitted doc from "google drive" or "local"
+  
+  
+  save_figures <- FALSE
+  folder_figures <- paste0("Analysis/Paper 3/Figures/")
 }
 
 # Initial setup and libraries
@@ -101,12 +105,18 @@ if(run_knit==TRUE){
       knitted_drive_ID = NA)
   }
   
+  if (save_figures == TRUE){
+    library(Cairo)
+    setwd(paste0(here(),"/",folder_figures))
+    
+    export_bundled_ggplot(results_figures$figure_1,"test fig export.pdf",device = cairo_pdf)
+    
+    for (figure in names(results_figures)){
+      export_bundled_ggplot(results_figures[[figure]],paste0(figure,".tiff"),device = "tiff")
+    }
+    
+  }
+  
+  
 }
 
-if (FALSE){
-  library(officer)
-  setwd(here())
-  setwd(folder_analyst_package)
-  doc <- read_docx(path = template_docx_file_internal)
-  print(doc, target=knitted_docx_file_internal)
-}
