@@ -3,15 +3,21 @@
   folder_main_code <- paste0("Analysis/Paper 3/")
   folder_analyst_package <- paste0(folder_main_code,"Analyst package/")
   
-  template_drive_ID_internal <- "1DPRhiyjQac_HG-aZcRa9cpYkL2GQCodP"
+  template_drive_ID_internal <- "18U3ElDrhF5PltX_UP1XIN1e6CK8nkfOzjSDZr2zF6lo"
+  
   #knitted_drive_ID_internal <- "1W0tVAXFgTbdjeB5wN2yBgp85XCBCHfpG"
   
-  template_docx_file_internal <- "template manuscript.docx"
+  #template_docx_file_internal <- "template manuscript.docx"
   knitted_docx_file_internal <- "knitted manuscript.docx"
   
   run_knit <- TRUE
   knit_from <- "local" # sets source of the template doc from "google drive" or "local"
   knit_to <- "local" # sets source of the knitted doc from "google drive" or "local"
+  
+  objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes",
+                       "paper_metadata","status","stitched_claims",
+                       "all_rr_attempts","publications","extracted_claims",
+                       "repro_export","repro_journal_policies")
   
   
   save_figures <- FALSE
@@ -31,10 +37,7 @@
 
 # Load full sets of datasets from the targets framework and save into analyst folder
 {
-  objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes",
-                       "paper_metadata","status","stitched_claims",
-                       "all_rr_attempts","publications","extracted_claims",
-                       "repro_export")
+  
   for(i in 1:length(objects_to_load)){
     assign(objects_to_load[i],readRDS(paste0("_targets/objects/",objects_to_load[i])))
   }
@@ -106,17 +109,14 @@ if(run_knit==TRUE){
   }
   
   if (save_figures == TRUE){
-    library(Cairo)
+    #library(Cairo)
     setwd(paste0(here(),"/",folder_figures))
     
-    export_bundled_ggplot(results_figures$figure_1,"test fig export.pdf",device = cairo_pdf)
-    
     for (figure in names(results_figures)){
-      export_bundled_ggplot(results_figures[[figure]],paste0(figure,".tiff"),device = "tiff")
+      export_bundled_ggplot(results_figures[[figure]],paste0(figure,".svg"),device = "svg")
     }
     
   }
-  
   
 }
 

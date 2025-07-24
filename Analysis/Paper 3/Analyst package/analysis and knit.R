@@ -39,6 +39,8 @@ placeholder_stats <- function(iters=100){
   options(tidyverse.quiet = TRUE)
   # Load libraries
   {
+    library(officer)
+    library(pandoc)
     library(dplyr)
     library(ggplot2)
     library(ggExtra)
