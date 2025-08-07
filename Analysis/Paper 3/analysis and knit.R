@@ -1,12 +1,15 @@
 # Run knit_manuscript() to
-# 1) Generate all polaceholder stats and figures and knit them
-# together into a Microsfot 
+# 1) Generate all placeholder stats
+# 2) Generate all placeholder figures
+# 3) Read the template MS Word doc
+# 4) Replace all placeholder stats and figures and knit them together into a
+# knitted Microsoft Word document
 
 # The resulting objects (results_tagged_stats and results_figures) contain
 # listed outputs for all analysis tags contained within the publication,
 # accessed with $ (e.g. results_figures$figure_1)
 
-# Note: packages are current CRAN versions as of March 18, 2025
+# Note: packages are current CRAN versions as of Jul 10, 2025
 
 knit_manuscript <- function(template_docx_file="template manuscript.docx",
                             template_drive_ID=NA,
@@ -36,6 +39,8 @@ placeholder_stats <- function(iters=100){
   options(tidyverse.quiet = TRUE)
   # Load libraries
   {
+    library(officer)
+    library(pandoc)
     library(dplyr)
     library(ggplot2)
     library(ggExtra)
