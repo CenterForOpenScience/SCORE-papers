@@ -82,11 +82,17 @@ convert_to_cosr <- function(data, key_id) {
                                   get({{ df1 }}),
                                   get({{ df2 }})))
   
+  # This should be empty for replications, but keeping it for transparency 
   lor_table <- data %>%
-    filter(!is.na(lor_conversion)) %>%
-    rowwise() %>%
-    mutate(convert_r = lor_to_r(get({{ coef_value }}),
-                                get({{ coef_se }})))
+    filter(!is.na(lor_conversion))
+  
+  if(nrow(lor_table) != 0) {
+    lor_table <- lor_table %>%
+      rowwise() %>%
+      mutate(convert_r = lor_to_r(get({{ coef_value }}),
+                                  get({{ coef_se }})))
+  }
+
   
   rbind(t_table, 
         F_table, 
