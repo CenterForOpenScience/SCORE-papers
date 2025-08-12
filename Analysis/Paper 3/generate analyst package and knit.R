@@ -7,7 +7,7 @@
   
   #knitted_drive_ID_internal <- "1W0tVAXFgTbdjeB5wN2yBgp85XCBCHfpG"
   
-  #template_docx_file_internal <- "template manuscript.docx"
+  template_docx_file_internal <- "template manuscript.docx"
   knitted_docx_file_internal <- "knitted manuscript.docx"
   
   run_knit <- TRUE

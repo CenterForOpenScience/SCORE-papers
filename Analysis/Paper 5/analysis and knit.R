@@ -465,18 +465,20 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             mutate(weight = 1/n()) %>%
             ungroup()
           
-          c2.median <- weighted.median(data_repli_orig$orig_conv_r,data_repli_orig$weight)
-          c2.SD <- sqrt(wtd.var(data_repli_orig$orig_conv_r,data_repli_orig$weight))
-          c2 <- paste0(format.round(c2.median,2)," (",format.round(c2.SD,2),")")
+          c2 <- sum(data_repli_orig$weight)
           
-          c3.median <- weighted.median(data_repli_orig$repli_conv_r,data_repli_orig$weight)
-          c3.SD <- sqrt(wtd.var(data_repli_orig$repli_conv_r,data_repli_orig$weight))
+          c3.median <- weighted.median(data_repli_orig$orig_conv_r,data_repli_orig$weight)
+          c3.SD <- sqrt(wtd.var(data_repli_orig$orig_conv_r,data_repli_orig$weight))
           c3 <- paste0(format.round(c3.median,2)," (",format.round(c3.SD,2),")")
           
-          data.frame(field,c1,c2,c3)
+          c4.median <- weighted.median(data_repli_orig$repli_conv_r,data_repli_orig$weight)
+          c4.SD <- sqrt(wtd.var(data_repli_orig$repli_conv_r,data_repli_orig$weight))
+          c4 <- paste0(format.round(c4.median,2)," (",format.round(c4.SD,2),")")
+          
+          data.frame(field,c1,c2,c3,c4)
         }))
         
-        table_3 <- table_3[c("c1","c2","c3")]
+        table_3 <- table_3[c("c1","c2","c3","c4")]
 
         for (row in 1:nrow(table_3)){
           for (col in 1:ncol(table_3)){
@@ -484,7 +486,21 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                    table_3[row,col])
           }
         }
+        
+        table_3_denoms <- table_3$c2
+        
+        
+        table_3_g20_repli_rate_max <- str_replace_all(
+          str_extract(table_3[table_3_denoms>20,]$c1,"\\(([^()]*)\\)"),
+          "[(%)]", "") %>%
+          as.numeric() %>% max()
+        table_3_g20_repli_rate_min <- str_replace_all(
+          str_extract(table_3[table_3_denoms>20,]$c1, "\\(([^()]*)\\)"), 
+          "[(%)]", "") %>%
+          as.numeric() %>% min()
+        
         rm(orig_effects,repli_effects,effects_combined)
+        
       }
       
       # Table 4
@@ -524,6 +540,7 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         r1.p <- r1.numerator/r1.denom
         r1.p.formatted <- paste0(format.round(100*r1.p,1),"%")
         r1 <- paste0(r1.numerator.formatted," / ",r1.denom.formatted,"\n(",r1.p.formatted,")")
+        
         
         r2.data <- effects_combined[effects_combined$repli_type=="secondary data",]
         r2.numerator <- c(length(unique(r2.data$paper_id)),sum(r2.data$success*r2.data$weight),nrow(r2.data),sum(r2.data$success))
@@ -2155,7 +2172,7 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           filter(is_manylabs == "traditional") %>% 
           group_by(rr_id) %>% 
           arrange(desc(repli_sample_size_value)) %>% 
-          slice(1) %>% 
+          dplyr::slice(1) %>% 
           ungroup() %>% 
           group_by(paper_id) %>% 
           arrange(paper_id, desc(manylabs_type)) %>% 
@@ -2193,7 +2210,7 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           filter(is_manylabs == "posthoc") %>% 
           group_by(rr_id) %>% 
           arrange(desc(repli_sample_size_value)) %>% 
-          slice(1) %>% 
+          dplyr::slice(1) %>% 
           ungroup() %>% 
           group_by(paper_id) %>% 
           arrange(paper_id, desc(manylabs_type)) %>% 
@@ -3186,7 +3203,7 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         filter(manylabs_type != "aggregation") %>%
         group_by(claim_id, rr_id) %>%
         arrange(desc(repli_sample_size_value)) %>%
-        slice(1) %>%
+        dplyr::slice(1) %>%
         ungroup() %>%
         bind_rows(
           repli_outcomes %>%
@@ -4266,7 +4283,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
   
   # Supplement figures
   {
-    # Figure S1
+    # Figure S2
     {
       plot <- 
         repli_outcomes_orig %>% 
@@ -4274,7 +4291,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         filter(is_manylabs == "not manylabs" | manylabs_type != "aggregation") %>% 
         group_by(claim_id, rr_id) %>% 
         arrange(desc(repli_sample_size_value)) %>% # exclude stage 1 when stage 2 is available
-        slice(1) %>% 
+        dplyr::slice(1) %>% 
         ungroup() %>% 
         mutate(p2 = nchar(rr_id) > 4) %>%
         mutate(type = select(., c(p2, repli_type)) %>% apply(1, function(x) str_c(x, collapse = "_"))) %>% 
@@ -4296,12 +4313,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      figure_s1 <- bundle_ggplot(
+      figure_s2 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S2
+    # Figure S3
     {
       from_ser <- ser_power %>% 
         rename(r_threshold = threshold, r_s1 = s1, r_s2 = s2) %>% 
@@ -4342,7 +4359,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       
       # narrow to < 15000
       # n = 191, unique claims = 92
-      figure_s2_p1 <- from_ser %>% 
+      figure_s3_p1 <- from_ser %>% 
         bind_rows(from_traditional) %>% 
         filter(r < 15000 & ser < 15000) %>% 
         ggplot(aes(x = r, y = ser, color = category)) +
@@ -4383,7 +4400,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       
       
       # narrow to < 5000
-      figure_s2_p2 <- from_ser %>% 
+      figure_s3_p2 <- from_ser %>% 
         bind_rows(from_traditional) %>% 
         filter(r < 5000 & ser < 5000) %>% 
         ggplot(aes(x = r, y = ser, color = category)) +
@@ -4412,14 +4429,14 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      plot <- plot_grid(figure_s2_p1,figure_s2_p2,ncol=1)
+      plot <- plot_grid(figure_s3_p1,figure_s3_p2,ncol=1)
       
-      figure_s2 <- bundle_ggplot(
+      figure_s3 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S3
+    # Figure S4
     {
       plot <- repli_outcomes_orig %>% 
         filter(!is_covid & repli_version_of_record) %>% 
@@ -4463,12 +4480,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      figure_s3 <- bundle_ggplot(
+      figure_s4 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S4
+    # Figure S5
     {
       plot <- full_dates %>% 
         mutate(
@@ -4500,13 +4517,13 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      figure_s4 <- bundle_ggplot(
+      figure_s5 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
       
     }
     
-    # Figure S5
+    # Figure S6
     {
       all_sourced <- rr_sourced %>% 
         semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
@@ -4578,12 +4595,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      figure_s5 <- bundle_ggplot(
+      figure_s6 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S6
+    # Figure S7
     {
       all_sourced <- rr_sourced %>% 
         semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
@@ -4646,12 +4663,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      figure_s6 <- bundle_ggplot(
+      figure_s7 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S7
+    # Figure S8
     {
       all_sourced <- rr_sourced %>% 
         semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
@@ -4723,12 +4740,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                                    reverse = T,
                                    direction="horizontal"))
       
-      figure_s7 <- bundle_ggplot(
+      figure_s8 <- bundle_ggplot(
         plot = plot,
         width = 4000,height = 4000,units = "px",bg="white")
     }
     
-    # Figure S8
+    # Figure S9
     {
       plot <- never_sourced %>% 
         left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id") %>% 
@@ -4770,12 +4787,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.position = "bottom"
         )
       
-      figure_s8 <- bundle_ggplot(
+      figure_s9 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S9
+    # Figure S10
     {
       plot <- never_sourced %>% 
         left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id") %>% 
@@ -4827,12 +4844,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           legend.text = element_text(size = 11),
           legend.position = "bottom"
         )
-      figure_s9 <- bundle_ggplot(
+      figure_s10 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S10
+    # Figure S11
     {
       # Data wrangling
       {
@@ -4930,14 +4947,14 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         
         plot <- plot_grid(top,bottom,ncol=1,rel_heights = c(5,1),align = "v")
         
-        figure_s10 <- bundle_ggplot(
+        figure_s11 <- bundle_ggplot(
           plot = plot,
           width = 2000,height = 2000,units = "px",bg="white")
       }
       
     }
     
-    # Figure S11
+    # Figure S12
     {
       plot <- repli_outcomes_orig %>% 
         filter(!is_covid & repli_version_of_record) %>% 
@@ -4985,12 +5002,12 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           strip.text = element_text(color = "black")
         )
       
-      figure_s11 <- bundle_ggplot(
+      figure_s12 <- bundle_ggplot(
         plot = plot,
         width = 2000,height = 2000,units = "px",bg="white")
     }
     
-    # Figure S12
+    # Figure S13
     {
       # Data wrangling
       {
@@ -5051,7 +5068,6 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         
       # Chart generation
       {
-        
         plot <- ggplot(binary.proportions, aes(x=reorder(binary.var, -p_passed_claims),y=p_passed_claims)) + 
           geom_bar(stat="identity",fill="grey90") +
           geom_text(aes(x=num.claims,y=0.02,label=n.text.claims),hjust=0,size=3)+
@@ -5076,16 +5092,68 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           xlab("Binary assessments")+
           ylab("Percentage of claims replicated successfully")
         
-        figure_s12 <- bundle_ggplot(
+        figure_s13 <- bundle_ggplot(
           plot = plot,
           width = 3000,height = 1000,units = "px",bg="white")
       }
-      }
+    }
+    
+    # Figure S14
+    {
+      p <- ggplot(llm_method_data, aes(reorder(llm_category2, -llm_score), llm_score, fill = llm_score)) +
+        #scale_fill_viridis_c(option = "viridis", begin = 0.0, end = 0.9) +
+        geom_bar(stat = "identity", position = position_dodge(width = 0.55), alpha = 1,fill=palette_score_charts[1]) +
+        geom_errorbar(aes(ymin = llm_score_lb, ymax = llm_score_ub), width = 0.2, linewidth = 0.4, color = "black", position = position_dodge(width = 0.55)) +
+        scale_y_continuous(breaks = seq(0, 100, 10),expand=c(0,0)) +
+        scale_x_discrete(expand=c(0,0)) +
+        #scale_alpha_manual(values = c(1, 0.4)) +
+        coord_cartesian(ylim = c(0, 100)) +
+        labs(x = "", y = "Papers (%) using method/technique") +
+        theme_light()+
+        theme(
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+          axis.text.y = element_text(size = 12),
+          axis.title.y = element_text(size = 12),
+          legend.position = "none",
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()
+        )
+      
+      figure_s14 <- bundle_ggplot(
+        plot = p,
+        width = 3000,height = 2000,units = "px",bg="white")
+    }
+    
+    # Figure S15
+    {
+      p <- ggplot(llm_theory_data, aes(reorder(llm_category2, -llm_score), llm_score, fill = llm_score)) +
+        #scale_fill_viridis_c(option = "viridis", begin = 0.0, end = 0.9) +
+        geom_bar(stat = "identity", position = position_dodge(width = 0.55), alpha = 1,fill=palette_score_charts[1]) +
+        geom_errorbar(aes(ymin = llm_score_lb, ymax = llm_score_ub), width = 0.2, linewidth = 0.4, color = "black", position = position_dodge(width = 0.55)) +
+        scale_y_continuous(breaks = seq(0, 60, 10),expand=c(0,0)) +
+        scale_x_discrete(expand=c(0,0)) +
+        scale_alpha_manual(values = c(1, 0.4)) +
+        coord_cartesian(ylim = c(0, 60)) +
+        labs(x = "", y = "Papers (%) citing framework/paradigm") +
+        theme_light()+
+        theme(
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+          axis.text.y = element_text(size = 12),
+          axis.title.y = element_text(size = 12),
+          legend.position = "none",
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()
+        )
+      
+      figure_s15 <- bundle_ggplot(
+        plot = p,
+        width = 3000,height = 2000,units = "px",bg="white")
+    }
   }
   
   # Archive
   {
-    # (Depracated) Binary counts
+    # (Deprecated) Binary counts
     if(FALSE){
       # Data wrangling
       {
@@ -5379,7 +5447,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       "figure_2"=figure_2,
       "figure_3"=figure_3,
       "figure_4"=figure_4,
-      "figure_s1"=figure_s1,
+      #"figure_s1"=figure_s1,
       "figure_s2"=figure_s2,
       "figure_s3"=figure_s3,
       "figure_s4"=figure_s4,
@@ -5390,7 +5458,10 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       "figure_s9"=figure_s9,
       "figure_s10"=figure_s10,
       "figure_s11"=figure_s11,
-      "figure_s12"=figure_s12
+      "figure_s12"=figure_s12,
+      "figure_s13"=figure_s13,
+      "figure_s14"=figure_s14,
+      "figure_s15"=figure_s15
       ))
   }
 }
