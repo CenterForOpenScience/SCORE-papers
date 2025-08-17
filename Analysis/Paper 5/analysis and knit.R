@@ -435,6 +435,7 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           ungroup()
 
         table_3 <- do.call(rbind,lapply(fields.order, function(field) {
+          # field <- fields.order[1]
           data <- effects_combined[effects_combined$field==field,]
           
           c1.numerator <- sum(as.numeric(data$success)*data$weight)
@@ -445,6 +446,10 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           c1.p.formatted <- paste0(format.round(100*c1.p,1),"%")
           c1 <- paste0(c1.numerator.formatted," / ",c1.denom.formatted," (",
                        c1.p.formatted,")")
+          
+          c1 <- paste0(c1.numerator.formatted," / ",c1.denom.formatted)
+          
+          c2 <- paste0(c1.p.formatted)
           
           data_orig <- data %>%
             filter(!is.na(orig_conv_r))%>%
@@ -465,7 +470,7 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             mutate(weight = 1/n()) %>%
             ungroup()
           
-          c2 <- sum(data_repli_orig$weight)
+          #c2 <- sum(data_repli_orig$weight)
           
           c3.median <- weighted.median(data_repli_orig$orig_conv_r,data_repli_orig$weight)
           c3.SD <- sqrt(wtd.var(data_repli_orig$orig_conv_r,data_repli_orig$weight))
@@ -487,16 +492,12 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           }
         }
         
-        table_3_denoms <- table_3$c2
+        table_3_denoms <- as.numeric(sub(".* / ", "", table_3$c1))
         
         
-        table_3_g20_repli_rate_max <- str_replace_all(
-          str_extract(table_3[table_3_denoms>20,]$c1,"\\(([^()]*)\\)"),
-          "[(%)]", "") %>%
+        table_3_g20_repli_rate_max <- sub("%.*", "", table_3[table_3_denoms>20,]$c2) %>%
           as.numeric() %>% max()
-        table_3_g20_repli_rate_min <- str_replace_all(
-          str_extract(table_3[table_3_denoms>20,]$c1, "\\(([^()]*)\\)"), 
-          "[(%)]", "") %>%
+        table_3_g20_repli_rate_min <- sub("%.*", "", table_3[table_3_denoms>20,]$c2) %>%
           as.numeric() %>% min()
         
         rm(orig_effects,repli_effects,effects_combined)
@@ -1464,10 +1465,62 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       p_secondary_data_papers_repli_r_smaller <- paste0(format.round(
         100*n_secondary_data_papers_repli_r_smaller/n_secondary_data_papers,1
       ),"%")
-    }
-    
-    # Discussion
-    {
+      
+      all_effects_nd <- repli_outcomes %>% 
+        filter(!is_covid) %>% 
+        filter(repli_version_of_record) %>% 
+        filter(repli_type=="new data") %>% 
+        select(paper_id,report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
+               repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
+        left_join(
+          orig_outcomes %>% 
+            select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
+            distinct(),
+          by = "claim_id"
+        ) %>% 
+        drop_na(repli_conv_r) %>% 
+        drop_na(orig_conv_r) %>% 
+        mutate(across(contains("orig"), abs)) %>% 
+        mutate(
+          across(
+            contains("repli"),
+            function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+          )
+        ) %>%
+        group_by(paper_id) %>%
+        mutate(weight = 1/n()) %>%
+        ungroup()
+      
+      n_claims_repli_nd <- nrow(all_effects_nd)
+      
+      all_effects_sd <- repli_outcomes %>% 
+        filter(!is_covid) %>% 
+        filter(repli_version_of_record) %>% 
+        filter(repli_type=="secondary data") %>% 
+        select(paper_id,report_id, claim_id, repli_pattern_criteria_met, success = repli_score_criteria_met,
+               repli_conv_r, repli_conv_r_lb, repli_conv_r_ub) %>% 
+        left_join(
+          orig_outcomes %>% 
+            select(claim_id, orig_conv_r, orig_conv_r_lb, orig_conv_r_ub) %>% 
+            distinct(),
+          by = "claim_id"
+        ) %>% 
+        drop_na(repli_conv_r) %>% 
+        drop_na(orig_conv_r) %>% 
+        mutate(across(contains("orig"), abs)) %>% 
+        mutate(
+          across(
+            contains("repli"),
+            function(x) ifelse(repli_pattern_criteria_met, abs(x), -1*abs(x))
+          )
+        ) %>%
+        group_by(paper_id) %>%
+        mutate(weight = 1/n()) %>%
+        ungroup()
+      
+      n_claims_repli_sd <- nrow(all_effects_sd)
+      
+     
       
     }
     
@@ -1522,6 +1575,14 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         filter(is_manylabs == "posthoc") %>%
         count(claim_id) %>%
         nrow()
+      
+      p_repli_attempts_selected_p1 <- repli_outcomes %>%
+        mutate(p1 = paper_id %in% (status %>% filter(p1_delivery) %>% pull(paper_id))) %>%
+        count(p1) %>%
+        mutate(prop = (100*(n/sum(n))) %>% round(2)) %>%
+        filter(p1) %>%
+        pull(prop) %>%
+        format.round(1)
         
     }
 
@@ -2033,8 +2094,13 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           c4 <- paste0(format.round(
             100*weighted.median(table.data$rr_power_75_original_effect_design,table.data$weight),1),"%")
           
-          c5 <- median(table.data$orig_sample_size_value)
-          c6 <- median(table.data$repli_sample_size_value)
+          table.data <- repli_outcomes_merged %>%
+            filter(field==field_selected) %>%
+            group_by(paper_id) %>%
+            mutate(weight = 1/n())
+          
+          c5 <- weighted.median(table.data$orig_sample_size_value,table.data$weight)
+          c6 <- weighted.median(table.data$repli_sample_size_value,table.data$weight)
           
           data.frame(c1,c2,c3,c4,c5,c6)
         }))
@@ -3446,11 +3512,11 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         format.text.percent(sum(as.numeric(!is.na(repli_outcomes_p1$repli_p_value) & repli_outcomes_p1$repli_p_value > 0.05)),
                             n_claims)
       
-      table_s7_median_R_papers_neg_ratio <- 
-        paste0(format.round(100*(table_s7_median_4_1-table_s7_median_4_2)/table_s7_median_4_1,1),"%")
+      table_s8_median_R_papers_neg_ratio <- 
+        paste0(format.round(100*(table_s8_median_4_1-table_s8_median_4_2)/table_s8_median_4_1,1),"%")
       
-      table_s7_median_R_claims_neg_ratio <- 
-        paste0(format.round(100*(table_s7_median_4_3-table_s7_median_4_4)/table_s7_median_4_3,1),"%")
+      table_s8_median_R_claims_neg_ratio <- 
+        paste0(format.round(100*(table_s8_median_4_3-table_s8_median_4_4)/table_s8_median_4_3,1),"%")
     }
     
     # Statistical significance and effect size for replications completed from Phase 2 sample
@@ -4956,23 +5022,25 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     
     # Figure S12
     {
-      plot <- repli_outcomes_orig %>% 
-        filter(!is_covid & repli_version_of_record) %>% 
-        select(claim_id, report_id, repli_conv_r, repli_score_criteria_met, repli_pattern_criteria_met) %>% 
-        left_join(orig_outcomes %>% select(claim_id, orig_conv_r), by = "claim_id") %>% 
-        mutate(orig_conv_r = abs(orig_conv_r)) %>% 
-        mutate(repli_conv_r = ifelse(repli_pattern_criteria_met, abs(repli_conv_r), -1*abs(repli_conv_r))) %>% 
-        mutate(diff = repli_conv_r - orig_conv_r) %>% 
-        select(report_id, diff, score = repli_score_criteria_met) %>% 
-        left_join(repli_binary %>% select(c(-claim_id,-paper_id)), by = "report_id") %>% 
-        rename_with(., .fn = function(x) str_remove_all(x, "repli_binary_")) %>% 
-        pivot_longer(cols = -c("report_id", "diff"), names_to = "metric", values_to = "outcome") %>% 
-        mutate(outcome = as.numeric(outcome)) %>% 
-        drop_na() %>% 
+      plot <- repli_outcomes %>%
+        filter(!is_covid & repli_version_of_record) %>%
+        select(claim_id, report_id, repli_conv_r, repli_score_criteria_met, repli_pattern_criteria_met) %>%
+        left_join(orig_outcomes %>% select(claim_id, orig_conv_r), by = "claim_id") %>%
+        mutate(orig_conv_r = abs(orig_conv_r)) %>%
+        mutate(repli_conv_r = ifelse(repli_pattern_criteria_met, abs(repli_conv_r), -1*abs(repli_conv_r))) %>%
+        mutate(diff = repli_conv_r - orig_conv_r) %>%
+        select(report_id, diff, score = repli_score_criteria_met) %>%
+        left_join(repli_binary, by = "report_id") %>%
+        rename_with(., .fn = function(x) str_remove_all(x, "repli_binary_")) %>%
+        # pivot_longer(cols = -c("report_id", "diff"), names_to = "metric", values_to = "outcome") %>%
+        pivot_longer(cols = -c("report_id", "diff","paper_id","claim_id"), names_to = "metric", values_to = "outcome") %>%
+        mutate(outcome = as.numeric(outcome)) %>%
+        drop_na() %>%
         mutate(
           metric = case_match(
             metric,
             "analyst" ~ "Analyst interpretation",
+            "repli_score_criteria_met" ~ "Sig + pattern",
             "score" ~ "Sig + pattern",
             "sum_p" ~ "Sum of p-values",
             "skep_p" ~ "Skeptical p-value",
@@ -4986,7 +5054,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             "bayes_rep" ~ "Replication Bayes factor",
             "correspondence" ~ "Correspondence test",
           )
-        ) %>% 
+        ) %>%
         ggplot(aes(x = diff, y = outcome)) +
         geom_point(alpha = 0.35) +
         scale_y_continuous(breaks = c(0, 1), labels = c("Fail", "Success")) +
@@ -5011,8 +5079,6 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     {
       # Data wrangling
       {
-        # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-        #                                  df.binvars$binvars.raw)]
         
         # Summarize by proportions w/ CIs
         binary.proportions <- 
@@ -5149,295 +5215,6 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         plot = p,
         width = 3000,height = 2000,units = "px",bg="white")
     }
-  }
-  
-  # Archive
-  {
-    # (Deprecated) Binary counts
-    if(FALSE){
-      # Data wrangling
-      {
-        # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-        #                                  df.binvars$binvars.raw)]
-        # # Drop everything that doesn't have all measures
-        # repli_binary <- na.omit(repli_binary)
-        
-        
-        
-        # Get repli binary results
-        repli_binary_rowsums <- repli_binary[,3:ncol(repli_binary)]
-        repli_binary_rowsums <- repli_binary_rowsums[c(binvars.raw)]
-        colnames(repli_binary_rowsums) <- binvars.full.text
-        
-        invisible(lapply(1:ncol(repli_binary_rowsums),function(x) {
-          repli_binary_rowsums[[colnames(repli_binary_rowsums[x])]] <<- as.integer(repli_binary_rowsums[[colnames(repli_binary_rowsums[x])]]) 
-        }))
-        
-        repli_binary_rowsums$binary_sums <- rowSums(repli_binary_rowsums,na.rm = TRUE)
-        
-        # vars.order <- colSums(repli_binary_rowsums,na.rm=TRUE)
-        # vars.order <- vars.order[1:(length(vars.order)-1)]
-        # vars.order <- names(vars.order[order(-vars.order)])
-        
-        vars.order <- as.character(binary.proportions$binary.var) # Pulled from Fig 1
-        
-        repli_binary_rowsums <- repli_binary_rowsums[c(vars.order,"binary_sums")]
-        
-        df.counts <- do.call(rbind,lapply(0:(length(binvars.raw)),function (i) {
-          n <- sum(repli_binary_rowsums$binary_sums==i,na.rm=TRUE)
-          #print(paste0(i,", ",n))
-          
-          repli_binary_rowsums_subset <- repli_binary_rowsums[repli_binary_rowsums$binary_sums==i,]
-          colsums <- t(colSums(repli_binary_rowsums_subset, na.rm=TRUE))
-          df.out <- data.frame("n"=i,"total"=n, t(colSums(repli_binary_rowsums_subset, na.rm=TRUE)))
-          colnames(df.out) <- c("n","total",colnames(colsums))
-          df.out
-          #data.frame(n)
-        }))
-        
-        rownames(df.counts) <- df.counts$n
-        df.counts$n <- df.counts$binary_sums <-  NULL
-        df.counts <- as.data.frame(t(df.counts))
-      }
-      
-      # Plot generation
-      {
-        bar_width <- 0.7
-        chart.palette <- c(palette_score_charts[7],"grey90")
-        
-        
-        bar.ind <- function(i.binvar,i.count){
-          ggplot() + theme_nothing()+
-            funkyheatmap::geom_rounded_rect(aes(xmin = (1-bar_width)/2, xmax = 1-(1-bar_width)/2,
-                                                ymin = 0, ymax = 1-(df.counts[[as.character(i.count)]][i.binvar+1]/df.counts[[as.character(i.count)]][1])),
-                                            fill=chart.palette[1],radius=.1)+
-            funkyheatmap::geom_rounded_rect(aes(xmin = (1-bar_width)/2, xmax = 1-(1-bar_width)/2,
-                                                ymax = 1, ymin = 1-(df.counts[[as.character(i.count)]][i.binvar+1]/df.counts[[as.character(i.count)]][1])),
-                                            fill=chart.palette[2],radius=.1)
-        }
-        rel.label.width <- 0.3
-        
-        bar.row <- function(i.binvar){
-          row.label <- ggplot()+theme_nothing()+
-            annotate("text",x=1,y=0.5,label=rownames(df.counts)[i.binvar+1],hjust=1,vjust=0.5,fontface="bold")+
-            xlim(0,1)+ylim(0,1)
-          
-          
-          plotlist <- lapply(0:(ncol(df.counts)-1),function(i.count) {
-            bar.ind(i.binvar,i.count)
-            
-          })
-          bars <- plot_grid(plotlist = plotlist,nrow=1,align="v")
-          plot_grid(row.label,bars,nrow=1,rel_widths=c(rel.label.width,1))
-        }
-        
-        main.bar.plots <- plot_grid(plotlist= {
-          lapply(1:length(binvars.raw),function(i.binvar) {
-            bar.row(i.binvar)
-          })
-        },nrow=length(binvars.raw))
-        
-        countlabels.row <- function(){
-          row.label <- ggplot()+theme_nothing()+
-            annotate("text",x=1,y=0.5,label="",hjust=1,vjust=0.5)+
-            xlim(0,1)+ylim(0,1)
-          
-          plotlist <- lapply(0:(ncol(df.counts)-1),function(i.count) {
-            ggplot()+theme_nothing()+
-              annotate("text",x=0.5,y=0.5,label=as.character(i.count),hjust=0.5,vjust=0.5,fontface="bold")+
-              xlim(0,1)+ylim(0,1)
-            
-          })
-          bars <- plot_grid(plotlist = plotlist,nrow=1,align="v")
-          plot_grid(row.label,bars,nrow=1,rel_widths=c(rel.label.width,1))
-        }
-        
-        nlabels.row <- function(){
-          row.label <- ggplot()+theme_nothing()+
-            #annotate("text",x=1,y=0.5,label="N studies with X\nreplication success measures",hjust=1,vjust=0.5)+
-            annotate("text",x=1,y=0.5,label="",hjust=1,vjust=0.5)+
-            xlim(0,1)+ylim(0,1)
-          
-          plotlist <- lapply(1:(ncol(df.counts)),function(i) {
-            ggplot()+theme_nothing()+
-              annotate("text",x=0.5,y=0.5,label=paste0("n=",as.character(df.counts[1,i])),hjust=0.5,vjust=0.5)+
-              xlim(0,1)+ylim(0,1)
-            
-          })
-          bars <- plot_grid(plotlist = plotlist,nrow=1,align="v")
-          plot_grid(row.label,bars,nrow=1,rel_widths=c(rel.label.width,1))
-        }
-        title.row <- function(){
-          row.label <- ggplot()+theme_nothing()+
-            annotate("text",x=0.5,y=0.5,label="",hjust=0.5,vjust=0.5)+
-            xlim(0,1)+ylim(0,1)
-          
-          title <- ggplot()+theme_nothing()+
-            annotate("text",x=0.5,y=0.5,label="Number of measures indicating replication success",hjust=0.5,vjust=0.5,fontface="bold")+
-            xlim(0,1)+ylim(0,1)
-          plot_grid(row.label,title,nrow=1,rel_widths=c(rel.label.width,1))
-        }
-        
-        figure_2 <- plot_grid(title.row(),countlabels.row(),nlabels.row(),main.bar.plots,ncol=1,rel_heights = c(1,1,1,12))
-        #figure_2
-      }
-      
-    }
-    
-    # # (depracated) Figure 4: Distribution of Pearson’s R effect sizes across papers for original and replication findings by discipline
-    # {
-    #   # Data wrangling
-    #   {
-    #     all_effects <- repli_outcomes %>% 
-    #       filter(!is_covid) %>% 
-    #       filter(repli_version_of_record) %>% 
-    #       mutate(repli_conv_r = ifelse(repli_pattern_criteria_met, repli_conv_r, -1*repli_conv_r)) %>%
-    #       select(claim_id,repli_conv_r) %>% 
-    #       left_join(
-    #         orig_outcomes %>% 
-    #           select(paper_id,claim_id, orig_conv_r) %>% 
-    #           distinct(),
-    #         by = "claim_id"
-    #       ) %>% 
-    #       drop_na(repli_conv_r) %>% 
-    #       drop_na(orig_conv_r)%>%
-    #       group_by(paper_id) %>%
-    #       mutate(weight=1/n()) %>%
-    #       mutate(across(c(orig_conv_r, repli_conv_r), abs))
-    #     
-    #        
-    #       
-    #     
-    #     all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
-    #     # all_effects$field <- str_to_title(all_effects$COS_pub_category)
-    #     # all_effects$field <- str_to_title(all_effects$COS_pub_category)
-    #     # all_effects$field <- str_replace_all(all_effects$field," ","\n")
-    #     # all_effects$field <- str_replace_all(all_effects$field,"And","and")
-    #     # group_order <- unique(all_effects$field)
-    #     all_effects$field <- ordered(all_effects$COS_pub_category,labels=fields.abbreviated,
-    #                                  levels=fields.raw)
-    #     
-    #     all_effects$pub_year <- ordered(all_effects$pub_year,
-    #                                     levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
-    #                                     labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
-    #     
-    #     # Create weighting scheme
-    #     all_effects <- all_effects %>%
-    #       group_by(paper_id) %>%
-    #       mutate(paper_count = n(),
-    #              weight = 1/n())
-    #     
-    #     # Convert to long
-    #     all_effects <- all_effects %>%
-    #       pivot_longer(cols=c(repli_conv_r,orig_conv_r))
-    #     
-    #     all_effects$name <- ordered(all_effects$name,
-    #                                 levels=c("orig_conv_r","repli_conv_r"),
-    #                                 labels=c("Original effect size","Replication effect size"))
-    #     
-    #   }
-    #   # Plot
-    #   {
-    #     
-    #     chart.palette <- c(palette_score_charts[1], palette_score_charts[5])
-    #     alpha.level <- .6
-    #     figure_4 <-
-    #      ggplot(data=all_effects,aes(x=value,y=field,fill=name,weight=weight))+
-    #       geom_density_ridges(alpha=alpha.level,scale = 0.9) +
-    #       theme_minimal()+
-    #       theme(legend.position = "bottom",
-    #             legend.title=element_blank(),
-    #             panel.border = element_blank(),
-    #             panel.grid = element_blank(),
-    #             axis.title=element_blank(),
-    #             axis.text.y=element_text(vjust=0,face = "bold",size=12,color="black")
-    #             #axis.text = element_blank(),
-    #             #axis.line = element_blank(),
-    #             #axis.ticks = element_blank()
-    #       ) +
-    #       scale_x_continuous(expand=c(0,0))+
-    #       scale_fill_manual(values=chart.palette)+
-    #       xlim(0,1)+
-    #       geom_vline(aes(xintercept=0),linetype=1,color="grey90") +
-    #       geom_vline(aes(xintercept=1),linetype=1,color="grey90")
-    #   }
-    # }
-    # 
-    # # (depracated) Figure 5: Distribution of Pearson’s R effect sizes across papers for original and replication findings by publication year
-    # {
-    #   # Data wrangling
-    #   {
-    #     all_effects <- repli_outcomes %>% 
-    #       filter(!is_covid) %>% 
-    #       filter(repli_version_of_record) %>% 
-    #       mutate(repli_conv_r = ifelse(repli_pattern_criteria_met, repli_conv_r, -1*repli_conv_r)) %>%
-    #       select(claim_id,repli_conv_r) %>% 
-    #       left_join(
-    #         orig_outcomes %>% 
-    #           select(paper_id,claim_id, orig_conv_r) %>% 
-    #           distinct(),
-    #         by = "claim_id"
-    #       ) %>% 
-    #       drop_na(repli_conv_r) %>% 
-    #       drop_na(orig_conv_r)%>%
-    #       group_by(paper_id) %>%
-    #       mutate(weight=1/n())%>%
-    #       mutate(across(c(orig_conv_r, repli_conv_r), abs))
-    #     
-    #     all_effects <- merge(all_effects,paper_metadata[c("paper_id","pub_year","COS_pub_category")],by="paper_id",all.x =TRUE,all.y=FALSE)
-    #     all_effects$field <- str_to_title(all_effects$COS_pub_category)
-    #     all_effects$field <- str_to_title(all_effects$COS_pub_category)
-    #     all_effects$field <- str_replace_all(all_effects$field," ","\n")
-    #     all_effects$field <- str_replace_all(all_effects$field,"And","and")
-    #     group_order <- unique(all_effects$field)
-    #     all_effects$field <- ordered(all_effects$field,labels=group_order,levels=group_order)
-    #     
-    #     all_effects$pub_year <- ordered(all_effects$pub_year,
-    #                                     levels=c(min(all_effects$pub_year):max(all_effects$pub_year)),
-    #                                     labels=c(min(all_effects$pub_year):max(all_effects$pub_year)))
-    #     
-    #     # Create weighting scheme
-    #     all_effects <- all_effects %>%
-    #       group_by(paper_id) %>%
-    #       mutate(paper_count = n(),
-    #              weight = 1/n())
-    #     
-    #     # Convert to long
-    #     all_effects <- all_effects %>%
-    #       pivot_longer(cols=c(repli_conv_r,orig_conv_r))
-    #     
-    #     all_effects$name <- ordered(all_effects$name,
-    #                                 levels=c("orig_conv_r","repli_conv_r"),
-    #                                 labels=c("Original effect size","Replication effect size"))
-    #     
-    #     
-    #   }
-    #   # Plot
-    #   {
-    #     
-    #     chart.palette <- c(palette_score_charts[1], palette_score_charts[5])
-    #     alpha.level <- .6
-    #     
-    #     figure_5 <- ggplot(data=all_effects,aes(x=value,y=pub_year,fill=name,weight=weight))+
-    #         geom_density_ridges(alpha=alpha.level,scale = 0.9)+
-    #         theme_minimal()+
-    #         theme(legend.position = "bottom",
-    #               legend.title=element_blank(),
-    #               panel.border = element_blank(),
-    #               panel.grid = element_blank(),
-    #               axis.title=element_blank(),
-    #               axis.text.y=element_text(vjust=0,face = "bold",size=12,color="black")
-    #               #axis.text = element_blank(),
-    #               #axis.line = element_blank(),
-    #               #axis.ticks = element_blank()
-    #         ) +
-    #       scale_x_continuous(expand=c(0,0))+
-    #       scale_fill_manual(values=chart.palette)+
-    #       xlim(0,1)+
-    #       geom_vline(aes(xintercept=0),linetype=1,color="grey90") +
-    #       geom_vline(aes(xintercept=1),linetype=1,color="grey90")
-    #     }
-    # }
   }
   
   # Export

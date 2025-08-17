@@ -1,9 +1,9 @@
 # Run knit_manuscript() to
 # 1) Generate all placeholder stats
 # 2) Generate all placeholder figures
-# 3) Read the template MS Word doc
+# 3) Read the template .docx file with placeholders
 # 4) Replace all placeholder stats and figures and knit them together into a
-# knitted Microsoft Word document
+# knitted .docx
 
 # The resulting objects (results_tagged_stats and results_figures) contain
 # listed outputs for all analysis tags contained within the publication,
@@ -527,38 +527,6 @@ placeholder_stats <- function(iters=100){
         paper_metadata[paper_metadata$paper_id %in% pr_outcomes$paper_id,]$publication_standard
       ))
       
-      # n_papers_passed_process_repro_assess <- sum(pr_outcomes$process_reproducible=="Yes")
-      # 
-      # p_papers_passed_process_repro_assess <- format.text.percent(n_papers_passed_process_repro_assess,nrow(pr_outcomes))
-      # 
-      # p_data_available <- format.text.percent(sum(pr_outcomes$data_available=="Yes"),
-      #                                         nrow(pr_outcomes))
-      
-      # for (i in 2009:2018){
-      #   assign(paste0("p_data_available_",i),{
-      #     format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]$data_available=="Yes"),
-      #                         nrow(pr_outcomes_modified[pr_outcomes_modified$pub_year==i,]))
-      #   })
-      # }
-      
-      # df.fields <- do.call(rbind,lapply(na.omit(unique(pr_outcomes_modified$COS_pub_category)),function(field){
-      #   p_process_reproducible <- sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes")/
-      #     nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,])
-      #   formatted_text_process_reproducible <- 
-      #     format.text.percent(sum(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]$data_available=="Yes"),
-      #                         nrow(pr_outcomes_modified[pr_outcomes_modified$COS_pub_category==field,]))
-      #   
-      #   data.frame(field,p_process_reproducible,formatted_text_process_reproducible)
-      # }))
-      # 
-      # field_most_passing_process_repro <- df.fields$field[which.max(df.fields$p_process_reproducible)]
-      # 
-      # p_field_most_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.max(df.fields$p_process_reproducible)]
-      # 
-      # field_least_passing_process_repro <- df.fields$field[which.min(df.fields$p_process_reproducible)]
-      # 
-      # p_field_least_passing_process_repro <- df.fields$formatted_text_process_reproducible[which.min(df.fields$p_process_reproducible)]
-      
     }
     
     # Results: Process reproducibility
@@ -570,6 +538,7 @@ placeholder_stats <- function(iters=100){
       
       n_papers_data_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE)
       p_papers_data_available <- format.text.percent(n_papers_data_available,n_papers_assess_process_repro)
+      p_papers_data_available_simplified <- format.round(100*n_papers_data_available/n_papers_assess_process_repro,1)
       p_claims_data_available <- p_papers_data_available # Identical because process repro was was assessed one claim per paper
       
       n_papers_code_available <- sum(pr_outcomes_modified$code_available_or_shared==TRUE)
@@ -892,6 +861,8 @@ placeholder_stats <- function(iters=100){
           repro_outcomes_OR$repro_outcome_overall=="push button",
         weights=repro_outcomes_OR$weight,
         clusters = repro_outcomes_OR$paper_id,iters)$formatted.text
+      
+      p_papers_OR_precise_simplified <- sub(" \\[.*$", "", p_papers_OR_precise)
       
       n_papers_OR_precise_pushbutton <- format.round(sum(repro_outcomes_OR$weight *
                                                 ((repro_outcomes_OR$repro_outcome_overall=="precise" | 
@@ -1818,383 +1789,411 @@ placeholder_stats <- function(iters=100){
         nrow()
     }
     
-    # Addendum (including tables S8-S13)
-    # Journal policy analysis
+    # Supplement: Journal policy analysis
     {
+      # Data prep
+      {
+        # General merge for journal policies
+        papers_repro_journal_policies <- merge(paper_metadata[c("paper_id","publication_standard","pub_year")],publications,
+                                               by="publication_standard",all.x=TRUE,all.y=FALSE)
+        papers_repro_journal_policies <- merge(papers_repro_journal_policies,repro_journal_policies,
+                                               by="ISSN",all.x=TRUE,all.y = FALSE)
+        # Generate treatment variable, two versions (minimize Type I or Type II error)
+        papers_repro_journal_policies <- papers_repro_journal_policies %>%
+          mutate(
+            treatment_data_required_yearof = case_when(require_data_year <= pub_year ~ 1,
+                                                       require_data_year > pub_year ~ 0,
+                                                       is.na(require_data_year) ~ 0),
+            treatment_data_required_yearprior = case_when(require_data_year < pub_year ~ 1,
+                                                          require_data_year >= pub_year ~ 0,
+                                                          is.na(require_data_year) ~ 0),
+            treatment_code_required_yearof = case_when(require_code_year <= pub_year ~ 1,
+                                                       require_code_year > pub_year ~ 0,
+                                                       is.na(require_code_year) ~ 0),
+            treatment_code_required_yearprior = case_when(require_code_year < pub_year ~ 1,
+                                                          require_code_year >= pub_year ~ 0,
+                                                          is.na(require_code_year) ~ 0),
+            treatment_repro_check_yearof = case_when(repro_checks_year <= pub_year ~ 1,
+                                                     repro_checks_year > pub_year ~ 0,
+                                                     is.na(repro_checks_year) ~ 0),
+            treatment_repro_check_yearprior = case_when(repro_checks_year < pub_year ~ 1,
+                                                        repro_checks_year >= pub_year ~ 0,
+                                                        is.na(repro_checks_year) ~ 0),
+            treatment_yearof = case_when(treatment_data_required_yearof == 0 ~ 0,
+                                         treatment_repro_check_yearof == 1 ~ 3,
+                                         treatment_repro_check_yearof == 0 & treatment_code_required_yearof == 1 ~ 2,
+                                         treatment_code_required_yearof == 0 & treatment_data_required_yearof == 1 ~ 1),
+            treatment_yearprior = case_when(treatment_data_required_yearprior == 0 ~ 0,
+                                            treatment_repro_check_yearprior == 1 ~ 3,
+                                            treatment_repro_check_yearprior == 0 & treatment_code_required_yearprior == 1 ~ 2,
+                                            treatment_code_required_yearprior == 0 & treatment_data_required_yearprior == 1 ~ 1)
+            )
+        
+        OR_outcomes_journal_policies <- merge(repro_outcomes[repro_outcomes$repro_outcome_overall != "none",],papers_repro_journal_policies,
+                                              by="paper_id")
+        
+        data <- OR_outcomes_journal_policies%>%
+          mutate(repro_outcome_overall_consolidated_num = as.numeric(repro_outcome_overall_consolidated))
+        
+        
+        
+        # Set reproduction outcome
+        
+        data$cat <- factor(data$repro_outcome_overall_consolidated_num,
+                           levels = c(1, 2, 3),
+                           labels = c("Precisely reproduced", "Approximately reproduced", "Not reproduced"))
+        # Set treatment group
+        data$treatment_group <- factor(data$treatment_yearof,
+                                       levels = c(3, 2, 1, 0),
+                                       labels = c("Data, code &\nrepro check\nrequired",
+                                                  "Data & code\nrequired",
+                                                  "Data\nrequired",
+                                                  "No policy"))
+        # Keep relevant rows
+        data <- data %>% filter(!is.na(cat) & !is.na(treatment_group) & !is.na(pub_year))
+        
+        # Generate outcome reproducibility variables dataset. Key variable of
+        # interest (defines outcome reproducibility success at the paper level): OR_outcomes_journal_policies$repro_outcome_overall_consolidated
+        OR_outcomes_journal_policies <- merge(repro_outcomes[repro_outcomes$repro_outcome_overall != "none",],papers_repro_journal_policies,
+                                              by="paper_id")
+        
+        ### Make variables numeric for ease
+        OR_outcomes_journal_policies <- OR_outcomes_journal_policies %>%
+          mutate(repro_outcome_overall_consolidated_num = as.numeric(repro_outcome_overall_consolidated))
+        
+        ######## 1) A 4x3 crosstab with a chi-square test pooling the data across years for both the paper-level and the claims-level tests.
+        # This will cross the outcome (repro_outcome_overall) with
+        # The treatment at the claims level and paper level (treatment_yearof)
+        # Define readable column labels (line breaks will appear in knit output)
+        
+        ####### OUTCOME REPRODICIBILITY #########
+        
+        # Define labels (outcome/treatment levels)
+        treatment_labels <- c(
+          "0" = "No policy",
+          "1" = "Data\nrequired",
+          "2" = "Data and code\nrequired",
+          "3" = "Data, code & repro\ncheck required"
+        )
+        
+        outcome_labels <- c(
+          "1" = "Precisely\nreproduced",
+          "2" = "Approximately\nreproduced",
+          "3" = "Not reproduced"
+        )
+        
+
+      }
       
-      make_cross_tab <- function(df, outcome_var) {
-        df_clean <- df %>%
-          filter(!is.na(treatment_yearof), !is.na(.data[[outcome_var]])) %>%
+      p_claims_any_three_policies <- format.round(100*(
+        1-(length(data$treatment_group[data$treatment_group == "No policy"])/length(data$treatment_group))),1)
+      
+      # Functions for making table cross-tabs
+      {
+        make_cross_tab <- function(df, outcome_var) {
+          df_clean <- df %>%
+            filter(!is.na(treatment_yearof), !is.na(.data[[outcome_var]])) %>%
+            mutate(
+              treatment = as.character(treatment_yearof),
+              outcome = as.character(.data[[outcome_var]])
+            )
+          
+          count_tbl <- df_clean %>%
+            count(outcome, treatment) %>%
+            pivot_wider(names_from = treatment, values_from = n, values_fill = 0)
+          
+          # Set rownames using outcome_labels
+          count_tbl <- as.data.frame(count_tbl)
+          rownames(count_tbl) <- outcome_labels[as.character(count_tbl$outcome)]
+          count_tbl$outcome <- NULL
+          
+          # Ensure all treatment columns exist
+          all_cols <- c("0", "1", "2", "3")
+          for (col in setdiff(all_cols, colnames(count_tbl))) {
+            count_tbl[[col]] <- 0
+          }
+          count_tbl <- count_tbl[, all_cols, drop = FALSE]
+          
+          # Add "Total" column (row-wise sum)
+          count_tbl$Total <- rowSums(count_tbl)
+          
+          # Add Total row (col-wise sum of all rows)
+          total_row <- colSums(count_tbl)
+          count_tbl <- rbind(count_tbl, Total = total_row)
+          
+          # Format table: top 3 rows = column %, Total = row %
+          formatted_tbl <- count_tbl
+          for (j in seq_along(formatted_tbl)) {
+            col_total <- sum(count_tbl[1:3, j])
+            for (i in 1:3) {
+              formatted_tbl[i, j] <- paste0(
+                count_tbl[i, j], "\n(",
+                format(round(100 * count_tbl[i, j] / col_total, 1), nsmall = 1), "%)"
+              )
+            }
+            # Total row: row-wise percent of total N
+            formatted_tbl[4, j] <- paste0(
+              count_tbl[4, j], "\n(",
+              format(round(100 * count_tbl[4, j] / sum(count_tbl[4, 1:4]), 1), nsmall = 1), "%)"
+            )
+            
+          }
+          colnames(formatted_tbl) <- c(treatment_labels[c("0", "1", "2", "3")], "Total")
+          
+          return(list(table = formatted_tbl, raw_counts = count_tbl))
+        }
+        
+        # FUNCTION weighted cross tab
+        make_weighted_cross_tab <- function(df, outcome_var, weight_var) {
+          df_clean <- df %>%
+            filter(!is.na(treatment_yearof), !is.na(.data[[outcome_var]]), !is.na(.data[[weight_var]])) %>%
+            mutate(
+              treatment = as.character(treatment_yearof),
+              outcome = as.character(.data[[outcome_var]])
+            )
+          
+          all_treatments <- c("0", "1", "2", "3")
+          all_outcomes <- c("1", "2", "3")
+          
+          # compute weighted counts
+          weighted_counts <- matrix(0, nrow = 3, ncol = 4,
+                                    dimnames = list(all_outcomes, all_treatments))
+          
+          for (o in all_outcomes) {
+            for (t in all_treatments) {
+              weights <- df_clean %>%
+                filter(outcome == o, treatment == t) %>%
+                pull(.data[[weight_var]])
+              weighted_counts[o, t] <- sum(weights)
+            }
+          }
+          
+          # totals
+          row_totals <- rowSums(weighted_counts)
+          col_totals <- colSums(weighted_counts)
+          grand_total <- sum(weighted_counts)
+          
+          # Add full totals row and column
+          full_counts <- rbind(weighted_counts, Total = col_totals)
+          full_counts <- cbind(full_counts, Total = c(row_totals, grand_total))
+          
+          # format table 
+          formatted_tbl <- matrix("", nrow = 4, ncol = 5)
+          rownames(formatted_tbl) <- c(outcome_labels[c("1", "2", "3")], "Total")
+          colnames(formatted_tbl) <- c(treatment_labels[all_treatments], "Total")
+          
+          # Fill rows 1–3 (counts and column percentages)
+          for (j in 1:4) {
+            col_sum <- sum(weighted_counts[, j])
+            for (i in 1:3) {
+              n <- weighted_counts[i, j]
+              pct <- if (col_sum == 0) 0 else 100 * n / col_sum
+              formatted_tbl[i, j] <- paste0(format(round(n, 1), nsmall = 1), "\n(",
+                                            format(round(pct, 1), nsmall = 1), "%)")
+            }
+          }
+          
+          # Row 4 column totals + row-wise percentage
+          for (j in 1:4) {
+            n <- col_totals[j]
+            pct <- if (sum(col_totals) == 0) 0 else 100 * n / sum(col_totals)
+            formatted_tbl[4, j] <- paste0(format(round(n, 1), nsmall = 1), "\n(",
+                                          format(round(pct, 1), nsmall = 1), "%)")
+          }
+          
+          # Right-most column (Total)
+          for (i in 1:3) {
+            n <- row_totals[i]
+            pct <- if (grand_total == 0) 0 else 100 * n / grand_total
+            formatted_tbl[i, 5] <- paste0(format(round(n, 1), nsmall = 1), "\n(",
+                                          format(round(pct, 1), nsmall = 1), "%)")
+          }
+          
+          # Bottom-right cell (Grand Total)
+          formatted_tbl[4, 5] <- paste0(
+            format(round(grand_total, 1), nsmall = 1), "\n(100.0%)"
+          )
+          
+          return(list(table = formatted_tbl, raw_counts = full_counts))
+        }
+      }
+
+      # Table s8
+      {
+        # Build weighted paper-level table (Table S8)
+        papers <- make_weighted_cross_tab(
+          df = OR_outcomes_journal_policies,
+          outcome_var = "repro_outcome_overall_consolidated_num",
+          weight_var = "weight"
+        )
+        
+        table_s8 <- papers$table
+        
+        for (row in 1:nrow(table_s8)){
+          for (col in 1:ncol(table_s8)){
+            assign(paste0("table_s8_",row,"_",col),
+                   table_s8[row,col])
+            assign(paste0("table_s8_n_",row,"_",col),
+                   strsplit(table_s8[row,col], "\n")[[1]][1])
+            assign(paste0("table_s8_p_",row,"_",col),
+                   str_extract(table_s8[row,col], "(?<=\\().*?(?=\\))"))
+          }
+        }
+        
+        paper_chisq <- chisq.test(papers$raw_counts[1:3,1:4])
+        
+        table_s8_chi2_df <- paper_chisq$parameter
+        table_s8_chi2_value <- format.round(paper_chisq$statistic,1)
+        table_s8_chi2_pval <- ifelse(paper_chisq$p.value<.001,"< .001",
+                                     paste0("= ",format.round(paper_chisq$p.value,3)))
+        
+      }
+      
+      # Table s9
+      {
+        
+        # Claims-level table and test
+        claims <- make_cross_tab(OR_outcomes_journal_policies, "repro_outcome_overall_consolidated_num")
+        table_s9 <- claims$table
+        claims_chisq <- chisq.test(claims$raw_counts[1:3, c("0", "1", "2", "3")])
+        
+        for (row in 1:nrow(table_s9)){
+          for (col in 1:ncol(table_s9)){
+            assign(paste0("table_s9_",row,"_",col),
+                   table_s9[row,col])
+            assign(paste0("table_s9_n_",row,"_",col),
+                   strsplit(table_s9[row,col], "\n")[[1]][1])
+            assign(paste0("table_s9_p_",row,"_",col),
+                   str_extract(table_s9[row,col], "(?<=\\().*?(?=\\))"))
+          }
+        }
+        
+        table_s9_chi2_df <- claims_chisq$parameter
+        table_s9_chi2_value <- format.round(claims_chisq$statistic,1)
+        table_s9_chi2_pval <- ifelse(claims_chisq$p.value<.001,"< .001",
+                                     paste0("= ",format.round(claims_chisq$p.value,3)))
+      }
+      
+      # PR data prep
+      {
+        ########### Process Reproducibility ##################
+        
+        ####### PROCESS REPRODUCIBILITY #########
+        # make numeric for ease, note that 1 is no to make it the contrast
+        
+        # Generate process reproducibility variables dataset. Key variable of
+        # interest (defines process reproducibility success): PR_outcomes_journal_policies$data_available_or_shared
+        PR_outcomes_journal_policies <- merge(pr_outcomes_modified,papers_repro_journal_policies,
+                                              by="paper_id")
+        
+        PR_outcomes_journal_policies <- PR_outcomes_journal_policies %>%
+          mutate(process_reproducible_num = case_when(data_available_or_shared == TRUE ~ 0,
+                                                      data_available_or_shared == FALSE ~ 1))
+        
+        # Labels
+        treatment_labels <- c(
+          "0" = "No policy",
+          "1" = "Data\nrequired",
+          "2" = "Data and code\nrequired",
+          "3" = "Data, code & repro\ncheck required"
+        )
+        
+        outcome_labels <- c(
+          "1" = "Process\nReproduced",
+          "2" = "Not Reproduced"
+        )
+        
+        # Ensure correct factor types
+        PR_outcomes_journal_policies <- PR_outcomes_journal_policies %>%
+          filter(!is.na(treatment_yearof), !is.na(process_reproducible_num)) %>%
           mutate(
             treatment = as.character(treatment_yearof),
-            outcome = as.character(.data[[outcome_var]])
+            outcome = as.numeric(process_reproducible_num)
           )
-        
-        count_tbl <- df_clean %>%
+      }
+      
+      # Table s12
+      {
+        # Create 2x4 count table
+        counts <- PR_outcomes_journal_policies %>%
           count(outcome, treatment) %>%
           pivot_wider(names_from = treatment, values_from = n, values_fill = 0)
         
-        # Set rownames using outcome_labels
-        count_tbl <- as.data.frame(count_tbl)
-        rownames(count_tbl) <- outcome_labels[as.character(count_tbl$outcome)]
-        count_tbl$outcome <- NULL
+        counts <- as.data.frame(counts)
+        rownames(counts) <- counts$outcome
+        counts$outcome <- NULL
         
-        # Ensure all treatment columns exist
+        # Keep only treatments 0–3
         all_cols <- c("0", "1", "2", "3")
-        for (col in setdiff(all_cols, colnames(count_tbl))) {
-          count_tbl[[col]] <- 0
+        for (col in setdiff(all_cols, colnames(counts))) {
+          counts[[col]] <- 0
         }
-        count_tbl <- count_tbl[, all_cols, drop = FALSE]
+        counts <- counts[, all_cols]
         
-        # Add "Total" column (row-wise sum)
-        count_tbl$Total <- rowSums(count_tbl)
+        # Add Total column
+        counts$Total <- rowSums(counts)
         
-        # Add Total row (col-wise sum of all rows)
-        total_row <- colSums(count_tbl)
-        count_tbl <- rbind(count_tbl, Total = total_row)
+        # Add Total row (col-wise)
+        counts <- rbind(counts, Total = colSums(counts))
         
-        # Format table: top 3 rows = column %, Total = row %
-        formatted_tbl <- count_tbl
-        for (j in seq_along(formatted_tbl)) {
-          col_total <- sum(count_tbl[1:3, j])
-          for (i in 1:3) {
-            formatted_tbl[i, j] <- paste0(
-              count_tbl[i, j], "<br>(",
-              format(round(100 * count_tbl[i, j] / col_total, 1), nsmall = 1), "%)"
-            )
+        # Save raw counts for test
+        raw_counts <- counts
+        
+        # Chi-squared test on 2x4 portion
+        chisq <- chisq.test(raw_counts[c(1, 0), c("0", "1", "2", "3")])
+        
+        # Format percentages
+        table_s12 <- counts
+        col_totals <- colSums(raw_counts[c("1", "0"), c("0", "1", "2", "3")])
+        for (row_label in c("1", "0")) {
+          for (col in c("0", "1", "2", "3")) {
+            val <- raw_counts[row_label, col]
+            pct <- 100 * val / col_totals[[col]]
+            table_s12[row_label, col] <- paste0(val, "\n(", format(round(pct, 1), nsmall = 1), "%)")
           }
-          # Total row: row-wise percent of total N
-          formatted_tbl[4, j] <- paste0(
-            count_tbl[4, j], "<br>(",
-            format(round(100 * count_tbl[4, j] / sum(count_tbl[4, 1:4]), 1), nsmall = 1), "%)"
-          )
-          
-        }
-        colnames(formatted_tbl) <- c(treatment_labels[c("0", "1", "2", "3")], "Total")
-        
-        return(list(table = formatted_tbl, raw_counts = count_tbl))
-      }
-      
-      # weighted cross tab - Noah style
-      make_weighted_cross_tab <- function(df, outcome_var, weight_var) {
-        df_clean <- df %>%
-          filter(!is.na(treatment_yearof), !is.na(.data[[outcome_var]]), !is.na(.data[[weight_var]])) %>%
-          mutate(
-            treatment = as.character(treatment_yearof),
-            outcome = as.character(.data[[outcome_var]])
-          )
-        
-        all_treatments <- c("0", "1", "2", "3")
-        all_outcomes <- c("1", "2", "3")
-        
-        # Step 1: compute weighted counts
-        weighted_counts <- matrix(0, nrow = 3, ncol = 4,
-                                  dimnames = list(all_outcomes, all_treatments))
-        
-        for (o in all_outcomes) {
-          for (t in all_treatments) {
-            weights <- df_clean %>%
-              filter(outcome == o, treatment == t) %>%
-              pull(.data[[weight_var]])
-            weighted_counts[o, t] <- sum(weights)
-          }
+          # Keep raw total column
+          table_s12[row_label, "Total"] <- raw_counts[row_label, "Total"]
         }
         
-        # Step 2: compute totals
-        row_totals <- rowSums(weighted_counts)
-        col_totals <- colSums(weighted_counts)
-        grand_total <- sum(weighted_counts)
+        # Format bottom row (Total) with row-wise percentages
+        row_sum <- sum(raw_counts["Total", c("0", "1", "2", "3")])
+        for (col in c("0", "1", "2", "3", "Total")) {
+          val <- raw_counts["Total", col]
+          pct <- 100 * val / row_sum
+          table_s12["Total", col] <- paste0(val, "\n(", format(round(pct, 1), nsmall = 1), "%)")
+        }
         
-        # Add full totals row and column
-        full_counts <- rbind(weighted_counts, Total = col_totals)
-        full_counts <- cbind(full_counts, Total = c(row_totals, grand_total))
+        # Rename rows and columns
+        rownames(table_s12) <- c(
+          outcome_labels[1],
+          outcome_labels[2],
+          "Total"
+        )
+        colnames(table_s12) <- c(
+          treatment_labels["0"],
+          treatment_labels["1"],
+          treatment_labels["2"],
+          treatment_labels["3"],
+          "Total"
+        )
         
-        # Step 3: format table (mimic Table S8)
-        formatted_tbl <- matrix("", nrow = 4, ncol = 5)
-        rownames(formatted_tbl) <- c(outcome_labels[c("1", "2", "3")], "Total")
-        colnames(formatted_tbl) <- c(treatment_labels[all_treatments], "Total")
-        
-        # Fill rows 1–3 (counts and column percentages)
-        for (j in 1:4) {
-          col_sum <- sum(weighted_counts[, j])
-          for (i in 1:3) {
-            n <- weighted_counts[i, j]
-            pct <- if (col_sum == 0) 0 else 100 * n / col_sum
-            formatted_tbl[i, j] <- paste0(format(round(n, 1), nsmall = 1), "<br>(",
-                                          format(round(pct, 1), nsmall = 1), "%)")
+        for (row in 1:nrow(table_s12)){
+          for (col in 1:ncol(table_s12)){
+            assign(paste0("table_s12_",row,"_",col),
+                   table_s12[row,col])
+            assign(paste0("table_s12_n_",row,"_",col),
+                   strsplit(table_s12[row,col], "\n")[[1]][1])
+            assign(paste0("table_s12_p_",row,"_",col),
+                   str_extract(table_s12[row,col], "(?<=\\().*?(?=\\))"))
           }
         }
         
-        # Row 4: column totals + row-wise percentage
-        for (j in 1:4) {
-          n <- col_totals[j]
-          pct <- if (sum(col_totals) == 0) 0 else 100 * n / sum(col_totals)
-          formatted_tbl[4, j] <- paste0(format(round(n, 1), nsmall = 1), "<br>(",
-                                        format(round(pct, 1), nsmall = 1), "%)")
-        }
-        
-        # Right-most column (Total)
-        for (i in 1:3) {
-          n <- row_totals[i]
-          pct <- if (grand_total == 0) 0 else 100 * n / grand_total
-          formatted_tbl[i, 5] <- paste0(format(round(n, 1), nsmall = 1), "<br>(",
-                                        format(round(pct, 1), nsmall = 1), "%)")
-        }
-        
-        # Bottom-right cell (Grand Total)
-        formatted_tbl[4, 5] <- paste0(
-          format(round(grand_total, 1), nsmall = 1), "<br>(100.0%)"
-        )
-        
-        return(list(table = formatted_tbl, raw_counts = full_counts))
+        table_s12_chi2_df <- chisq$parameter
+        table_s12_chi2_value <- format.round(chisq$statistic,1)
+        table_s12_chi2_pval <- ifelse(chisq$p.value<.001,"< .001",
+                                     paste0("= ",format.round(chisq$p.value,3)))
+       
       }
-
-      # Function to compute policy coverage by year
-      calculate_policy_percentages <- function(data, policy_var) {
-        sapply(years, function(y) {
-          sum(!is.na(data[[policy_var]]) & data[[policy_var]] <= y) / n_journals * 100
-        })
-      }
-      
-      # Data prep
-      # General merge for journal policies
-      papers_repro_journal_policies <- merge(paper_metadata[c("paper_id","publication_standard","pub_year")],publications,
-                                             by="publication_standard",all.x=TRUE,all.y=FALSE)
-      papers_repro_journal_policies <- merge(papers_repro_journal_policies,repro_journal_policies,
-                                             by="ISSN",all.x=TRUE,all.y = FALSE)
-      # Generate treatment variable, two versions (minimize Type I or Type II error)
-      papers_repro_journal_policies <- papers_repro_journal_policies %>%
-        mutate(
-          treatment_data_required_yearof = case_when(require_data_year <= pub_year ~ 1,
-                                                     require_data_year > pub_year ~ 0,
-                                                     is.na(require_data_year) ~ 0),
-          treatment_data_required_yearprior = case_when(require_data_year < pub_year ~ 1,
-                                                        require_data_year >= pub_year ~ 0,
-                                                        is.na(require_data_year) ~ 0),
-          treatment_code_required_yearof = case_when(require_code_year <= pub_year ~ 1,
-                                                     require_code_year > pub_year ~ 0,
-                                                     is.na(require_code_year) ~ 0),
-          treatment_code_required_yearprior = case_when(require_code_year < pub_year ~ 1,
-                                                        require_code_year >= pub_year ~ 0,
-                                                        is.na(require_code_year) ~ 0),
-          treatment_repro_check_yearof = case_when(repro_checks_year <= pub_year ~ 1,
-                                                   repro_checks_year > pub_year ~ 0,
-                                                   is.na(repro_checks_year) ~ 0),
-          treatment_repro_check_yearprior = case_when(repro_checks_year < pub_year ~ 1,
-                                                      repro_checks_year >= pub_year ~ 0,
-                                                      is.na(repro_checks_year) ~ 0),
-          treatment_yearof = case_when(treatment_data_required_yearof == 0 ~ 0,
-                                       treatment_repro_check_yearof == 1 ~ 3,
-                                       treatment_repro_check_yearof == 0 & treatment_code_required_yearof == 1 ~ 2,
-                                       treatment_code_required_yearof == 0 & treatment_data_required_yearof == 1 ~ 1),
-          treatment_yearprior = case_when(treatment_data_required_yearprior == 0 ~ 0,
-                                          treatment_repro_check_yearprior == 1 ~ 3,
-                                          treatment_repro_check_yearprior == 0 & treatment_code_required_yearprior == 1 ~ 2,
-                                          treatment_code_required_yearprior == 0 & treatment_data_required_yearprior == 1 ~ 1)
-        )
-      # mean(papers_repro_journal_policies$treatment_yearof == 0, na.rm = TRUE) * 100
-      #85.175
-      # There are slightly fewer treatment for the yearprior
-      #mean(papers_repro_journal_policies$treatment_yearprior == 0, na.rm = TRUE) * 100
-      #87.15
-      
-      # Generate process reproducibility variables dataset. Key variable of
-      # interest (defines process reproducibility success): PR_outcomes_journal_policies$data_available_or_shared
-      PR_outcomes_journal_policies <- merge(pr_outcomes_modified,papers_repro_journal_policies,
-                                            by="paper_id")
-      
-      # Generate outcome reproducibility variables dataset. Key variable of
-      # interest (defines outcome reproducibility success at the paper level): OR_outcomes_journal_policies$repro_outcome_overall_consolidated
-      OR_outcomes_journal_policies <- merge(repro_outcomes[repro_outcomes$repro_outcome_overall != "none",],papers_repro_journal_policies,
-                                            by="paper_id")
-      
-      ### Make variables numeric for ease
-      OR_outcomes_journal_policies <- OR_outcomes_journal_policies %>%
-        mutate(repro_outcome_overall_consolidated_num = as.numeric(repro_outcome_overall_consolidated))
-      
-      ######## 1) A 4x3 crosstab with a chi-square test pooling the data across years for both the paper-level and the claims-level tests.
-      # This will cross the outcome (repro_outcome_overall) with
-      # The treatment at the claims level and paper level (treatment_yearof)
-      # Define readable column labels (line breaks will appear in knit output)
-      
-      ####### OUTCOME REPRODICIBILITY #########
-      
-      # Define labels (outcome/treatment levels)
-      treatment_labels <- c(
-        "0" = "No policy",
-        "1" = "Data<br>required",
-        "2" = "Data and code<br>required",
-        "3" = "Data, code & repro<br>check required"
-      )
-      
-      outcome_labels <- c(
-        "1" = "Precisely<br>reproduced",
-        "2" = "Approximately<br>reproduced",
-        "3" = "Not reproduced"
-      )
-      
-      
-      # Claims-level table and test
-      claims <- make_cross_tab(OR_outcomes_journal_policies, "repro_outcome_overall_consolidated_num")
-      claims_table <- claims$table
-      claims_chisq <- chisq.test(claims$raw_counts[1:3, c("0", "1", "2", "3")])
-      
-      # Build weighted paper-level table (Table S9)
-      papers <- make_weighted_cross_tab(
-        df = OR_outcomes_journal_policies,
-        outcome_var = "repro_outcome_overall_consolidated_num",
-        weight_var = "weight"
-      )
-      
-      paper_table <- papers$table
-      
-      # Regular rounding function (not bank rounding)
-      # Regular rounding only
-      regular_round <- function(x) floor(x + 0.5)
-      rounded_counts <- apply(papers$raw_counts[1:3, c("0", "1", "2", "3")], c(1,2), regular_round)
-      paper_chisq <- chisq.test(rounded_counts)
-      
-      # Write Table S8 (claims-level)
-      table_S8_html <- kable(claims_table, escape = FALSE, format = "html") %>%
-        kable_styling(full_width = FALSE) %>%
-        add_header_above(c(" " = 1, " " = 5)) %>%
-        row_spec(3, hline_after = TRUE, extra_css = "border-bottom: 2px solid black;")
-      
-      writeLines(paste0(
-        "<html><head><title>Table S8</title></head><body>",
-        "<h3>Table S8. Claims-level reproducibility outcomes (N = ", sum(claims$raw_counts["Total", c("0", "1", "2", "3")]), ")</h3>",
-        table_S8_html,
-        "<p><strong>Note:</strong> First three rows present column-wise percentages. Total row (bottom row) presents row-wise percentages.</p>",
-        sprintf("<p><strong>Chi-squared test:</strong> X²(%d) = %.2f, p = %.4f</p>",
-                claims_chisq$parameter, claims_chisq$statistic, claims_chisq$p.value),
-        "</body></html>"
-      ), "Table_S8.html")
-      
-      # Repeat for Table S9
-      table_S9_html <- kable(paper_table, escape = FALSE, format = "html") %>%
-        kable_styling(full_width = FALSE) %>%
-        add_header_above(c(" " = 1, " " = 5)) %>%
-        row_spec(3, hline_after = TRUE, extra_css = "border-bottom: 2px solid black;")
-      
-      writeLines(paste0(
-        "<html><head><title>Table S9</title></head><body>",
-        "<h3>Table S9. Paper-level reproducibility outcomes (N = ", sum(papers$raw_counts["Total", c("0", "1", "2", "3")]), ")</h3>",
-        table_S9_html,
-        "<p><strong>Note:</strong> First three rows present column-wise percentages. Total row (bottom row) presents row-wise percentages.</p>",
-        sprintf("<p><strong>Chi-squared test:</strong> X²(%d) = %.2f, p = %.4f</p>",
-                paper_chisq$parameter, paper_chisq$statistic, paper_chisq$p.value),
-        "</body></html>"
-      ), "Table_S9.html")
-      
-      
-      ########### Process Reproducibility ##################
-      
-      ####### PROCESS REPRODUCIBILITY #########
-      
-      
-      # Labels
-      treatment_labels <- c(
-        "0" = "No policy",
-        "1" = "Data<br>required",
-        "2" = "Data and code<br>required",
-        "3" = "Data, code & repro<br>check required"
-      )
-      
-      outcome_labels <- c(
-        "Yes" = "Process<br>Reproduced",
-        "No" = "Not Reproduced"
-      )
-      
-      # Ensure correct factor types
-      PR_outcomes_journal_policies <- PR_outcomes_journal_policies %>%
-        filter(!is.na(treatment_yearof), !is.na(process_reproducible)) %>%
-        mutate(
-          treatment = as.character(treatment_yearof),
-          outcome = as.character(process_reproducible)
-        )
-      
-      # Create 2x4 count table
-      counts <- PR_outcomes_journal_policies %>%
-        count(outcome, treatment) %>%
-        pivot_wider(names_from = treatment, values_from = n, values_fill = 0)
-      
-      counts <- as.data.frame(counts)
-      rownames(counts) <- counts$outcome
-      counts$outcome <- NULL
-      
-      # Keep only treatments 0–3
-      all_cols <- c("0", "1", "2", "3")
-      for (col in setdiff(all_cols, colnames(counts))) {
-        counts[[col]] <- 0
-      }
-      counts <- counts[, all_cols]
-      
-      # Add Total column
-      counts$Total <- rowSums(counts)
-      
-      # Add Total row (col-wise)
-      counts <- rbind(counts, Total = colSums(counts))
-      
-      # Save raw counts for test
-      raw_counts <- counts
-      
-      # Chi-squared test on 2x4 portion
-      chisq <- chisq.test(raw_counts[c("Yes", "No"), c("0", "1", "2", "3")])
-      
-      # Format percentages
-      formatted <- counts
-      col_totals <- colSums(raw_counts[c("Yes", "No"), c("0", "1", "2", "3")])
-      for (row_label in c("Yes", "No")) {
-        for (col in c("0", "1", "2", "3")) {
-          val <- raw_counts[row_label, col]
-          pct <- 100 * val / col_totals[[col]]
-          formatted[row_label, col] <- paste0(val, "<br>(", format(round(pct, 1), nsmall = 1), "%)")
-        }
-        # Keep raw total column
-        formatted[row_label, "Total"] <- raw_counts[row_label, "Total"]
-      }
-      
-      # Format bottom row (Total) with row-wise percentages
-      row_sum <- sum(raw_counts["Total", c("0", "1", "2", "3")])
-      for (col in c("0", "1", "2", "3", "Total")) {
-        val <- raw_counts["Total", col]
-        pct <- 100 * val / row_sum
-        formatted["Total", col] <- paste0(val, "<br>(", format(round(pct, 1), nsmall = 1), "%)")
-      }
-      
-      # Rename rows and columns
-      rownames(formatted) <- c(
-        outcome_labels["Yes"],
-        outcome_labels["No"],
-        "Total"
-      )
-      colnames(formatted) <- c(
-        treatment_labels["0"],
-        treatment_labels["1"],
-        treatment_labels["2"],
-        treatment_labels["3"],
-        "Total"
-      )
-      
-      # Create HTML table
-      table_S12_html <- kable(formatted, escape = FALSE, format = "html") %>%
-        kable_styling(full_width = FALSE) %>%
-        add_header_above(c(" " = 1, "Treatment condition" = 4, " " = 1)) %>%
-        row_spec(2, hline_after = TRUE, extra_css = "border-bottom: 2px solid black;")
-      
-      # Save HTML file
-      writeLines(paste0(
-        "<html><head><title>Table S12</title></head><body>",
-        "<h3>Table S12. Process reproducibility outcomes by journal policy (N = ", 
-        sum(raw_counts["Total", c("0", "1", "2", "3")]), ")</h3>",
-        table_S12_html,
-        "<p><strong>Note:</strong> First two rows show column-wise percentages. Total row (bottom) shows row-wise percentages.</p>",
-        sprintf("<p><strong>Chi-squared test:</strong> X²(%d) = %.2f, p = %.4f</p>",
-                chisq$parameter, chisq$statistic, chisq$p.value),
-        "</body></html>"
-      ), "Table_S12.html")
-      
-      
       
       #######  2) An ordered logit model with year fixed effects, 
       # including right-hand side indicator variables for 
@@ -2212,163 +2211,331 @@ placeholder_stats <- function(iters=100){
       
       # OUTCOME: OR_outcomes_journal_policies$repro_outcome_overall_consolidated
       
-      m1 <- clmm(repro_outcome_overall_consolidated ~ factor(treatment_yearof) + (1 | paper_id),
-                 data = OR_outcomes_journal_policies)
+      # Table s11
+      {
+        # Fit clustered ordinal logistic model
+        m1 <- clmm(repro_outcome_overall_consolidated ~ factor(treatment_yearof) + (1 | paper_id),
+                   data = OR_outcomes_journal_policies)
+        
+        # Extract fixed effect estimates
+        table_s11 <- broom.mixed::tidy(m1, effects = "fixed") %>%
+          mutate(
+            OR = exp(estimate),
+            OR_low = exp(estimate - 1.96 * std.error),
+            OR_high = exp(estimate + 1.96 * std.error),
+            Term = ifelse(grepl("^factor\\(treatment_yearof\\)", term),
+                          gsub("factor\\(treatment_yearof\\)", "Policy level ", term),
+                          paste0("Threshold: ", term)),
+            Coefficient = sprintf("%.2f", estimate),
+            `Std. Error` = sprintf("%.2f", std.error),
+            `Odds Ratio` = sprintf("%.2f", OR),
+            `95% CI` = paste0("[", sprintf("%.2f", OR_low), ", ", sprintf("%.2f", OR_high), "]")
+          ) %>%
+          select(Term, Coefficient, `Std. Error`, `Odds Ratio`, `95% CI`)
+        
+        for (row in 1:nrow(table_s11)){
+          for (col in 1:ncol(table_s11)){
+            assign(paste0("table_s11_",row,"_",col),
+                   as.character(table_s11[row,col]))
+          }
+        }
+        
+        table_s11_n <- m1$info$nobs
+        
+        table_s11_neg_odds_r_polices_mean <-  paste0(
+          100*round(1-mean(as.numeric(table_s11_3_4),as.numeric(table_s11_4_4),as.numeric(table_s11_5_4)),1),
+          "%")
+
+      }
       
-      # Extract and format model output
-      results <- broom.mixed::tidy(m1, effects = "fixed") %>%
-        filter(term != "(Intercept)") %>%
-        mutate(
-          OR = exp(estimate),
-          p.value = 2 * (1 - pnorm(abs(statistic))), 
-          stars = case_when(
-            p.value < 0.001 ~ "***",
-            p.value < 0.01  ~ "**",
-            p.value < 0.05  ~ "*",
-            p.value < 0.1   ~ ".",
-            TRUE            ~ ""
-          ),
-          estimate = sprintf("%.2f", estimate),
-          std.error = sprintf("%.2f", std.error),
-          OR = sprintf("%.2f", OR),
-          p.value = sprintf("%.3f", p.value)
-        ) %>%
-        transmute(
-          Term = gsub("factor\\(treatment_yearof\\)", "Policy level ", term),
-          Coefficient = estimate,
-          `Std. Error` = std.error,
-          `Odds Ratio` = OR,
-          `p-value` = p.value,
-          ` ` = stars
-        )
-      
-      # Create the HTML table
-      table_html <- results %>%
-        kable(format = "html", escape = FALSE, align = "lccccc",
-              caption = "Table S10. Ordered logistic regression of outcome reproducibility. Clustered by paper.") %>%
-        kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                      full_width = FALSE,
-                      position = "left") %>%
-        add_footnote("Significance levels: *** p < 0.001, ** p < 0.01, * p < 0.05, . p < 0.1", notation = "none")
-      
-      # Save as HTML file
-      writeLines(paste0(
-        "<html><head><meta charset='UTF-8'><title>Table S13</title></head><body>",
-        table_html,
-        "</body></html>"
-      ), "Table_S10.html")
-      
-      
-      
-      
-      # Now reproduce this for the paper-level. Here we do not need random-intercepts because we
-      # are at the paper level
-      # Fit weighted ordinal logistic model
-      m1p <- clm(repro_outcome_overall_consolidated ~ factor(treatment_yearof),
-                 weights = weight,
-                 data = OR_outcomes_journal_policies)
-      
-      # Extract and format model output
-      results <- broom.mixed::tidy(m1p, effects = "fixed") %>%
-        filter(term != "(Intercept)") %>%
-        mutate(
-          OR = exp(estimate),
-          p.value = 2 * (1 - pnorm(abs(statistic))),
-          stars = case_when(
-            p.value < 0.001 ~ "***",
-            p.value < 0.01  ~ "**",
-            p.value < 0.05  ~ "*",
-            p.value < 0.1   ~ ".",
-            TRUE            ~ ""
-          ),
-          estimate = sprintf("%.2f", estimate),
-          std.error = sprintf("%.2f", std.error),
-          OR = sprintf("%.2f", OR),
-          p.value = sprintf("%.3f", p.value)
-        ) %>%
-        transmute(
-          Term = gsub("factor\\(treatment_yearof\\)", "Policy level ", term),
-          Coefficient = estimate,
-          `Std. Error` = std.error,
-          `Odds Ratio` = OR,
-          `p-value` = p.value,
-          ` ` = stars
-        )
-      
-      # Create the HTML table
-      table_html <- results %>%
-        kable(format = "html", escape = FALSE, align = "lccccc",
-              caption = "Table S11. Ordered logistic regression of outcome reproducibility. Weighted to the paper level.") %>%
-        kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                      full_width = FALSE,
-                      position = "left") %>%
-        add_footnote("Significance levels: *** p < 0.001, ** p < 0.01, * p < 0.05, . p < 0.1", notation = "none")
-      
-      # Save as HTML file
-      writeLines(paste0(
-        "<html><head><meta charset='UTF-8'><title>Table S11</title></head><body>",
-        table_html,
-        "</body></html>"
-      ), "Table_S11.html")
-      
-      
-      ###### Process Reproducibility Logistic
-      # Here it is very simple because each case is a unique paper N = 600
-      # And it is a dichotomous outcome. Simple logit
-      # make numeric for ease, note that 1 is no to make it the contrast
-      
-      PR_outcomes_journal_policies <- PR_outcomes_journal_policies %>%
-        mutate(process_reproducible_num = case_when(process_reproducible == "Yes" ~ 0,
-                                                    process_reproducible == "No" ~ 1))
-      
-      # Run binary logistic regression
-      m1pr <- glm(process_reproducible_num ~ factor(treatment_yearof),
-                  data = PR_outcomes_journal_policies,
-                  family = binomial)
-      
-      # Extract all terms including intercept
-      results <- broom::tidy(m1pr) %>%
-        mutate(
-          OR = exp(estimate),
-          p.value = 2 * (1 - pnorm(abs(statistic))),
-          stars = case_when(
-            p.value < 0.001 ~ "***",
-            p.value < 0.01  ~ "**",
-            p.value < 0.05  ~ "*",
-            p.value < 0.1   ~ ".",
-            TRUE            ~ ""
-          ),
-          estimate = sprintf("%.2f", estimate),
-          std.error = sprintf("%.2f", std.error),
-          OR = sprintf("%.2f", OR),
-          p.value = sprintf("%.3f", p.value),
-          Term = ifelse(term == "(Intercept)", "Baseline (No policy)", 
-                        gsub("factor\\(treatment_yearof\\)", "Policy level ", term))
-        ) %>%
-        transmute(
-          Term,
-          Coefficient = estimate,
-          `Std. Error` = std.error,
-          `Odds Ratio` = OR,
-          `p-value` = p.value,
-          ` ` = stars
-        )
-      
-      # Create the HTML table (Table S13)
-      table_html <- results %>%
-        kable(format = "html", escape = FALSE, align = "lccccc",
-              caption = "Table S13. Logistic regression of process reproducibility (binary outcome).") %>%
-        kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                      full_width = FALSE,
-                      position = "left") %>%
-        add_footnote("Significance levels: *** p < 0.001, ** p < 0.01, * p < 0.05, . p < 0.1", notation = "none")
-      
-      # Save as HTML file
-      writeLines(paste0(
-        "<html><head><meta charset='UTF-8'><title>Table S13</title></head><body>",
-        table_html,
-        "</body></html>"
-      ), "Table_S13.html")
+      # Table s10
+      {
+        # Fit weighted ordinal logistic model
+        m1p <- clm(repro_outcome_overall_consolidated ~ factor(treatment_yearof),
+                   weights = weight,
+                   data = OR_outcomes_journal_policies)
+        
+        # Extract and format model output with 95% CIs
+        table_s10 <- broom.mixed::tidy(m1p, effects = "fixed") %>%
+          mutate(
+            OR = exp(estimate),
+            OR_low = exp(estimate - 1.96 * std.error),
+            OR_high = exp(estimate + 1.96 * std.error),
+            Term = ifelse(grepl("^factor\\(treatment_yearof\\)", term),
+                          gsub("factor\\(treatment_yearof\\)", "Policy level ", term),
+                          paste0("Threshold: ", term)),
+            Coefficient = sprintf("%.2f", estimate),
+            `Std. Error` = sprintf("%.2f", std.error),
+            `Odds Ratio` = sprintf("%.2f", OR),
+            `95% CI` = paste0("[", sprintf("%.2f", OR_low), ", ", sprintf("%.2f", OR_high), "]")
+          ) %>%
+          select(Term, Coefficient, `Std. Error`, `Odds Ratio`, `95% CI`)
+        
+        for (row in 1:nrow(table_s10)){
+          for (col in 1:ncol(table_s10)){
+            assign(paste0("table_s10_",row,"_",col),
+                   as.character(table_s10[row,col]))
+          }
+        }
+        
+        table_s10_n <- format.round(sum(OR_outcomes_journal_policies$weight),1)
+        
+        table_s10_neg_odds_r_polices_mean <-  paste0(
+          100*round(1-mean(as.numeric(table_s10_3_4),as.numeric(table_s10_4_4),as.numeric(table_s10_5_4)),1),
+          "%")
+      }
+
+      # Table s13
+      {
+        ###### Process Reproducibility Logistic
+        # Here it is very simple because each case is a unique paper N = 600
+        # And it is a dichotomous outcome. Simple logit
+        
+        # Run binary logistic regression
+        m1pr <- glm(process_reproducible_num ~ factor(treatment_yearof),
+                    data = PR_outcomes_journal_policies,
+                    family = binomial)
+        
+        # Extract results with 95% confidence intervals
+        table_s13 <- broom::tidy(m1pr, conf.int = TRUE, conf.level = 0.95) %>%
+          mutate(
+            OR = exp(estimate),
+            OR_low = exp(conf.low),
+            #OR_low = ifelse(is.na(OR_low),"NA",sprintf("%.2f", OR_low)),
+            OR_high = exp(conf.high),
+            #OR_high = ifelse(is.na(OR_high),"NA",sprintf("%.2f", OR_high)),
+            estimate = sprintf("%.2f", estimate),
+            std.error = sprintf("%.2f", std.error),
+            OR = sprintf("%.2f", OR),
+            # one CI does not calculate due to missing values in the matrix
+            `95% CI` = ifelse(is.na(OR_low) | is.na(OR_high),
+                              "NA",
+                              paste0("[", sprintf("%.2f", OR_low), ", ", sprintf("%.2f", OR_high), "]")),
+            # `95% CI` = paste0("[", OR_low, ", ", OR_high, "]"),
+            Term = ifelse(term == "(Intercept)", "Baseline (No policy)",
+                          gsub("factor\\(treatment_yearof\\)", "Policy level ", term))
+          ) %>%
+          transmute(
+            Term,
+            Coefficient = estimate,
+            `Std. Error` = std.error,
+            `Odds Ratio` = OR,
+            `95% CI`
+          )
+        
+        for (row in 1:nrow(table_s13)){
+          for (col in 1:ncol(table_s13)){
+            assign(paste0("table_s13_",row,"_",col),
+                   as.character(table_s13[row,col]))
+          }
+        }
+        
+        table_s13_neg_2_4 <- 100*(1-as.numeric(table_s13_2_4))
+        table_s13_neg_3_4 <- 100*(1-as.numeric(table_s13_3_4))
+      }
+    }
+    
+    # Process and outcome reproducibility by journal policies (Main text)
+    {
+      # Percentages by year
+      {
+        # Data prep
+        {
+          unique_journals <- unique(merge(orig_outcomes,paper_metadata[c("paper_id","publication_standard", "COS_pub_expanded")])[, c("publication_standard", "COS_pub_expanded")])
+          
+          # Create sequence of years
+          years <- 2003:2025
+          
+          # Percentages for economics and polisci
+          
+          unique_journals$econ_poli <- ifelse(
+            tolower(unique_journals$COS_pub_expanded) %in% c("economics", "political science"),
+            1, 0
+          )
+          
+          # some journal names do not match perfectly, fix by hand
+          repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Social Science and Medicine", "Social Science & Medicine", repro_journal_policies$journal)
+          repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Leadership Quarterly", "The Leadership Quarterly", repro_journal_policies$journal)
+          repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Computers and Education", "Computers & Education", repro_journal_policies$journal)
+          repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Quarterly Journal of Economics", "The Quarterly Journal of Economics", repro_journal_policies$journal)
+          
+          merged_df <- merge(
+            unique_journals,
+            repro_journal_policies,
+            by.x = "publication_standard",
+            by.y = "journal",
+            all = TRUE  # keeps the extra three journals not in unique_journals
+          ) %>%
+            subset(!is.na(repro_checks))
+          
+          # Add 'location' variable
+          merged_df$location <- with(merged_df, ifelse(
+            !is.na(COS_pub_expanded) & !is.na(names(repro_journal_policies)[2]),  # exists in both
+            1,
+            ifelse(
+              !is.na(COS_pub_expanded) & is.na(names(repro_journal_policies)[2]), # only in unique_journals
+              2,
+              3  # only in repro_journal_policies
+            )
+          ))
+          
+          # FUNCTION to compute policy coverage by year
+          calculate_policy_percentages <- function(data, policy_var, n_journals) {
+            sapply(years, function(y) {
+              sum(!is.na(data[[policy_var]]) & data[[policy_var]] <= y) / n_journals * 100
+            })
+          }
+          
+          # three journals are not coded by discipline because they have no results in orig_outcomes, fix
+          merged_df <- merged_df %>%
+            mutate(COS_pub_expanded = case_when(publication_standard == "Journal of Finance" ~ "economics",
+                                                publication_standard == "Journal of Public Administration Research and Theory" ~ "management",
+                                                publication_standard == "Law and Human Behavior" ~ "psychology",
+                                                TRUE ~ COS_pub_expanded),
+                   econ_poli = case_when(publication_standard == "Journal of Finance" ~ 1,
+                                         publication_standard == "Journal of Public Administration Research and Theory" ~ 0,
+                                         publication_standard == "Law and Human Behavior" ~ 0,
+                                         TRUE ~ econ_poli))
+          
+          merged_df <- merged_df %>%
+            mutate(
+              # normalize to logical flags
+              require_data_flag  = tolower(require_data)  == "yes",
+              require_code_flag  = tolower(require_code)  == "yes",
+              repro_checks_flag  = tolower(repro_checks)  == "yes",
+              # requested 4th column: "Yes"/"No"
+              any_policy = if_else(require_data_flag | require_code_flag | repro_checks_flag, "Yes", "No")
+            ) %>%
+            rowwise() %>%
+            mutate(
+              # first year any policy is in force (min across non-NA years)
+              any_policy_year = {
+                yrs <- c_across(c(require_data_year, require_code_year, repro_checks_year))
+                yrs <- yrs[!is.na(yrs)]
+                if (length(yrs) == 0) NA_real_ else min(yrs)
+              }
+            ) %>%
+            ungroup() %>%
+            select(-require_data_flag, -require_code_flag, -repro_checks_flag)
+          
+          merged_df_econ_poli <- subset(merged_df, econ_poli == 1)
+          merged_df_rest      <- subset(merged_df, econ_poli == 0)
+          
+          # Compute "any policy" percentages
+          percent_any     <- calculate_policy_percentages(merged_df,            "any_policy_year",     nrow(merged_df))
+          percent_any_ep  <- calculate_policy_percentages(merged_df_econ_poli,  "any_policy_year",     nrow(merged_df_econ_poli))
+          percent_any_ep0 <- calculate_policy_percentages(merged_df_rest,       "any_policy_year",     nrow(merged_df_rest))
+          
+          # Compute for each policy
+          percent_data <- calculate_policy_percentages(merged_df, "require_data_year", length(merged_df$publication_standard))
+          percent_code <- calculate_policy_percentages(merged_df, "require_code_year", length(merged_df$publication_standard))
+          percent_repro <- calculate_policy_percentages(merged_df, "repro_checks_year", length(merged_df$publication_standard))
+          
+          # Computer for econ and poli sci
+          merged_df_econ_poli <- subset(merged_df, econ_poli == 1)
+          percent_data_ep <- calculate_policy_percentages(merged_df_econ_poli, "require_data_year", length(merged_df_econ_poli$publication_standard))
+          percent_code_ep <- calculate_policy_percentages(merged_df_econ_poli, "require_code_year", length(merged_df_econ_poli$publication_standard))
+          percent_repro_ep <- calculate_policy_percentages(merged_df_econ_poli, "repro_checks_year", length(merged_df_econ_poli$publication_standard))
+          
+          # compute for non econ and poli sci
+          merged_df_rest <- subset(merged_df, econ_poli == 0)
+          percent_data_ep0 <- calculate_policy_percentages(merged_df_rest, "require_data_year", length(merged_df_rest$publication_standard))
+          percent_code_ep0 <- calculate_policy_percentages(merged_df_rest, "require_code_year", length(merged_df_rest$publication_standard))
+          percent_repro_ep0 <- calculate_policy_percentages(merged_df_rest, "repro_checks_year", length(merged_df_rest$publication_standard))
+          
+          
+          # make tables of percent by year
+          df_all <- tibble(
+            year = rep(years, 4),
+            percent = c(percent_data, percent_code, percent_repro, percent_any),
+            policy = rep(c("Data required", "Code required", "Repro. check required", "Any of the three"), each = length(years))
+          )
+          
+          df_econ_poli <- tibble(
+            year = rep(years, 4),
+            percent = c(percent_data_ep, percent_code_ep, percent_repro_ep, percent_any_ep),
+            policy = rep(c("Data required", "Code required", "Repro. check required", "Any of the three"), each = length(years))
+          )
+          
+          df_rest <- tibble(
+            year = rep(years, 4),
+            percent = c(percent_data_ep0, percent_code_ep0, percent_repro_ep0, percent_any_ep0),
+            policy = rep(c("Data required", "Code required", "Repro. check required", "Any of the three"), each = length(years))
+          )
+          
+          # Explicitly factor policy to control legend order
+          df_all <- df_all %>%
+            mutate(policy = factor(policy, levels = c(
+              "Data required",
+              "Code required",
+              "Repro. check required",
+              "Any of the three"
+            )))
+          
+          df_econ_poli <- df_econ_poli %>%
+            mutate(policy = factor(policy, levels = c(
+              "Data required",
+              "Code required",
+              "Repro. check required",
+              "Any of the three"
+            )))
+          
+          # Assign base segment
+          df_all <- df_all %>%
+            mutate(
+              segment = case_when(
+                year < 2009 ~ "pre_SCORE",
+                year > 2018 ~ "post_SCORE",
+                TRUE ~ "SCORE"  # 2009–2018 inclusive
+              ),
+              linetype = case_when(
+                segment == "SCORE" ~ "dashed",
+                TRUE ~ "solid"
+              )
+            )
+          
+        }
+        
+        # Get percentages by fields by year
+        df_policy_by_year <- df_all %>%
+          filter(year %in% c(2018, 2025)) %>%
+          select(year, policy, percent)
+        
+        df_policy_by_year_econ_poli <- df_econ_poli %>%
+          filter(year %in% c(2018, 2025)) %>%
+          select(year, policy, percent)
+        
+        df_policy_by_year_non_econ_poli <- df_rest %>%
+          filter(year %in% c(2018, 2025)) %>%
+          select(year, policy, percent)
+        
+        p_data_req_2018 <- format.round(as.numeric(df_policy_by_year[1,3]),1)
+        p_data_req_2025 <- format.round(as.numeric(df_policy_by_year[2,3]),1)
+        p_code_req_2018 <- format.round(as.numeric(df_policy_by_year[3,3]),1)
+        p_code_req_2025 <- format.round(as.numeric(df_policy_by_year[4,3]),1)
+        p_reprocheck_req_2018 <- format.round(as.numeric(df_policy_by_year[5,3]),1)
+        p_reprocheck_req_2025 <- format.round(as.numeric(df_policy_by_year[6,3]),1)
+        p_atleastone_req_2018 <- format.round(as.numeric(df_policy_by_year[7,3]),1)
+        p_atleastone_req_2025 <- format.round(as.numeric(df_policy_by_year[8,3]),1)
+        
+        p_data_req_2018_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[1,3]),1)
+        p_data_req_2025_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[2,3]),1)
+        p_code_req_2018_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[3,3]),1)
+        p_code_req_2025_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[4,3]),1)
+        p_reprocheck_req_2018_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[5,3]),1)
+        p_reprocheck_req_2025_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[6,3]),1)
+        p_atleastone_req_2018_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[7,3]),1)
+        p_atleastone_req_2025_econ_poli <- format.round(as.numeric(df_policy_by_year_econ_poli[8,3]),1)
+        
+        p_data_req_2018_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[1,3]),1)
+        p_data_req_2025_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[2,3]),1)
+        p_code_req_2018_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[3,3]),1)
+        p_code_req_2025_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[4,3]),1)
+        p_reprocheck_req_2018_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[5,3]),1)
+        p_reprocheck_req_2025_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[6,3]),1)
+        p_atleastone_req_2018_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[7,3]),1)
+        p_atleastone_req_2025_non_econ_poli <- format.round(as.numeric(df_policy_by_year_non_econ_poli[8,3]),1)
+      }
     }
   }
 
@@ -3545,8 +3712,8 @@ figures <- function(iters=100){
 
   }
 
-  # Figure 6: Data and code sharing policies for 62 social and behavioral science journals by discipline in 2024
-  {
+  # DEPRACATED Figure 6: Data and code sharing policies for 62 social and behavioral science journals by discipline in 2024
+  if(FALSE){
     # Data wrangling
     {
       publications <- na.omit(publications)
@@ -3698,6 +3865,225 @@ figures <- function(iters=100){
       plot_grid(plotlist=plotlist,ncol=1,rel_heights = c(1.5,rep(1,length(group_order)),.5,1.5,0.5,1.5)),
       width = 6000,height = 2000,units = "px",bg="white"
     )
+  }
+  
+  # Figure 6
+  {
+    # Data prep
+    {
+      papers_repro_journal_policies <- merge(paper_metadata[c("paper_id","publication_standard","pub_year")],publications,
+                                             by="publication_standard",all.x=TRUE,all.y=FALSE)
+      papers_repro_journal_policies <- merge(papers_repro_journal_policies,repro_journal_policies,
+                                             by="ISSN",all.x=TRUE,all.y = FALSE)
+      # Generate treatment variable, two versions (minimize Type I or Type II error)
+      papers_repro_journal_policies <- papers_repro_journal_policies %>%
+        mutate(
+          treatment_data_required_yearof = case_when(require_data_year <= pub_year ~ 1,
+                                                     require_data_year > pub_year ~ 0,
+                                                     is.na(require_data_year) ~ 0),
+          treatment_data_required_yearprior = case_when(require_data_year < pub_year ~ 1,
+                                                        require_data_year >= pub_year ~ 0,
+                                                        is.na(require_data_year) ~ 0),
+          treatment_code_required_yearof = case_when(require_code_year <= pub_year ~ 1,
+                                                     require_code_year > pub_year ~ 0,
+                                                     is.na(require_code_year) ~ 0),
+          treatment_code_required_yearprior = case_when(require_code_year < pub_year ~ 1,
+                                                        require_code_year >= pub_year ~ 0,
+                                                        is.na(require_code_year) ~ 0),
+          treatment_repro_check_yearof = case_when(repro_checks_year <= pub_year ~ 1,
+                                                   repro_checks_year > pub_year ~ 0,
+                                                   is.na(repro_checks_year) ~ 0),
+          treatment_repro_check_yearprior = case_when(repro_checks_year < pub_year ~ 1,
+                                                      repro_checks_year >= pub_year ~ 0,
+                                                      is.na(repro_checks_year) ~ 0),
+          treatment_yearof = case_when(treatment_data_required_yearof == 0 ~ 0,
+                                       treatment_repro_check_yearof == 1 ~ 3,
+                                       treatment_repro_check_yearof == 0 & treatment_code_required_yearof == 1 ~ 2,
+                                       treatment_code_required_yearof == 0 & treatment_data_required_yearof == 1 ~ 1),
+          treatment_yearprior = case_when(treatment_data_required_yearprior == 0 ~ 0,
+                                          treatment_repro_check_yearprior == 1 ~ 3,
+                                          treatment_repro_check_yearprior == 0 & treatment_code_required_yearprior == 1 ~ 2,
+                                          treatment_code_required_yearprior == 0 & treatment_data_required_yearprior == 1 ~ 1)
+        )
+      
+      n_journals <- length(unique(
+        paper_metadata[paper_metadata$paper_id %in% pr_outcomes$paper_id,]$publication_standard
+      ))
+      unique_journals <- unique(merge(orig_outcomes,paper_metadata[c("paper_id","publication_standard", "COS_pub_expanded")])[, c("publication_standard", "COS_pub_expanded")])
+       
+      # Create sequence of years
+      years <- 2003:2025
+      
+      # Percentages for economics and polisci
+      
+      unique_journals$econ_poli <- ifelse(
+        tolower(unique_journals$COS_pub_expanded) %in% c("economics", "political science"),
+        1, 0
+      )
+      
+      # some journal names do not match perfectly, fix by hand
+      repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Social Science and Medicine", "Social Science & Medicine", repro_journal_policies$journal)
+      repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Leadership Quarterly", "The Leadership Quarterly", repro_journal_policies$journal)
+      repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Computers and Education", "Computers & Education", repro_journal_policies$journal)
+      repro_journal_policies$journal <- ifelse(repro_journal_policies$journal == "Quarterly Journal of Economics", "The Quarterly Journal of Economics", repro_journal_policies$journal)
+      
+      merged_df <- merge(
+        unique_journals,
+        repro_journal_policies,
+        by.x = "publication_standard",
+        by.y = "journal",
+        all = TRUE  # keeps the extra three journals not in unique_journals
+      ) %>%
+        subset(!is.na(repro_checks))
+      
+      # Add 'location' variable
+      merged_df$location <- with(merged_df, ifelse(
+        !is.na(COS_pub_expanded) & !is.na(names(repro_journal_policies)[2]),  # exists in both
+        1,
+        ifelse(
+          !is.na(COS_pub_expanded) & is.na(names(repro_journal_policies)[2]), # only in unique_journals
+          2,
+          3  # only in repro_journal_policies
+        )
+      ))
+      
+      
+      # FUNCTION to compute policy coverage by year
+      calculate_policy_percentages <- function(data, policy_var, n_journals) {
+        sapply(years, function(y) {
+          sum(!is.na(data[[policy_var]]) & data[[policy_var]] <= y) / n_journals * 100
+        })
+      }
+      
+      # three journals are not coded by discipline because they have no results in orig_outcomes, fix
+      merged_df <- merged_df %>%
+        mutate(COS_pub_expanded = case_when(publication_standard == "Journal of Finance" ~ "economics",
+                                            publication_standard == "Journal of Public Administration Research and Theory" ~ "management",
+                                            publication_standard == "Law and Human Behavior" ~ "psychology",
+                                            TRUE ~ COS_pub_expanded),
+               econ_poli = case_when(publication_standard == "Journal of Finance" ~ 1,
+                                     publication_standard == "Journal of Public Administration Research and Theory" ~ 0,
+                                     publication_standard == "Law and Human Behavior" ~ 0,
+                                     TRUE ~ econ_poli))
+      
+      # Compute for each policy
+      percent_data <- calculate_policy_percentages(merged_df, "require_data_year", length(merged_df$publication_standard))
+      percent_code <- calculate_policy_percentages(merged_df, "require_code_year", length(merged_df$publication_standard))
+      percent_repro <- calculate_policy_percentages(merged_df, "repro_checks_year", length(merged_df$publication_standard))
+      
+      # Computer for econ and poli sci
+      merged_df_econ_poli <- subset(merged_df, econ_poli == 1)
+      percent_data_ep <- calculate_policy_percentages(merged_df_econ_poli, "require_data_year", length(merged_df_econ_poli$publication_standard))
+      percent_code_ep <- calculate_policy_percentages(merged_df_econ_poli, "require_code_year", length(merged_df_econ_poli$publication_standard))
+      percent_repro_ep <- calculate_policy_percentages(merged_df_econ_poli, "repro_checks_year", length(merged_df_econ_poli$publication_standard))
+      
+      # compute for non econ and poli sci
+      merged_df_rest <- subset(merged_df, econ_poli == 0)
+      percent_data_ep0 <- calculate_policy_percentages(merged_df_rest, "require_data_year", length(merged_df_rest$publication_standard))
+      percent_code_ep0 <- calculate_policy_percentages(merged_df_rest, "require_code_year", length(merged_df_rest$publication_standard))
+      percent_repro_ep0 <- calculate_policy_percentages(merged_df_rest, "repro_checks_year", length(merged_df_rest$publication_standard))
+      
+      
+      # make tables of percent by year
+      df_all <- tibble(
+        year = rep(years, 3),
+        percent = c(percent_data, percent_code, percent_repro),
+        policy = rep(c("Data required", "Code required", "Repro. check required"), each = length(years))
+      )
+      
+      df_econ_poli <- tibble(
+        year = rep(years, 3),
+        percent = c(percent_data_ep, percent_code_ep, percent_repro_ep),
+        policy = rep(c("Data required", "Code required", "Repro. check required"), each = length(years))
+      )
+      
+      df_rest <- tibble(
+        year = rep(years, 3),
+        percent = c(percent_data_ep0, percent_code_ep0, percent_repro_ep0),
+        policy = rep(c("Data required", "Code required", "Repro. check required"), each = length(years))
+      )
+      
+      # Explicitly factor policy to control legend order
+      df_all <- df_all %>%
+        mutate(policy = factor(policy, levels = c(
+          "Data required",
+          "Code required",
+          "Repro. check required"
+        )))
+      
+      df_econ_poli <- df_econ_poli %>%
+        mutate(policy = factor(policy, levels = c(
+          "Data required",
+          "Code required",
+          "Repro. check required"
+        )))
+      
+      # Assign base segment
+      df_all <- df_all %>%
+        mutate(
+          segment = case_when(
+            year < 2009 ~ "pre_SCORE",
+            year > 2018 ~ "post_SCORE",
+            TRUE ~ "SCORE"  # 2009–2018 inclusive
+          ),
+          linetype = case_when(
+            segment == "SCORE" ~ "dashed",
+            TRUE ~ "solid"
+          )
+        )
+      
+      
+      # Duplicate 2009 and 2018 rows into neighboring segments
+      transition_years <- df_all %>%
+        filter(year %in% c(2009, 2018)) %>%
+        mutate(
+          segment = case_when(
+            year == 2009 ~ "pre_SCORE",
+            year == 2018 ~ "post_SCORE"
+          ),
+          linetype = "solid"
+        )
+      
+      # Rebuild segment dataframe with overlaps
+      df_segments <- bind_rows(df_all, transition_years) %>%
+        mutate(group_id = paste(policy, segment, sep = "_")) %>%
+        arrange(policy, year, segment)
+    }
+    
+    # Aesthetic prep
+    {
+      policy_colors <- c(
+        "Data required" = "#B2023E",
+        "Code required" = "#00a2e7",
+        "Repro. check required" = "#083259"
+      )
+    }
+      
+    # Plot
+    {
+      p <- ggplot(df_segments, aes(x = year, y = percent, color = policy, group = group_id, linetype = linetype)) +
+        geom_line(linewidth = 1) +
+        scale_color_manual(values = policy_colors) +
+        scale_linetype_identity() +
+        scale_x_continuous(breaks = seq(2003, 2025, 2)) +
+        labs(
+          x = "Year",
+          y = "Percent of Journals",
+          color = NULL,
+          title = "Reproducibility Policy Implementation Across Journals"
+        ) +
+        theme_classic(base_size = 14) +
+        theme(legend.position = "bottom") +
+        annotate("text", x = 2013.5, y = 30, label = "Period under study\nin SCORE", size = 4.5) +
+        annotate("rect", xmin = 2009, xmax = 2018, ymin = -Inf, ymax = Inf, alpha = 0.05)
+    }
+    
+    figure_6 <- bundle_ggplot(
+      plot = p,
+      width = 3000,height = 2000,units = "px",bg="white"
+    )
+    
+   
   }
 
   # Figure S1. Outcome reproducibility by data and code availability, claims level
@@ -3871,7 +4257,6 @@ figures <- function(iters=100){
       width = 6000,height = 1200,units = "px",bg="white"
     )
   }
-  # width = 6000,height = 1200,units = "px",bg="white"
 
   # Figure S2. Outcome reproducibility by year of publication, claims level
   {
@@ -5606,6 +5991,7 @@ figures <- function(iters=100){
       
 
   }
+  
   # Figure S10. Outcome reproducibility by 12 subfields and by year
   {
     # Data manipulation
@@ -5872,6 +6258,130 @@ figures <- function(iters=100){
     )
       
   }
+  
+  # Figure S11
+  {
+    # Data prep
+    {
+      # General merge for journal policies
+      papers_repro_journal_policies <- merge(paper_metadata[c("paper_id","publication_standard","pub_year")],publications,
+                                             by="publication_standard",all.x=TRUE,all.y=FALSE)
+      papers_repro_journal_policies <- merge(papers_repro_journal_policies,repro_journal_policies,
+                                             by="ISSN",all.x=TRUE,all.y = FALSE)
+      # Generate treatment variable, two versions (minimize Type I or Type II error)
+      papers_repro_journal_policies <- papers_repro_journal_policies %>%
+        mutate(
+          treatment_data_required_yearof = case_when(require_data_year <= pub_year ~ 1,
+                                                     require_data_year > pub_year ~ 0,
+                                                     is.na(require_data_year) ~ 0),
+          treatment_data_required_yearprior = case_when(require_data_year < pub_year ~ 1,
+                                                        require_data_year >= pub_year ~ 0,
+                                                        is.na(require_data_year) ~ 0),
+          treatment_code_required_yearof = case_when(require_code_year <= pub_year ~ 1,
+                                                     require_code_year > pub_year ~ 0,
+                                                     is.na(require_code_year) ~ 0),
+          treatment_code_required_yearprior = case_when(require_code_year < pub_year ~ 1,
+                                                        require_code_year >= pub_year ~ 0,
+                                                        is.na(require_code_year) ~ 0),
+          treatment_repro_check_yearof = case_when(repro_checks_year <= pub_year ~ 1,
+                                                   repro_checks_year > pub_year ~ 0,
+                                                   is.na(repro_checks_year) ~ 0),
+          treatment_repro_check_yearprior = case_when(repro_checks_year < pub_year ~ 1,
+                                                      repro_checks_year >= pub_year ~ 0,
+                                                      is.na(repro_checks_year) ~ 0),
+          treatment_yearof = case_when(treatment_data_required_yearof == 0 ~ 0,
+                                       treatment_repro_check_yearof == 1 ~ 3,
+                                       treatment_repro_check_yearof == 0 & treatment_code_required_yearof == 1 ~ 2,
+                                       treatment_code_required_yearof == 0 & treatment_data_required_yearof == 1 ~ 1),
+          treatment_yearprior = case_when(treatment_data_required_yearprior == 0 ~ 0,
+                                          treatment_repro_check_yearprior == 1 ~ 3,
+                                          treatment_repro_check_yearprior == 0 & treatment_code_required_yearprior == 1 ~ 2,
+                                          treatment_code_required_yearprior == 0 & treatment_data_required_yearprior == 1 ~ 1)
+        )
+      # mean(papers_repro_journal_policies$treatment_yearof == 0, na.rm = TRUE) * 100
+      #85.175
+      # There are slightly fewer treatment for the yearprior
+      #mean(papers_repro_journal_policies$treatment_yearprior == 0, na.rm = TRUE) * 100
+      #87.15
+      OR_outcomes_journal_policies <- merge(repro_outcomes[repro_outcomes$repro_outcome_overall != "none",],papers_repro_journal_policies,
+                                            by="paper_id")
+      
+      ### Make variables numeric for ease
+      OR_outcomes_journal_policies <- OR_outcomes_journal_policies %>%
+        mutate(repro_outcome_overall_consolidated_num = as.numeric(repro_outcome_overall_consolidated))
+      
+      data <- OR_outcomes_journal_policies
+      
+      
+      orig_outcomes_papers <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
+      
+      # Set reproduction outcome
+      data$cat <- factor(data$repro_outcome_overall_consolidated_num,
+                         levels = c(1, 2, 3),
+                         labels = c("Precisely reproduced", "Approximately reproduced", "Not reproduced"))
+      
+      # Set treatment group
+      data$treatment_group <- factor(data$treatment_yearof,
+                                     levels = c(3, 2, 1, 0),
+                                     labels = c("Data, code &\nrepro check\nrequired",
+                                                "Data & code\nrequired",
+                                                "Data\nrequired",
+                                                "No policy"))
+      
+      # Keep relevant rows
+      data <- data %>% filter(!is.na(cat) & !is.na(treatment_group) & !is.na(pub_year))
+      
+      # Order data so precise ones come first
+      data <- data %>%
+        arrange(treatment_group, pub_year, cat) %>%
+        group_by(treatment_group, pub_year) %>%
+        mutate(row_id = row_number(),
+               grid_x = ((row_id - 1) %% 10) + 1,
+               grid_y = 10 - floor((row_id - 1) / 10))
+    }
+    
+    # Plot
+    {
+      # Palette
+      chart.palette <- c(
+        "Precisely reproduced" = "#083259",
+        "Approximately reproduced" = "#00a2e7",
+        "Not reproduced" = "#B2023E"
+      )
+      
+      # Plot
+      p <- ggplot(data, aes(x = grid_x, y = grid_y, fill = cat)) +
+        geom_tile(width = 0.85, height = 0.85, linewidth = 0, linejoin = "round") +
+        scale_fill_manual(
+          values = chart.palette,
+          drop = FALSE,
+          name = NULL  # remove title if desired
+        ) +
+        coord_fixed() +
+        facet_grid(treatment_group ~ pub_year, switch = "y") +
+        theme_minimal(base_size = 12) +
+        theme(
+          strip.text.y.left = element_text(angle = 0, hjust = 1, face = "bold", size = 10),
+          strip.text.x = element_text(size = 10),
+          axis.text = element_blank(),
+          axis.title = element_blank(),
+          panel.grid = element_blank(),
+          legend.position = "bottom",  # <-- add this
+          legend.box = "horizontal",
+          legend.text = element_text(size = 10),
+          strip.placement = "outside",
+          panel.spacing = unit(1.2, "lines"),
+          plot.margin = margin(10, 10, 10, 20)
+        )
+    }
+    
+    figure_s11 <- bundle_ggplot(
+      plot=p,
+      width = 4000,height = 2400,units = "px",bg="white"
+    )
+    
+
+  }
 
   # Export
   {
@@ -5891,6 +6401,7 @@ figures <- function(iters=100){
       "figure_s7"=figure_s7,
       "figure_s8"=figure_s8,
       "figure_s9"=figure_s9,
-      "figure_s10"=figure_s10))
+      "figure_s10"=figure_s10,
+      "figure_s11"=figure_s11))
   }
 }

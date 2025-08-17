@@ -2,6 +2,7 @@ This folder contains the following files:
 “analysis and knit.R” contains all the code to generate all stats and figures and to knit it into the placeholder manuscript document
 “analyst data.RData” contains all datasets needed to generate the stats and figures
 “common functions.R” contains helper functions for statistics and figures
+“repli_binary.R” contains optional code pertaining to the binary replication measures
 “template manuscript.docx” is the full manuscript file, where all statistics and figures are placeholders to be calculated
 "Analyst package.Rproj" is an R Project file for setting the root directory
  
