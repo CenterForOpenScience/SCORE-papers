@@ -538,6 +538,7 @@ tagged_stats <- function(){
       {
         table_name <- "table_3"
         
+        set.seed(6389)
         t3_m <- replicability %>% select(-paper_id) %>% 
           full_join(outcome %>% select(-paper_id), by = "claim_id") %>% 
           full_join(robust %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
@@ -684,6 +685,7 @@ tagged_stats <- function(){
           left_join(ds, by = "paper_id") %>% 
           rename(pv = p)
         
+        set.seed(5132)
         table <- tab4_data %>% 
           left_join(
             replicability %>% full_join(outcome %>% select(-paper_id), by = "claim_id"),
@@ -774,6 +776,7 @@ tagged_stats <- function(){
           left_join(oa_citations, by = "paper_id") %>% 
           rename(pv = p)
         
+        set.seed(4801)
         table <- tab5_data %>% 
           full_join(all_indicators, by = "paper_id") %>% 
           pivot_longer(cols = -c(all_of(names(all_indicators))), names_to = "var", values_to = "value") %>% 
@@ -1214,10 +1217,11 @@ tagged_stats <- function(){
 
       }
       
-      # Table S17
+      # Table S16
       {
-        table_name <- "table_s17"
+        table_name <- "table_s16"
         
+        set.seed(9396)
         table <- repli_binary %>% 
           rename_with(., function(x) str_remove_all(x, "repli_"), everything()) %>% 
           left_join(repli_outcomes %>% select(report_id, claim_id, binary_score = repli_score_criteria_met), by = "report_id") %>% 
@@ -1281,11 +1285,11 @@ tagged_stats <- function(){
         
       }
       
-      # Table S18
+      # Table S17
       {
-        table_name <- "table_s18"
+        table_name <- "table_s17"
         
-        tab_s18_data <- melbourne %>% select(claim_id, melb = pc1) %>% 
+        tab_s17_data <- melbourne %>% select(claim_id, melb = pc1) %>% 
           left_join(keyw %>% select(claim_id, kw = pc1), by = "claim_id") %>% 
           left_join(twosix %>% select(claim_id, ts = pc1), by = "claim_id") %>% 
           left_join(usc %>% select(claim_id, u = pc1), by = "claim_id") %>% 
@@ -1297,7 +1301,7 @@ tagged_stats <- function(){
           mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first())) %>% 
           mutate(weight = 1)
         
-        table <- tab_s18_data %>%  
+        table <- tab_s17_data %>%  
           group_by(measure) %>% 
           dplyr::summarize(
             N = round(sum(weight), 1),
@@ -1306,7 +1310,7 @@ tagged_stats <- function(){
             SD = round(sqrt(wtd.var(value, weight)), 2)
           ) %>% 
           left_join(
-            tab_s18_data %>% 
+            tab_s17_data %>% 
               semi_join(repli_outcomes %>% filter(!is_covid & repli_version_of_record), by = "claim_id") %>% 
               group_by(measure) %>% 
               dplyr::summarize(
@@ -1344,11 +1348,12 @@ tagged_stats <- function(){
         
       }
       
-      # Table S19
+      # Table S18
       {
-        table_name <- "table_s19"
+        table_name <- "table_s18"
         
-        t_s19_m <- replicability %>% select(-paper_id) %>% 
+        set.seed(1401)
+        t_s18_m <- replicability %>% select(-paper_id) %>% 
           full_join(outcome %>% select(-paper_id), by = "claim_id") %>% 
           full_join(robust %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
           full_join(process %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
@@ -1383,7 +1388,7 @@ tagged_stats <- function(){
           ungroup() %>% 
           select(-name)
         
-        t_s19_n <- replicability %>% select(-paper_id) %>% 
+        t_s18_n <- replicability %>% select(-paper_id) %>% 
           full_join(outcome %>% select(-paper_id), by = "claim_id") %>% 
           full_join(robust %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
           full_join(process %>% mutate(claim_id = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>% select(-paper_id), by = "claim_id") %>% 
@@ -1406,7 +1411,7 @@ tagged_stats <- function(){
           dplyr::summarize(N = sum(weight)) %>% 
           ungroup()
         
-        table <- t_s19_n %>% left_join(t_s19_m, by = c("field", "metric")) %>% 
+        table <- t_s18_n %>% left_join(t_s18_m, by = c("field", "metric")) %>% 
           pivot_wider(names_from = metric, values_from = c("N", "value")) %>% 
           select(field, N_score, value_score, N_supported, value_supported,
                  N_pr, value_pr, N_reproduced, value_reproduced) %>% 
@@ -1424,11 +1429,11 @@ tagged_stats <- function(){
         
       }
       
-      # Table S20
+      # Table S19
       {
-        table_name <- "table_s20"
+        table_name <- "table_s19"
         
-        tab_s20_data <- extracted_claims %>% 
+        tab_s19_data <- extracted_claims %>% 
           filter(phase != "covid") %>% 
           select(paper_id) %>% distinct() %>% 
           left_join(statcheck, by = "paper_id") %>% 
@@ -1442,9 +1447,10 @@ tagged_stats <- function(){
           left_join(process, by = "paper_id") %>% 
           left_join(ds, by = "paper_id")
         
+        set.seed(7670)
         table <- replicability %>% 
           full_join(outcome %>% select(-paper_id), by = "claim_id") %>% 
-          full_join(tab_s20_data, by = "paper_id") %>% 
+          full_join(tab_s19_data, by = "paper_id") %>% 
           pivot_longer(cols = -c(paper_id, claim_id, score, supported, pr, reproduced), names_to = "var", values_to = "value") %>% 
           drop_na(value) %>% 
           pivot_longer(
@@ -1500,9 +1506,9 @@ tagged_stats <- function(){
         
       }
       
-      # Table S21
+      # Table S20
       {
-        table_name <- "table_s21"
+        table_name <- "table_s20"
         
         all_indicators <- melbourne %>% select(claim_id, melb = pc1) %>% 
           left_join(keyw %>% select(claim_id, kw = pc1), by = "claim_id") %>% 
@@ -1514,6 +1520,7 @@ tagged_stats <- function(){
           mutate(across(-claim_id, function(x) (x*1))) %>% 
           mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first()))
         
+        set.seed(8121)
         table <- extracted_claims %>% 
           filter(phase != "covid") %>% 
           select(paper_id) %>% distinct() %>% 
@@ -1661,6 +1668,7 @@ tagged_stats <- function(){
           mutate(across(-claim_id, function(x) (x*1))) %>% 
           mutate(paper_id = select(., claim_id) %>% apply(1, function(x) str_split(x, "_") %>% unlist() %>% first()))
         
+        set.seed(1154)
         table <- extracted_claims %>% 
           filter(phase != "covid") %>% 
           select(paper_id) %>% distinct() %>% 
@@ -1787,6 +1795,7 @@ tagged_stats <- function(){
           left_join(ksu, by = "paper_id") %>% 
           left_join(scholarcy, by = "paper_id")
         
+        set.seed(9231)
         table <- de_data %>% 
           left_join(
             replicability %>% full_join(outcome %>% select(-paper_id), by = "claim_id"),
@@ -1883,6 +1892,7 @@ tagged_stats <- function(){
       {
         table_name <- "table_s30"
         
+        set.seed(4258)
         table <- extracted_claims %>% 
           filter(phase != "covid") %>% 
           select(paper_id) %>% distinct() %>% 
