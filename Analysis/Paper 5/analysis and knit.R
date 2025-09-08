@@ -3649,6 +3649,40 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         count(rr_id) %>%
         nrow()
     }
+    
+    # Completion by journal (caption for Figure s8)
+    {
+      all_sourced <- rr_sourced %>% 
+        semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
+        filter(type == "replication" | type == "hybrid") %>% 
+        select(paper_id) %>% 
+        distinct()
+      
+      journal_completion <- status %>% 
+        filter(RR) %>% 
+        select(paper_id) %>% 
+        left_join(paper_metadata %>% select(paper_id, journal = publication_standard), by = "paper_id") %>% 
+        mutate(never_sourced = !(paper_id %in% all_sourced$paper_id)) %>% 
+        mutate(finished = paper_id %in% repli_export$paper_id) %>% 
+        mutate(
+          registered = !finished & paper_id %in% (all_rr_attempts %>% filter(str_detect(type, "Replication")) %>% 
+                                                    filter(!is.na(registrations) | prereg_completion == "approve") %>% pull(paper_id))
+        ) %>% 
+        mutate(
+          completed_prereg = !finished & !registered & paper_id %in% (all_rr_attempts %>% 
+                                                                        filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "complete") %>% pull(paper_id))
+        ) %>% 
+        mutate(
+          partial_prereg = !finished & !registered & !completed_prereg & paper_id %in% (all_rr_attempts %>% 
+                                                                                          filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "partial" | osf_activity) %>% pull(paper_id))
+        ) %>% 
+        mutate(not_started = !never_sourced & !finished & !registered & !completed_prereg & !partial_prereg) %>%
+        group_by(journal) %>%
+        dplyr::summarise(n=n())
+      
+      n_papers_per_jounral_min <- min(journal_completion$n)
+      n_papers_per_jounral_max <- max(journal_completion$n)
+    }
   }
   
   
@@ -4591,75 +4625,109 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     
     # Figure S6
     {
-      all_sourced <- rr_sourced %>% 
-        semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
-        filter(type == "replication" | type == "hybrid") %>% 
-        select(paper_id) %>% 
-        distinct()
+      # Data wrangling
+      {
+        all_sourced <- rr_sourced %>% 
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
+          filter(type == "replication" | type == "hybrid") %>% 
+          select(paper_id) %>% 
+          distinct()
+
+        # Need all eligible papers to start
+        data <- status %>% 
+          filter(RR) %>% 
+          select(paper_id) %>% 
+          left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id") %>% 
+          mutate(never_sourced = !(paper_id %in% all_sourced$paper_id)) %>% 
+          mutate(finished = paper_id %in% repli_export$paper_id) %>% 
+          mutate(
+            registered = !finished & paper_id %in% (all_rr_attempts %>% filter(str_detect(type, "Replication")) %>% 
+                                                      filter(!is.na(registrations) | prereg_completion == "approve") %>% pull(paper_id))
+          ) %>% 
+          mutate(
+            completed_prereg = !finished & !registered & paper_id %in% (all_rr_attempts %>% 
+                                                                          filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "complete") %>% pull(paper_id))
+          ) %>% 
+          mutate(
+            partial_prereg = !finished & !registered & !completed_prereg & paper_id %in% (all_rr_attempts %>% 
+                                                                                            filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "partial" | osf_activity) %>% pull(paper_id))
+          ) %>% 
+          mutate(not_started = !never_sourced & !finished & !registered & !completed_prereg & !partial_prereg) %>% 
+          pivot_longer(cols = -c(paper_id, field), names_to = "stage", values_to = "value") %>%
+          arrange(field)
+        
+        n_papers_by_field <- data %>%
+          mutate(field = str_to_sentence(field),
+            field = case_match(
+              field,
+              "Economics and finance" ~ "Economics",
+              "Psychology and health" ~ "Psychology",
+              "Sociology and criminology" ~ "Sociology",
+              .default = field
+            )
+          ) %>%
+          group_by(field,paper_id) %>% 
+          dplyr::summarize(n = 1) %>% 
+          group_by(field) %>% 
+          dplyr::summarize(n = sum(n)) %>%
+          arrange(field)
+          
+        
+        grouped_data <- data %>%
+          group_by(field, stage) %>% 
+          dplyr::summarize(t = sum(value) / n()) %>% 
+          ungroup() %>% 
+          mutate(field = str_to_sentence(field)) %>% 
+          mutate(
+            stage = case_match(
+              stage,
+              "never_sourced" ~ "Never sourced",
+              "not_started" ~ "Not started",
+              "partial_prereg" ~ "Partial prereg or OSF",
+              "completed_prereg" ~ "Completed prereg",
+              "registered" ~ "Registered",
+              "finished" ~ "Finished"
+            )
+          ) %>% 
+          mutate(
+            field = case_match(
+              field,
+              "Economics and finance" ~ "Economics",
+              "Psychology and health" ~ "Psychology",
+              "Sociology and criminology" ~ "Sociology",
+              .default = field
+            )
+          ) %>% 
+          mutate(stage = as_factor(stage) %>% fct_relevel(., "Never sourced", "Not started", "Partial prereg or OSF", 
+                                                          "Completed prereg", "Registered", "Finished") %>% fct_rev())
+        
+        grouped_data$field <- factor(grouped_data$field,
+                                     levels=sort(unique(grouped_data$field)),
+                                     labels=paste0(sort(unique(grouped_data$field)),"\n(n=",n_papers_by_field$n,")")
+                                     )
+      }
       
-      # need all eligible papers to start
-      plot <- status %>% 
-        filter(RR) %>% 
-        select(paper_id) %>% 
-        left_join(paper_metadata %>% select(paper_id, field = COS_pub_category), by = "paper_id") %>% 
-        mutate(never_sourced = !(paper_id %in% all_sourced$paper_id)) %>% 
-        mutate(finished = paper_id %in% repli_export$paper_id) %>% 
-        mutate(
-          registered = !finished & paper_id %in% (all_rr_attempts %>% filter(str_detect(type, "Replication")) %>% 
-                                                    filter(!is.na(registrations) | prereg_completion == "approve") %>% pull(paper_id))
-        ) %>% 
-        mutate(
-          completed_prereg = !finished & !registered & paper_id %in% (all_rr_attempts %>% 
-                                                                        filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "complete") %>% pull(paper_id))
-        ) %>% 
-        mutate(
-          partial_prereg = !finished & !registered & !completed_prereg & paper_id %in% (all_rr_attempts %>% 
-                                                                                          filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "partial" | osf_activity) %>% pull(paper_id))
-        ) %>% 
-        mutate(not_started = !never_sourced & !finished & !registered & !completed_prereg & !partial_prereg) %>% 
-        pivot_longer(cols = -c(paper_id, field), names_to = "stage", values_to = "value") %>% 
-        group_by(field, stage) %>% 
-        dplyr::summarize(t = sum(value) / n()) %>% 
-        ungroup() %>% 
-        mutate(field = str_to_sentence(field)) %>% 
-        mutate(
-          stage = case_match(
-            stage,
-            "never_sourced" ~ "Never sourced",
-            "not_started" ~ "Not started",
-            "partial_prereg" ~ "Partial prereg or OSF",
-            "completed_prereg" ~ "Completed prereg",
-            "registered" ~ "Registered",
-            "finished" ~ "Finished"
+      # Plot
+      {
+        plot <- ggplot(data=grouped_data,aes(x = field, y = t, fill = stage)) +
+          scale_x_discrete(expand=c(0,0))+
+          scale_y_continuous(expand=c(0,0))+
+          geom_col(alpha = 0.7) +
+          scale_fill_manual(values = c("mediumorchid4", "black", "tomato4", "seagreen4", "wheat4", "deepskyblue4")) +
+          labs(
+            x = "",
+            y = "",
+            fill = "",
+            title = "Evidence set (n = 600)"
+          ) +
+          theme_light() +
+          theme(
+            plot.title = element_text(size = 11, hjust = 0.5),
+            axis.text = element_text(size = 11),
+            legend.text = element_text(size = 11),
+            legend.position = "bottom"
           )
-        ) %>% 
-        mutate(
-          field = case_match(
-            field,
-            "Economics and finance" ~ "Economics",
-            "Psychology and health" ~ "Psychology",
-            "Sociology and criminology" ~ "Criminology",
-            .default = field
-          )
-        ) %>% 
-        mutate(stage = as_factor(stage) %>% fct_relevel(., "Never sourced", "Not started", "Partial prereg or OSF", 
-                                                        "Completed prereg", "Registered", "Finished") %>% fct_rev()) %>% 
-        ggplot(aes(x = field, y = t, fill = stage)) +
-        geom_col(alpha = 0.7) +
-        scale_fill_manual(values = c("mediumorchid4", "black", "tomato4", "seagreen4", "wheat4", "deepskyblue4")) +
-        labs(
-          x = "",
-          y = "",
-          fill = "",
-          title = "Evidence set (n = 600)"
-        ) +
-        theme_light() +
-        theme(
-          plot.title = element_text(size = 11, hjust = 0.5),
-          axis.text = element_text(size = 11),
-          legend.text = element_text(size = 11),
-          legend.position = "bottom"
-        )
+      }
       
       figure_s6 <- bundle_ggplot(
         plot = plot,
@@ -4668,66 +4736,88 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     
     # Figure S7
     {
-      all_sourced <- rr_sourced %>% 
-        semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
-        filter(type == "replication" | type == "hybrid") %>% 
-        select(paper_id) %>% 
-        distinct()
-      
-      # need all eligible papers to start
-      plot <- status %>% 
-        filter(RR) %>% 
-        select(paper_id) %>% 
-        left_join(paper_metadata %>% select(paper_id, year = pub_year), by = "paper_id") %>% 
-        mutate(never_sourced = !(paper_id %in% all_sourced$paper_id)) %>% 
-        mutate(finished = paper_id %in% repli_export$paper_id) %>% 
-        mutate(
-          registered = !finished & paper_id %in% (all_rr_attempts %>% filter(str_detect(type, "Replication")) %>% 
-                                                    filter(!is.na(registrations) | prereg_completion == "approve") %>% pull(paper_id))
-        ) %>% 
-        mutate(
-          completed_prereg = !finished & !registered & paper_id %in% (all_rr_attempts %>% 
-                                                                        filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "complete") %>% pull(paper_id))
-        ) %>% 
-        mutate(
-          partial_prereg = !finished & !registered & !completed_prereg & paper_id %in% (all_rr_attempts %>% 
-                                                                                          filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "partial" | osf_activity) %>% pull(paper_id))
-        ) %>% 
-        mutate(not_started = !never_sourced & !finished & !registered & !completed_prereg & !partial_prereg) %>% 
-        pivot_longer(cols = -c(paper_id, year), names_to = "stage", values_to = "value") %>% 
-        group_by(year, stage) %>% 
-        dplyr::summarize(t = sum(value) / n()) %>% 
-        ungroup() %>% 
-        mutate(year = as.character(year)) %>% 
-        mutate(
-          stage = case_match(
-            stage,
-            "never_sourced" ~ "Never sourced",
-            "not_started" ~ "Not started",
-            "partial_prereg" ~ "Partial prereg or OSF",
-            "completed_prereg" ~ "Completed prereg",
-            "registered" ~ "Registered",
-            "finished" ~ "Finished"
-          )
-        ) %>% 
-        mutate(stage = as_factor(stage) %>% fct_relevel(., "Never sourced", "Not started", "Partial prereg or OSF", 
-                                                        "Completed prereg", "Registered", "Finished") %>% fct_rev()) %>% 
-        ggplot(aes(x = year, y = t, fill = stage)) +
-        geom_col(alpha = 0.7) +
-        scale_fill_manual(values = c("mediumorchid4", "black", "tomato4", "seagreen4", "wheat4", "deepskyblue4")) +
-        labs(
-          x = "",
-          y = "",
-          fill = "",
-          title = "Evidence set (n = 600)"
-        ) +
-        theme_light() +
-        theme(
-          plot.title = element_text(size = 11, hjust = 0.5),
-          axis.text = element_text(size = 11),
-          legend.text = element_text(size = 11),
-          legend.position = "bottom"
+      # Data wrangling
+      {
+        all_sourced <- rr_sourced %>% 
+          semi_join(status %>% filter(p1_delivery), by = "paper_id") %>% 
+          filter(type == "replication" | type == "hybrid") %>% 
+          select(paper_id) %>% 
+          distinct()
+        
+        # need all eligible papers to start
+        data <- status %>% 
+          filter(RR) %>% 
+          select(paper_id) %>% 
+          left_join(paper_metadata %>% select(paper_id, year = pub_year), by = "paper_id") %>% 
+          mutate(never_sourced = !(paper_id %in% all_sourced$paper_id)) %>% 
+          mutate(finished = paper_id %in% repli_export$paper_id) %>% 
+          mutate(
+            registered = !finished & paper_id %in% (all_rr_attempts %>% filter(str_detect(type, "Replication")) %>% 
+                                                      filter(!is.na(registrations) | prereg_completion == "approve") %>% pull(paper_id))
+          ) %>% 
+          mutate(
+            completed_prereg = !finished & !registered & paper_id %in% (all_rr_attempts %>% 
+                                                                          filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "complete") %>% pull(paper_id))
+          ) %>% 
+          mutate(
+            partial_prereg = !finished & !registered & !completed_prereg & paper_id %in% (all_rr_attempts %>% 
+                                                                                            filter(str_detect(type, "Replication")) %>% filter(prereg_completion == "partial" | osf_activity) %>% pull(paper_id))
+          ) %>% 
+          mutate(not_started = !never_sourced & !finished & !registered & !completed_prereg & !partial_prereg) %>% 
+          pivot_longer(cols = -c(paper_id, year), names_to = "stage", values_to = "value")
+        
+        n_papers_by_year <- data %>%
+          group_by(year,paper_id) %>% 
+          dplyr::summarize(n = 1) %>% 
+          group_by(year) %>% 
+          dplyr::summarize(n = sum(n))
+        
+        grouped_data <- data %>%
+          group_by(year, stage) %>% 
+          dplyr::summarize(t = sum(value) / n()) %>% 
+          ungroup() %>% 
+          mutate(year = as.character(year)) %>% 
+          mutate(
+            stage = case_match(
+              stage,
+              "never_sourced" ~ "Never sourced",
+              "not_started" ~ "Not started",
+              "partial_prereg" ~ "Partial prereg or OSF",
+              "completed_prereg" ~ "Completed prereg",
+              "registered" ~ "Registered",
+              "finished" ~ "Finished"
+            )
+          ) %>% 
+          mutate(stage = as_factor(stage) %>% fct_relevel(., "Never sourced", "Not started", "Partial prereg or OSF", 
+                                                          "Completed prereg", "Registered", "Finished") %>% fct_rev())
+        
+        grouped_data$year <- factor(grouped_data$year,
+                                     levels=sort(unique(grouped_data$year)),
+                                     labels=paste0(sort(unique(grouped_data$year)),"\n(n=",n_papers_by_year$n,")")
         )
+      }
+      
+      # Plot
+      {
+        plot <- ggplot(data=grouped_data,aes(x = year, y = t, fill = stage)) +
+          scale_x_discrete(expand=c(0,0))+
+          scale_y_continuous(expand=c(0,0))+
+          geom_col(alpha = 0.7) +
+          scale_fill_manual(values = c("mediumorchid4", "black", "tomato4", "seagreen4", "wheat4", "deepskyblue4")) +
+          labs(
+            x = "",
+            y = "",
+            fill = "",
+            title = "Evidence set (n = 600)"
+          ) +
+          theme_light() +
+          theme(
+            plot.title = element_text(size = 11, hjust = 0.5),
+            axis.text = element_text(size = 11),
+            legend.text = element_text(size = 11),
+            legend.position = "bottom"
+          )
+        }
       
       figure_s7 <- bundle_ggplot(
         plot = plot,
