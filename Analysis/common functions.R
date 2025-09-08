@@ -628,7 +628,7 @@
       } else if (parallel==TRUE & progressbar==FALSE) {
         #library(parallel)
         
-        estimates.bootstrapped <- do.call(c,mclapply(1:iters,FUN=function(i){
+        estimates.bootstrapped <- do.call(c,parallel::mclapply(1:iters,FUN=function(i){
           # Generate sample of clusters to include
           clust.list <- sample(cluster.set,length(cluster.set),replace = TRUE)
           # Build dataset from cluster list
