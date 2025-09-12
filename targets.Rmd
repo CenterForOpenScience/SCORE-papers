@@ -184,6 +184,16 @@ list(
              read_google_tsv(covid_metadata_file,
                              covid_metadata_moddate)),
   
+  # Citation information
+  tar_target(paper_cite_file,
+             "1TaAxr215qejHmNPrJ8_-v7uS6bCl3LFSdCziaEyV-RM"),
+  tar_target(paper_cite_moddate,
+             get_google_mod_date(paper_cite_file),
+             cue = tar_cue("always")),
+  tar_target(paper_cite,
+             read_google_sheet(paper_cite_file,
+                               paper_cite_moddate)),
+  
 
   
   ## Raw data with unknown use ----
@@ -656,7 +666,7 @@ list(
                              prereg_indicators_moddate,
                              col_types = c("clcd"))),
   
-  # Unknown LLM document 1
+  # Summary of methodological approaches in original studies.
   # llm_method_data.csv
   tar_target(llm_method_data_file,
              "vxysn"),
@@ -666,7 +676,7 @@ list(
              load_osf_csv(llm_method_data_file,
                           llm_method_data_moddate)),
   
-  # Unknown LLM document 2
+  # Summary of research questions in original studies
   # llm_research_question_table.csv
   tar_target(llm_research_question_table_file,
              "mg794"),
@@ -676,7 +686,7 @@ list(
              load_osf_csv(llm_research_question_table_file,
                           llm_research_question_table_moddate)),
   
-  # Unknown LLM document 3
+  # Summary of theoretical frameworks of original studies
   # llm_theory_data.csv
   tar_target(llm_theory_data_file,
              "mp3rq"),
@@ -1304,6 +1314,7 @@ list(
   tar_target(paper_metadata,
              merge_paper_metadata(non_covid_metadata,
                                   covid_metadata,
+                                  paper_cite,
                                   publications)),
   
   # Claims made in original studies 
