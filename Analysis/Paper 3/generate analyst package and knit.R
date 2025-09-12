@@ -20,7 +20,7 @@
                        "repro_export","repro_journal_policies")
   
   
-  save_figures <- FALSE
+  save_figures <- TRUE
   folder_figures <- paste0("Analysis/Paper 3/Figures/")
 }
 
@@ -70,7 +70,6 @@
 }
 
 # Run the analysis / knit code
-
 if(run_knit==TRUE){
   # Change directories to run full analysis/knit code locally in analyst folder
   setwd(folder_analyst_package)
