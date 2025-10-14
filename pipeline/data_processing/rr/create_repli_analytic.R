@@ -240,6 +240,22 @@ create_repli_analytic <- function(repli_export,
     rename(repli_conv_r = cos_r,
            repli_conv_r_lb = cos_r_lb,
            repli_conv_r_ub = cos_r_ub) %>%
-    filter(!(report_id %in% repli_case_exclusions$report_id))
+    filter(!(report_id %in% repli_case_exclusions$report_id)) %>%
+    # Add "version of record" power variables
+    # For each power threshold, create a 'combined' version of the power
+    # variable. Draws on the corresponding value from the design set when it's
+    # available. Draws on the value from the initial set of power variables 
+    # when the design version is unavailable
+    mutate(
+      combined_power_50 = ifelse(!is.na(rr_power_50_original_effect_design),
+                                 rr_power_50_original_effect_design, 
+                                 repli_power_for_50_effect),
+      combined_power_75 = ifelse(!is.na(rr_power_75_original_effect_design), 
+                                 rr_power_75_original_effect_design, 
+                                 repli_power_for_75_effect),
+      combined_power_100 = ifelse(!is.na(rr_power_100_original_effect_design), 
+                                  rr_power_100_original_effect_design, 
+                                  rr_power_100_original_effect),
+    )
   
 }
