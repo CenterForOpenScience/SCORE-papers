@@ -194,8 +194,6 @@ list(
              read_google_sheet(paper_cite_file,
                                paper_cite_moddate)),
   
-
-  
   ## Raw data with unknown use ----
   # CR_metadata_prepool.csv
   tar_target(CR_metadata_prepool_file,
@@ -551,15 +549,7 @@ list(
 <!--   #                           finalized_claim4_table, -->
 <!--   #                           rr_projects)), -->
 <!--   # Temp rr project list -->
-<!--   # tar_target(all_rr_attempts_gsheet, -->
-<!--   #            "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"), -->
-<!--   # tar_target(all_rr_attempts_moddate, -->
-<!--   #            get_google_mod_date(all_rr_attempts_gsheet), -->
-<!--   #            cue = tar_cue("always")), -->
-<!--   # tar_target(all_rr_attempts, -->
-<!--   #            read_google_sheet(all_rr_attempts_gsheet, -->
-<!--   #                              all_rr_attempts_moddate, -->
-<!--   #                              sheet = "full_sweep")) -->
+
 <!--   #  -->
 <!--   # tar_target(id_key, -->
 <!--   #            create_id_key(covid_ta2, -->
@@ -999,7 +989,7 @@ list(
   tar_target(status,
              read_google_csv(status_file,
                              status_moddate)),
-    # Full Dates
+  # Full Dates
   # Start and end dates of projects
   tar_target(full_dates_file,
              "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
@@ -1058,8 +1048,17 @@ list(
              cue = tar_cue("always")),
   tar_target(rr_attempts_minted_raw,
              read_google_csv(rr_attempts_minted_file,
-                             rr_attempts_minted_moddate))
+                             rr_attempts_minted_moddate)),
   
+  tar_target(all_rr_attempts_gsheet,
+             "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),
+  tar_target(all_rr_attempts_moddate,
+             get_google_mod_date(all_rr_attempts_gsheet),
+             cue = tar_cue("always")),
+  tar_target(all_rr_attempts,
+             read_google_sheet(all_rr_attempts_gsheet,
+                               all_rr_attempts_moddate,
+                               sheet = "full_sweep"))
 )
 ```
 
@@ -1359,7 +1358,95 @@ list(
   
   # Process Reproducibility 
   tar_target(pr_outcomes,
-             create_pr_analytic(pr_qc, oa_outreach))
+             create_pr_analytic(pr_qc, oa_outreach)),
+  
+  # Other datasets ----
+  tar_target(paper_status_tracking,
+             select(status,
+                    paper_id,
+                    prepool,
+                    pool,
+                    presample,
+                    sample,
+                    rejected,
+                    RR,
+                    p1_delivery,
+                    p2_presample,
+                    p2_sample,
+                    p2_delivery,
+                    bushel)),
+  
+  tar_target(rr_internal_tracking,
+             select(all_rr_attempts,
+                    rr_id,
+                    paper_id,
+                    project_guid,
+                    field,
+                    type,
+                    outcome,
+                    results_available,
+                    registrations,
+                    prereg_completion,
+                    osf_activity,
+                    all_types)),
+  
+  tar_target(claims_non_significant_bushels,
+             select(non_significant_bushels,
+                    paper_id,
+                    claim4_id,
+                    coded_stat_evidence,
+                    nonsig)),
+  
+  tar_target(rr_type_key,
+             select(rr_sourced,
+                    rr_id,
+                    paper_id,
+                    type)),
+  
+  tar_target(repli_all_cases,
+             select(repli_export,
+                    rr_id,
+                    paper_id,
+                    rr_type_internal,
+                    report_id = unique_report_id,
+                    rr_repl_exact_replicated_reported = rr_repl_exact_replicated_reference)),
+
+  tar_target(rr_project_dates,
+             select(full_dates,
+                    rr_id,
+                    project_guid,
+                    type,
+                    started,
+                    reg_date,
+                    completed)),
+  
+  tar_target(papers_not_sourced,
+             select(never_sourced,
+                    paper_id,
+                    dr_plausible,
+                    dr_reason,
+                    dar_plausible,
+                    dar_reason)),
+  
+  tar_target(claims_ser_power,
+             select(ser_power,
+                    claim_id = unique_claim_id,
+                    threshold,
+                    s1,
+                    s2)),
+  
+  tar_target(claims_traditional_power,
+             select(traditional_power,
+                    claim_id,
+                    rr_threshold_analytic_sample_size,
+                    rr_stage1_analytic_sample_size,
+                    rr_stage2_analytic_sample_size)),
+  
+  tar_target(claims_bushel_ids,
+             select(stitched_claims,
+                    paper_id,
+                    claim4_id))
+  
 )
 ```
 
