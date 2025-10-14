@@ -67,8 +67,67 @@ placeholder_stats <- function(iters=100){
     source("common functions.R")
   }
   
+  # TEMP FOR TRIM TESTING
+  {
+    stitched_claims <- stitched_claims %>%
+      select(paper_id,
+             claim4_id)
+    
+    all_rr_attempts <- all_rr_attempts %>%
+      select(rr_id,
+             paper_id,
+             field,
+             type,
+             outcome,
+             results_available,
+             project_guid,
+             registrations,
+             prereg_completion,
+             osf_activity,
+             all_types)
+    
+    stitched_claims <- stitched_claims %>%
+      select(paper_id,
+             claim4_id)
+    
+    extracted_claims <- extracted_claims %>%
+      select(unique_claim_id,
+             single_trace_equivalent)
+    
+    repro_export <- repro_export %>% 
+      select(paper_id,
+             is_covid)
+  }
+  
   # Data preparation
   {
+    # Generate convenience dataset for publications
+    {
+      
+      publications <- paper_metadata %>% 
+        select(
+          'publication_standard',
+          'ISSN',
+          'eISSN',
+          'COS_pub_category',
+          'COS_pub_expanded',
+          'Top Factor',
+          'Data Citation',
+          'Data Transparency',
+          'Analysis Code Transparency',
+          'Materials Transparency',
+          'Design & Analysis Reporting Guidelines',
+          'Study Preregistration',
+          'Analysis Plan Preregistration',
+          'Replication',
+          'Registered Reports & Publicaton Bias',
+          'Open Science Badges'
+        ) %>% 
+        filter(ISSN %in% repro_journal_policies$ISSN) %>%
+        unique()
+      
+    }
+    
     # Set defaults for convenience
     {
       if (!exists("iters")){ iters <- 100}
@@ -84,7 +143,7 @@ placeholder_stats <- function(iters=100){
       repro_outcomes <- repro_outcomes[!repro_outcomes$is_covid,]
       pr_outcomes <- pr_outcomes[!pr_outcomes$covid,]
       
-    # Modify repro outcomes overall result to make "not attempted" = "not"
+    # Modify repro outcomes overall result to make "not attemptable" = "not"
       repro_outcomes$repro_outcome_overall <- 
         ifelse(repro_outcomes$repro_outcome_overall=="not attemptable",
                "not",repro_outcomes$repro_outcome_overall)
@@ -95,7 +154,7 @@ placeholder_stats <- function(iters=100){
                                          repro_outcomes$repro_version_of_record=="T",]
     
     # Merge in paper metadata
-      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","COS_pub_expanded","pub_year","is_covid")]
+      paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","COS_pub_expanded","pub_year","is_covid","ISSN")]
       orig_outcomes <- merge(orig_outcomes,paper_metadata,by="paper_id",all.x = TRUE,all.y=FALSE)
       
       repro_outcomes_merged <- merge(repro_outcomes,orig_outcomes_orig[,!(names(orig_outcomes_orig) %in% c("paper_id"))],
@@ -108,14 +167,14 @@ placeholder_stats <- function(iters=100){
       {
         pr_outcomes_modified <- pr_outcomes %>% 
           mutate(
-            data_shared = ifelse(str_detect(OA_data_shared, "yes"), TRUE, FALSE),
+            #data_shared = ifelse(str_detect(OA_data_shared, "yes"), TRUE, FALSE),
             data_shared_type = factor(OA_data_shared,
                                       levels=c("available_online","no","shared_on_request"),
                                       labels=c("available online","not shared","shared on request")),
-            code_shared = ifelse(str_detect(OA_code_shared, "yes"), TRUE, FALSE),
+            #code_shared = ifelse(str_detect(OA_code_shared, "yes"), TRUE, FALSE),
             code_shared_type = factor(OA_code_shared,
                                       levels=c("available_online","no","shared_on_request"),
-                                      labels=c("available online","not shared","shared on request")),
+                                      labels=c("available online","not shared","shared on request"))
           )
         
         pr_outcomes_modified$data_available_or_shared <- pr_outcomes_modified$data_available=="Yes" | pr_outcomes_modified$OA_data_shared!="no"
@@ -218,6 +277,8 @@ placeholder_stats <- function(iters=100){
           mutate(weight=1/n())
       }
 
+      
+      
   }
 
   # Stats
@@ -292,10 +353,6 @@ placeholder_stats <- function(iters=100){
                          distinct())
       
       # Reproductions of unique claims
-      # r9 <- format.row(repro_outcomes_inc_vor %>%
-      #                    semi_join(status %>% filter(RR), by = "paper_id") %>%
-      #                    select(paper_id, claim_id) %>%
-      #                    distinct())
       r9 <- format.row(repro_outcomes_orig %>%
         filter(!is_covid) %>%
         left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
@@ -313,7 +370,7 @@ placeholder_stats <- function(iters=100){
                  table_2[row,col])
         }
       }
-      rm(r1,r2,r3,r4,r5,r6,r7,r8)
+      rm(r1,r2,r3,r4,r5,r6,r7,r8,r9)
     }
     
     # Table S2
@@ -378,11 +435,6 @@ placeholder_stats <- function(iters=100){
                          ) %>%
                          distinct())
       # Papers with reproduction started
-      # r6 <- format.row(all_rr_attempts  %>%
-      #                    filter(str_detect(type, "Reproduction")) %>%
-      #                    select(paper_id) %>%
-      #                    distinct() %>%
-      #                    semi_join(status %>% filter(RR), by = "paper_id"))
       r6 <- format.row(all_rr_attempts %>%
         filter(field != "covid") %>%
         filter(str_detect(type, "Reproduction")) %>%
@@ -421,7 +473,7 @@ placeholder_stats <- function(iters=100){
       for (row in 1:nrow(table_s3)){
         for (col in 1:ncol(table_s3)){
           assign(paste0("table_s3_",row,"_",col),
-                 table_s3[row,col])
+                 table_s3[[row,col]])
         }
       }
       rm(r1,r2,r3,r4,r5,r6,r7,r8)
@@ -479,15 +531,12 @@ placeholder_stats <- function(iters=100){
     
     # Table S5
     {
-      #table_s5_out <- repro_outcomes %>%
       table_s5_out <- repro_outcomes_OR %>%
         filter(!is_covid & repro_version_of_record == "T") %>% 
         mutate(
           repro_outcome_overall = case_match(
             repro_outcome_overall,
-            "not attemptable" ~ "not",
             "push button" ~ "precise",
-            #"none" ~ "excluded",
             .default = repro_outcome_overall
           )
         ) %>% 
@@ -522,7 +571,6 @@ placeholder_stats <- function(iters=100){
         mutate(total = select(., -c(field, journal)) %>% apply(1, sum)) %>% 
         arrange(field) %>% 
         select(-field) %>% 
-          #select(` ` = journal,`Not attempted` = `not attempted`, Excluded = excluded, Not = not,
           select(` ` = journal,`Not attempted` = `not attempted`, Not = not,
                Approximate = approximate, Precise = precise, Total = total) %>% 
         as.data.frame()
@@ -559,7 +607,7 @@ placeholder_stats <- function(iters=100){
       n_papers_data_available <- sum(pr_outcomes_modified$data_available_or_shared==TRUE)
       p_papers_data_available <- format.text.percent(n_papers_data_available,n_papers_assess_process_repro)
       p_papers_data_available_simplified <- paste0(format.round(100*n_papers_data_available/n_papers_assess_process_repro,1),"%")
-      p_claims_data_available <- p_papers_data_available # Identical because process repro was was assessed one claim per paper
+      p_claims_data_available <- p_papers_data_available # Identical because process repro was assessed one claim per paper
       
       n_papers_code_available <- sum(pr_outcomes_modified$code_available_or_shared==TRUE)
       p_papers_code_available <- format.text.percent(n_papers_code_available,n_papers_assess_process_repro)
@@ -644,7 +692,7 @@ placeholder_stats <- function(iters=100){
       n_papers_open_data_and_code_non_econ_polisci <- 
         sum(pr_outcomes_modified[pr_outcomes_modified$field!="Political Science" & pr_outcomes_modified$field!="Economics and Finance",]$data_shared_type=="available online" &
               pr_outcomes_modified[pr_outcomes_modified$field!="Political Science" & pr_outcomes_modified$field!="Economics and Finance",]$code_shared_type=="available online")
-      n_papers_non_econ_polisci <- sum(pr_outcomes_modified$field=="Political Science" | pr_outcomes_modified$field=="Economics and Finance")
+      n_papers_non_econ_polisci <- sum(pr_outcomes_modified$field!="Political Science" | pr_outcomes_modified$field!="Economics and Finance")
       p_papers_open_data_and_code_non_econ_polisci <- format.text.percent(n_papers_open_data_and_code_non_econ_polisci,n_papers_non_econ_polisci)
       
       
@@ -656,7 +704,7 @@ placeholder_stats <- function(iters=100){
         n_papers_open_data_and_code_non_econ_polisci <- 
           sum(x[x$field!="Political Science" & x$field!="Economics and Finance",]$data_shared_type=="available online" &
                 x[x$field!="Political Science" & x$field!="Economics and Finance",]$code_shared_type=="available online")
-        n_papers_non_econ_polisci <- sum(x$field=="Political Science" | x$field=="Economics and Finance")
+        n_papers_non_econ_polisci <- sum(x$field!="Political Science" | x$field!="Economics and Finance")
         
         
         (n_papers_open_data_and_code_econ_polisci/n_papers_econ_polisci)/
@@ -779,7 +827,7 @@ placeholder_stats <- function(iters=100){
       
       p_sample_econ_polisci_eligible <- paste0(format.round(100*sum(data$econ_polisci)/nrow(data),1),"%")
       
-      p_sample_not_econ_polisci_eligible <- paste0(format.round(100*sum(1-data$econ_polisci)/nrow(data),1),"%")
+      p_sample_not_econ_polisci_eligible <- paste0(format.round(100*sum(!data$econ_polisci)/nrow(data),1),"%")
 
       data <- all_rr_attempts %>%
         semi_join(status %>% filter(RR), by = "paper_id") %>%
@@ -797,7 +845,7 @@ placeholder_stats <- function(iters=100){
       
       p_sample_econ_polisci_data_available <- paste0(format.round(100*sum(data$econ_polisci)/nrow(data),1),"%")
       
-      p_sample_not_econ_polisci_available <- paste0(format.round(100*sum(1-data$econ_polisci)/nrow(data),1),"%")
+      p_sample_not_econ_polisci_available <- paste0(format.round(100*sum(!data$econ_polisci)/nrow(data),1),"%")
       
       data <- status %>% filter(RR) %>% 
         select(paper_id) %>% 
@@ -806,7 +854,7 @@ placeholder_stats <- function(iters=100){
       
       p_sample_pub_year_2014_to_2018_eligible <- paste0(format.round(100*sum(data$pub_year_2014_to_2018)/nrow(data),1),"%")
       
-      p_sample_pub_year_2009_to_2013_eligible <- paste0(format.round(100*sum(1-data$pub_year_2014_to_2018)/nrow(data),1),"%")
+      p_sample_pub_year_2009_to_2013_eligible <- paste0(format.round(100*sum(!data$pub_year_2014_to_2018)/nrow(data),1),"%")
       
       data <- all_rr_attempts %>%
         semi_join(status %>% filter(RR), by = "paper_id") %>%
@@ -824,14 +872,12 @@ placeholder_stats <- function(iters=100){
       
       p_sample_pub_year_2014_to_2018_data_available <- paste0(format.round(100*sum(data$pub_year_2014_to_2018)/nrow(data),1),"%")
       
-      p_sample_pub_year_2009_to_2013_data_available <- paste0(format.round(100*sum(1-data$pub_year_2014_to_2018)/nrow(data),1),"%")
+      p_sample_pub_year_2009_to_2013_data_available <- paste0(format.round(100*sum(!data$pub_year_2014_to_2018)/nrow(data),1),"%")
       
     }
     
     # Outcome reproducibility assessments in comparison with the sample
     {
-      # repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
-      
       n_claims_exc_no_elig <- nrow(repro_outcomes)-nrow(repro_outcomes_OR)
       
       n_papers_OR_added_SDR <- format.round(
@@ -909,9 +955,6 @@ placeholder_stats <- function(iters=100){
         clusters = repro_outcomes_expanded_no_none$paper_id,iters)$formatted.text
       
       repro_outcomes_dc <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data and code available",]
-      repro_outcomes_dc <- repro_outcomes_dc
-      repro_outcomes_dc <- repro_outcomes_dc %>%
-        filter(!repro_outcome_overall=="none")
       
       n_papers_OR_data_and_code <- format.round(sum(repro_outcomes_dc$weight),1)
       
@@ -947,9 +990,6 @@ placeholder_stats <- function(iters=100){
         clusters = repro_outcomes_dc$paper_id,iters)$formatted.text
       
       repro_outcomes_do <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Only data available",]
-
-      repro_outcomes_do <- repro_outcomes_do %>%
-        filter(!repro_outcome_overall=="none")
       
       n_papers_OR_data_only <- format.round(sum(repro_outcomes_do$weight),1)
       
@@ -985,8 +1025,6 @@ placeholder_stats <- function(iters=100){
         clusters = repro_outcomes_do$paper_id,iters)$formatted.text
       
       repro_outcomes_sd <- repro_outcomes_OR[repro_outcomes_OR$repro_type_consolidated=="Data reconstructed from source",]
-      repro_outcomes_sd <- repro_outcomes_sd %>%
-        filter(!repro_outcome_overall=="none")
       
       n_papers_OR_source_data_of_all <- all_rr_attempts %>%
         filter(field != "covid") %>%
@@ -1032,8 +1070,6 @@ placeholder_stats <- function(iters=100){
         repro_outcomes_sd$repro_outcome_overall=="push button",
         weights=repro_outcomes_sd$weight,
         clusters = repro_outcomes_sd$paper_id,iters)$formatted.text
-      
-      as.numeric(n_papers_OR_data_and_code) + as.numeric(n_papers_OR_source_data)+as.numeric(n_papers_OR_data_only)
       
       n_papers_analyst_report_success <- repro_outcomes %>%
         rename(analyst = repro_interpret_supported) %>%
@@ -1088,15 +1124,7 @@ placeholder_stats <- function(iters=100){
 
                         p_data <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE)/
                           nrow(pr_outcomes_modified_int)
-                        
-                        # repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
-                        #   filter(!repro_outcome_overall=="none")
-                        # p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR$weight*
-                        #                                        (repro_outcomes_OR$repro_outcome_overall=="approximate" | 
-                        #                                           repro_outcomes_OR$repro_outcome_overall=="precise" | 
-                        #                                           repro_outcomes_OR$repro_outcome_overall=="push button"))/
-                        #   sum(repro_outcomes_OR$weight)
-                        
+
                         repro_outcomes_OR_internal <- repro_outcomes_OR[repro_outcomes_OR$paper_id %in% paper_ids,]
                         
                         p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR_internal$weight*
@@ -1122,26 +1150,17 @@ placeholder_stats <- function(iters=100){
                           
                           p_data <- sum(pr_outcomes_modified_int$data_available_or_shared==TRUE)/
                             nrow(pr_outcomes_modified_int)
-                          
-                          # repro_outcomes_OR <- repro_outcomes[repro_outcomes$paper_id %in% paper_ids,] %>%
-                          #   filter(!repro_outcome_overall=="none")
-                          # 
-                          # p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR$weight*
-                          #                                        (
-                          #                                           repro_outcomes_OR$repro_outcome_overall=="precise" | 
-                          #                                           repro_outcomes_OR$repro_outcome_overall=="push button"))/
-                          #   sum(repro_outcomes_OR$weight)
-                          
+
                           repro_outcomes_OR_internal <- repro_outcomes_OR[repro_outcomes_OR$paper_id %in% paper_ids,]
 
-                          p_papers_OR_approx_or_precise <- sum(repro_outcomes_OR_internal$weight*
+                          p_papers_OR_approx <- sum(repro_outcomes_OR_internal$weight*
                                                                  (
                                                                    repro_outcomes_OR_internal$repro_outcome_overall=="precise" |
                                                                      repro_outcomes_OR_internal$repro_outcome_overall=="push button"))/
                             sum(repro_outcomes_OR_internal$weight)
                           
-                          p_papers_OR_approx_or_precise_overall <- p_papers_OR_approx_or_precise*p_data
-                          p_papers_OR_approx_or_precise_overall
+                          p_papers_OR_approx_overall <- p_papers_OR_approx*p_data
+                          p_papers_OR_approx_overall
                         },
                         clustervar = "paper_id",
                         keepvars=c("paper_id"),
@@ -1153,7 +1172,6 @@ placeholder_stats <- function(iters=100){
     
     # Outcome reproducibility by year of original publication
     {
-      #rho_of_all_precise_v_year <- bootstrap.clust(data=repro_outcomes_expanded,
       rho_OR_precise_v_year <- bootstrap.clust(data=repro_outcomes_merged,
                       FUN=function(x) {
                         SpearmanRho(x=as.numeric(x$pub_year),
@@ -1187,7 +1205,6 @@ placeholder_stats <- function(iters=100){
       repro_outcomes_merged_econ <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Economics and Finance",]
       repro_outcomes_merged_econ <- repro_outcomes_merged_econ %>% filter(!repro_outcome_overall=="none")
       
-      #n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
       n_papers_OR_econ <- format.round(sum(repro_outcomes_merged_econ$weight),1)
       
       n_papers_OR_approx_or_precise_econ <- format.round(
@@ -1216,7 +1233,6 @@ placeholder_stats <- function(iters=100){
       repro_outcomes_merged_polisci <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Political Science",]
       repro_outcomes_merged_polisci <- repro_outcomes_merged_polisci %>% filter(!repro_outcome_overall=="none")
       
-      #n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
       n_papers_OR_polisci <- format.round(sum(repro_outcomes_merged_polisci$weight),1)
       
       n_papers_OR_approx_or_precise_polisci <- format.round(
@@ -1247,7 +1263,6 @@ placeholder_stats <- function(iters=100){
                                                              repro_outcomes_merged$field!="Political Science",]
       repro_outcomes_merged_other <- repro_outcomes_merged_other %>% filter(!repro_outcome_overall=="none")
       
-      #n_papers_OR_other <- length(unique(repro_outcomes_merged_other$paper_id))
       n_papers_OR_other <- format.round(sum(repro_outcomes_merged_other$weight),1)
       
       n_papers_OR_approx_or_precise_other <- format.round(
@@ -1277,14 +1292,6 @@ placeholder_stats <- function(iters=100){
     
     # Discussion
     {
-      p_short_papers_OR_approx_or_precise <- 
-        paste0(format.round(100*sum((repro_outcomes$repro_outcome_overall=="approximate" | 
-                                       repro_outcomes$repro_outcome_overall=="precise" | 
-                                       repro_outcomes$repro_outcome_overall=="push button")*
-                                      repro_outcomes$weight
-        )/sum(repro_outcomes$weight),1),"%")
-      
-        #format.round(sum(repro_outcomes$weight),1)
       
       p_raw_papers_data_unavailable <- n_papers_data_unavailable/n_papers_assess_process_repro
       p_raw_papers_OR_approx_or_precise <- cw.proportion(
@@ -1296,11 +1303,6 @@ placeholder_stats <- function(iters=100){
       
       p_short_papers_OR_approx_or_precise <- 
         paste0(format.round(100*p_raw_papers_OR_approx_or_precise,0),"%")
-      
-      p_short_OR_min_plausible <- 
-        paste0(format.round(
-          100*(0*(p_raw_papers_data_unavailable)+p_raw_papers_OR_approx_or_precise*(1-p_raw_papers_data_unavailable))
-          ,0),"%")
       
       p_short_papers_OR_approx_or_precise_overall <- paste0(format.round(100*
           (sum(pr_outcomes_modified$data_available_or_shared==TRUE)/
@@ -1824,6 +1826,10 @@ placeholder_stats <- function(iters=100){
                                                by="publication_standard",all.x=TRUE,all.y=FALSE)
         papers_repro_journal_policies <- merge(papers_repro_journal_policies,repro_journal_policies,
                                                by="ISSN",all.x=TRUE,all.y = FALSE)
+        
+        # papers_repro_journal_policies <- merge(paper_metadata[c("paper_id","publication_standard","pub_year","ISSN")],repro_journal_policies,
+        #                                        by="ISSN",all.x=TRUE,all.y = FALSE)
+        
         # Generate treatment variable, two versions (minimize Type I or Type II error)
         papers_repro_journal_policies <- papers_repro_journal_policies %>%
           mutate(
@@ -2611,6 +2617,38 @@ figures <- function(iters=100){
       }
     }
     
+    # TEMP FOR TRIM TESTING
+    {
+      stitched_claims <- stitched_claims %>%
+        select(paper_id,
+               claim4_id)
+      
+      all_rr_attempts <- all_rr_attempts %>%
+        select(rr_id,
+               paper_id,
+               field,
+               type,
+               outcome,
+               results_available,
+               project_guid,
+               registrations,
+               prereg_completion,
+               osf_activity,
+               all_types)
+      
+      stitched_claims <- stitched_claims %>%
+        select(paper_id,
+               claim4_id)
+      
+      extracted_claims <- extracted_claims %>%
+        select(unique_claim_id,
+               single_trace_equivalent)
+      
+      repro_export <- repro_export %>% 
+        select(paper_id,
+               is_covid)
+    }
+    
     # Generate / modify key variables
     {
       # Fields order
@@ -2718,7 +2756,6 @@ figures <- function(iters=100){
     # Data wrangling
     {
       data <- pr_outcomes %>%  filter(!covid) 
-      data$OA_data_shared <- data$OA_data_shared
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data!="No",
                                     "restricted",data$OA_data_shared)
       data$OA_data_shared <- ifelse(data$OA_data_shared=="no" & data$restricted_data=="No",
@@ -3854,13 +3891,13 @@ figures <- function(iters=100){
       percent_code <- calculate_policy_percentages(merged_df, "require_code_year", length(merged_df$publication_standard))
       percent_repro <- calculate_policy_percentages(merged_df, "repro_checks_year", length(merged_df$publication_standard))
       
-      # Computer for econ and poli sci
+      # Compute for econ and poli sci
       merged_df_econ_poli <- subset(merged_df, econ_poli == 1)
       percent_data_ep <- calculate_policy_percentages(merged_df_econ_poli, "require_data_year", length(merged_df_econ_poli$publication_standard))
       percent_code_ep <- calculate_policy_percentages(merged_df_econ_poli, "require_code_year", length(merged_df_econ_poli$publication_standard))
       percent_repro_ep <- calculate_policy_percentages(merged_df_econ_poli, "repro_checks_year", length(merged_df_econ_poli$publication_standard))
       
-      # compute for non econ and poli sci
+      # Compute for non econ and poli sci
       merged_df_rest <- subset(merged_df, econ_poli == 0)
       percent_data_ep0 <- calculate_policy_percentages(merged_df_rest, "require_data_year", length(merged_df_rest$publication_standard))
       percent_code_ep0 <- calculate_policy_percentages(merged_df_rest, "require_code_year", length(merged_df_rest$publication_standard))
@@ -6192,11 +6229,7 @@ figures <- function(iters=100){
                                           treatment_repro_check_yearprior == 0 & treatment_code_required_yearprior == 1 ~ 2,
                                           treatment_code_required_yearprior == 0 & treatment_data_required_yearprior == 1 ~ 1)
         )
-      # mean(papers_repro_journal_policies$treatment_yearof == 0, na.rm = TRUE) * 100
-      #85.175
-      # There are slightly fewer treatment for the yearprior
-      #mean(papers_repro_journal_policies$treatment_yearprior == 0, na.rm = TRUE) * 100
-      #87.15
+
       OR_outcomes_journal_policies <- merge(repro_outcomes[repro_outcomes$repro_outcome_overall != "none",],papers_repro_journal_policies,
                                             by="paper_id")
       

@@ -16,7 +16,7 @@
   
   objects_to_load <- c("repro_outcomes","pr_outcomes","orig_outcomes",
                        "paper_metadata","status","stitched_claims",
-                       "all_rr_attempts","publications","extracted_claims",
+                       "all_rr_attempts","extracted_claims",
                        "repro_export","repro_journal_policies")
   
   

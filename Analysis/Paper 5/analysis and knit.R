@@ -63,6 +63,47 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     load("analyst data.RData")
     source("common functions.R")
   }
+  
+  # TEMPORARY FOR DATA TRIMMING TEST
+  {
+    status <- status %>% 
+      select(paper_id,
+             p1_delivery,
+             p2_delivery,
+             bushel,
+             RR,
+             pool)
+    
+    all_rr_attempts <- all_rr_attempts %>%
+      select(rr_id,
+             paper_id,
+             field,
+             type,
+             outcome,
+             results_available,
+             project_guid,
+             registrations,
+             prereg_completion,
+             osf_activity)
+    
+    repli_export <- repli_export %>%
+      select(rr_id,
+             paper_id,
+             rr_type_internal,
+             unique_report_id,
+             rr_repl_exact_replicated_reported)
+    
+    orig_dataset <- orig_dataset %>%
+      select(paper_id,
+             claim_id,
+             unique_claim_id,
+             original_statistic_analysis_type_statsteam,
+             rr_threshold_analytic_sample_size,
+             rr_stage1_analytic_sample_size,
+             rr_stage2_analytic_sample_size)
+             
+
+  }
     
   # Data preparation
   {
@@ -190,8 +231,15 @@ placeholder_stats <- function(iters = 100,generate_binary_outcomes_data=FALSE){
         df.binvars[df.binvars$binvars.raw==x,]
       }))
     }
+    
+    # Generate convenience dataset for publications
+    {
+      publications <- repli_outcomes_merged %>%
+        select(publication_standard,COS_pub_category,COS_pub_expanded,field) %>%
+        distinct()
+    }
   }
-  
+
   # Main section stats
   {
     # Tables
@@ -3735,6 +3783,47 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     }
   }
   
+  # TEMPORARY FOR DATA TRIMMING TEST
+  {
+    status <- status %>% 
+      select(paper_id,
+             p1_delivery,
+             p2_delivery,
+             bushel,
+             RR,
+             pool)
+    
+    all_rr_attempts <- all_rr_attempts %>%
+      select(rr_id,
+             paper_id,
+             field,
+             type,
+             outcome,
+             results_available,
+             project_guid,
+             registrations,
+             prereg_completion,
+             osf_activity)
+    
+    repli_export <- repli_export %>%
+      select(rr_id,
+             paper_id,
+             rr_type_internal,
+             unique_report_id,
+             rr_repl_exact_replicated_reported)
+    
+    orig_dataset <- orig_dataset %>%
+      select(paper_id,
+             claim_id,
+             unique_claim_id,
+             original_statistic_analysis_type_statsteam,
+             rr_threshold_analytic_sample_size,
+             rr_stage1_analytic_sample_size,
+             rr_stage2_analytic_sample_size)
+    
+    
+  }
+  
   # Initialization and data preparation
   {
     # Trim out non-version of record lines and non-COVID entries
@@ -4170,8 +4259,8 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             legend.position = "bottom"
           )+
           guides(color = guide_legend(override.aes = list(linetype = 0,size=6)))+
-          geom_xsidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
-          geom_ysidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
+          geom_xsidedensity(alpha = .6,aes(fill=success),show.legend=FALSE,color="black")+
+          geom_ysidedensity(alpha = .6,aes(fill=success),show.legend=FALSE,color="black")+
           theme(
             ggside.panel.border = element_blank(),
             ggside.panel.grid = element_blank(),
@@ -4289,8 +4378,8 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             panel.grid = element_blank()
           )+
           guides(color = guide_legend(override.aes = list(linetype = 0)))+
-          geom_xsidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
-          geom_ysidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
+          geom_xsidedensity(alpha = .6,aes(fill=success),show.legend=FALSE,color="black")+
+          geom_ysidedensity(alpha = .6,aes(fill=success),show.legend=FALSE,color="black")+
           theme(
             ggside.panel.border = element_blank(),
             ggside.panel.grid = element_blank(),
@@ -4341,8 +4430,8 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             panel.grid = element_blank()
           )+
           guides(color = guide_legend(override.aes = list(linetype = 0)))+
-          geom_xsidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
-          geom_ysidedensity(alpha = .6,aes(fill=success),show_guide=FALSE,color="black")+
+          geom_xsidedensity(alpha = .6,aes(fill=success),show.legend=FALSE,color="black")+
+          geom_ysidedensity(alpha = .6,aes(fill=success),show.legend=FALSE,color="black")+
           theme(
             ggside.panel.border = element_blank(),
             ggside.panel.grid = element_blank(),
