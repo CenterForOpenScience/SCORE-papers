@@ -1409,7 +1409,7 @@ list(
                     paper_id,
                     rr_type_internal,
                     report_id = unique_report_id,
-                    rr_repl_exact_replicated_reported = rr_repl_exact_replicated_reference)),
+                    rr_repl_exact_replicated_reference)),
 
   tar_target(rr_project_dates,
              select(full_dates,
