@@ -241,12 +241,12 @@ create_repli_analytic <- function(repli_export,
            repli_conv_r_lb = cos_r_lb,
            repli_conv_r_ub = cos_r_ub) %>%
     filter(!(report_id %in% repli_case_exclusions$report_id)) %>%
-    # Add "version of record" power variables
-    # For each power threshold, create a 'combined' version of the power
-    # variable. Draws on the corresponding value from the design set when it's
-    # available. Draws on the value from the initial set of power variables 
-    # when the design version is unavailable
     mutate(
+      # Add "version of record" power variables
+      # For each power threshold, create a 'combined' version of the power
+      # variable. Draws on the corresponding value from the design set when it's
+      # available. Draws on the value from the initial set of power variables 
+      # when the design version is unavailable
       combined_power_50 = ifelse(!is.na(rr_power_50_original_effect_design),
                                  rr_power_50_original_effect_design, 
                                  repli_power_for_50_effect),
@@ -256,6 +256,12 @@ create_repli_analytic <- function(repli_export,
       combined_power_100 = ifelse(!is.na(rr_power_100_original_effect_design), 
                                   rr_power_100_original_effect_design, 
                                   rr_power_100_original_effect),
+      # Determine which phase a replication was started based on rr_id
+      # phase 1 (rrid is four or fewer characters) 
+      # phase 2 (rrid is 5 characters)
+      repli_start_phase = ifelse(rr_id < 5,
+                                 "phase 1",
+                                 "phase 2")
     )
   
 }
