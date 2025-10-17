@@ -259,7 +259,7 @@ create_repli_analytic <- function(repli_export,
       # Determine which phase a replication was started based on rr_id
       # phase 1 (rrid is four or fewer characters) 
       # phase 2 (rrid is 5 characters)
-      repli_start_phase = ifelse(rr_id < 5,
+      repli_start_phase = ifelse(nchar(rr_id) < 5,
                                  "phase 1",
                                  "phase 2")
     )
