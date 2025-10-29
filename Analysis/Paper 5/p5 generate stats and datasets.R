@@ -16,11 +16,11 @@
   knit_to <- "local" # sets source of the knitted doc from "google drive" or "local"
   
   objects_to_load <- c("repli_outcomes","orig_outcomes","paper_metadata",
-                       "status","all_rr_attempts","repli_binary",
-                       "non_significant_bushels","rr_sourced","repli_export",
-                       "repli_case_exclusions","orig_dataset",
-                       "full_dates","never_sourced","ser_power",
-                       "traditional_power",
+                       "paper_status_tracking","rr_internal_tracking","repli_binary",
+                       "claims_non_significant_bushels","rr_type_key","repli_all_cases",
+                       "repli_case_exclusions",
+                       "rr_project_dates","papers_not_sourced","claims_ser_power",
+                       "claims_traditional_power",
                        "llm_method_data","llm_research_question_table","llm_theory_data")
   
   save_figures <- TRUE
