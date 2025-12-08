@@ -78,82 +78,44 @@ tar_source(files = "pipeline")
 
 Most raw data files will have three targets associated with them - one for their ID on Google Drive or OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
 
-### Publication-level Metadata
+### Journal Metadata
 
-``` {targets raw-publications}
+``` {targets raw-journal}
 list(
-  # publications.csv -> journal-metadata.csv
-  # Journal names, ISSNs, and general publication category
+  # journal_metadata_raw.csv ----
+  # Metadata about journals that articles were sourced from, including names,
+  # ISSNs, and general publication category
   tar_target(journal_metadata_file,
-             "1fXHxIcsFjiAgmydESNkgLjx36dTCSC34"),
+             "tcb8q"),
   tar_target(journal_metadata_moddate,
-             get_google_mod_date(journal_metadata_file),
+             get_osf_mod_date(journal_metadata_file),
              cue = tar_cue("always")),
   tar_target(journal_metadata_raw,
-             read_google_csv(journal_metadata_file,
-                             journal_metadata_moddate)),
+             load_osf_csv(journal_metadata_file,
+                          journal_metadata_moddate)),
   
-  # journal-top-factor.csv
-  # TOP factor info for SCORE journals
+  # journal_top-factor.csv ----
+  # TOP Factor (2015) standards for journals that articles were sourced from,
+  # according to the TOP factor website (https://topfactor.org/journals)
   tar_target(journal_top_factor_file,
-             "1hDpl8wHE7RRh9rksO1izx-hRtnjaW9u471yV0scHBnA"),
+             "2bhwe"),
   tar_target(journal_top_factor_moddate,
-             get_google_mod_date(journal_top_factor_file),
+             get_osf_mod_date(journal_top_factor_file),
              cue = tar_cue("always")),
   tar_target(journal_top_factor,
-             read_google_sheet(journal_top_factor_file,
-                               journal_top_factor_moddate,
-                               sheet = "From TopFactor website")),
+             load_osf_csv(journal_top_factor_file,
+                          journal_top_factor_moddate)),
   
-  # Google Sheet with multiple datasets about journal policies
-  # List of journal policies about reproducibility and data/code sharing
-  tar_target(repro_journal_policies_file,
-             "1KBdGqBUOz5zAMA-Mgv0XPgfzAkJrz28Ikd49jFyc2XA"),
-  tar_target(repro_journal_policies_moddate,
-             get_google_mod_date(repro_journal_policies_file),
+  # journal_repro-policies.csv ----
+  # Journal policies about reproducibility and data/code sharing
+  tar_target(journal_repro_policies_file,
+             "24j8s"),
+  tar_target(journal_repro_policies_moddate,
+             get_osf_mod_date(journal_repro_policies_file),
              cue = tar_cue("always")),
-  tar_target(repro_journal_policies,
-             read_google_sheet(repro_journal_policies_file,
-                               repro_journal_policies_moddate,
-                               sheet = "Prepared Dataset",
-                               skip = 2,
-                               col_names = c(
-                                 "journal",
-                                 "ISSN",
-                                 "eISSN",
-                                 "verify_match",
-                                 "journal_datasheet",
-                                 "require_data",
-                                 "require_data_year",
-                                 "require_data_year_certainty",
-                                 "require_data_source_conflict",
-                                 "require_code",
-                                 "require_code_year",
-                                 "require_code_year_certainty",
-                                 "require_code_source_conflict",
-                                 "repro_checks",
-                                 "repro_checks_year",
-                                 "repro_checks_year_certainty",
-                                 "repro_checks_source_conflict",
-                                 "data_lit_review_policy",
-                                 "data_lit_review_year",
-                                 "data_outreach_policy",
-                                 "data_outreach_year",
-                                 "data_top_policy",
-                                 "data_top_year",
-                                 "code_lit_review_policy",
-                                 "code_lit_review_year",
-                                 "code_outreach_policy",
-                                 "code_outreach_year",
-                                 "code_top_policy",
-                                 "code_top_year",
-                                 "repro_lit_review_policy",
-                                 "repro_lit_review_year",
-                                 "repro_outreach_policy",
-                                 "repro_outreach_year",
-                                 "repro_top_policy",
-                                 "repro_top_year"
-                                 )))
+  tar_target(journal_repro_policies,
+             load_osf_csv(journal_repro_policies_file,
+                          journal_repro_policies_moddate))
 
 )
 ```
@@ -1445,7 +1407,11 @@ list(
   tar_target(claims_bushel_ids,
              select(stitched_claims,
                     paper_id,
-                    claim4_id))
+                    claim4_id)),
+  
+  # Rename to keep consistent with analysis code
+  tar_target(repro_journal_policies,
+             journal_repro_policies)
   
 )
 ```
