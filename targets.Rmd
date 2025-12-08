@@ -76,7 +76,7 @@ tar_source(files = "pipeline")
 
 ## Raw Data
 
-Most raw data files will have three targets associated with them - one for their ID on Google Drive or OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
+Most raw data files will have three targets associated with them - one for their ID on OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
 
 ### Journal Metadata
 
@@ -94,6 +94,17 @@ list(
              load_osf_csv(journal_metadata_file,
                           journal_metadata_moddate)),
   
+  # journal_repro-policies.csv ----
+  # Journal policies about reproducibility and data/code sharing
+  tar_target(journal_repro_policies_file,
+             "24j8s"),
+  tar_target(journal_repro_policies_moddate,
+             get_osf_mod_date(journal_repro_policies_file),
+             cue = tar_cue("always")),
+  tar_target(journal_repro_policies,
+             load_osf_csv(journal_repro_policies_file,
+                          journal_repro_policies_moddate)),
+  
   # journal_top-factor.csv ----
   # TOP Factor (2015) standards for journals that articles were sourced from,
   # according to the TOP factor website (https://topfactor.org/journals)
@@ -104,81 +115,47 @@ list(
              cue = tar_cue("always")),
   tar_target(journal_top_factor,
              load_osf_csv(journal_top_factor_file,
-                          journal_top_factor_moddate)),
-  
-  # journal_repro-policies.csv ----
-  # Journal policies about reproducibility and data/code sharing
-  tar_target(journal_repro_policies_file,
-             "24j8s"),
-  tar_target(journal_repro_policies_moddate,
-             get_osf_mod_date(journal_repro_policies_file),
-             cue = tar_cue("always")),
-  tar_target(journal_repro_policies,
-             load_osf_csv(journal_repro_policies_file,
-                          journal_repro_policies_moddate))
-
+                          journal_top_factor_moddate))
 )
 ```
 
 ### Paper-level Metadata
 
-```{targets raw-papers}
+```{targets raw-paper}
 list(
-  # all_metadata_filled.tsv -> article-metadata_crosref-wos.csv
-  # Data about the papers from both Web of Science and CrossRef
-  tar_target(all_metadata_filled_file,
-             "1W-sNolZQegujz82TU2RKe0tfCvofrhm1"),
-  tar_target(all_metadata_filled_moddate,
-             get_google_mod_date(all_metadata_filled_file),
+  # paper_citations.csv ----
+  # Citations in APA format for papers from which claims were extracted
+  tar_target(paper_citations_file,
+             "wr8a3"),
+  tar_target(paper_citations_moddate,
+             get_osf_mod_date(paper_citations_file),
              cue = tar_cue("always")),
-  tar_target(all_metadata_filled,
-             read_google_tsv(all_metadata_filled_file,
-                             all_metadata_filled_moddate)),
-
-  # covid_metadata.tsv
-  # Data about COVID papers
-  tar_target(covid_metadata_file,
-             "1coSF-yytg1uNvboJ90qWWjrlJMGzjfMu"),
-  tar_target(covid_metadata_moddate,
-             get_google_mod_date(covid_metadata_file),
-             cue = tar_cue("always")),
-  tar_target(covid_metadata_raw,
-             read_google_tsv(covid_metadata_file,
-                             covid_metadata_moddate)),
+  tar_target(paper_citations,
+             load_osf_csv(paper_citations_file,
+                          paper_citations_moddate)),
   
-  # Citation information
-  tar_target(paper_cite_file,
-             "1TaAxr215qejHmNPrJ8_-v7uS6bCl3LFSdCziaEyV-RM"),
-  tar_target(paper_cite_moddate,
-             get_google_mod_date(paper_cite_file),
+  # paper_metadata_covid.csv ----
+  # Metadata for COVID preprints from which claims were extracted
+  tar_target(paper_metadata_covid_file,
+             "dc3uv"),
+  tar_target(paper_metadata_covid_moddate,
+             get_osf_mod_date(paper_metadata_covid_file),
              cue = tar_cue("always")),
-  tar_target(paper_cite,
-             read_google_sheet(paper_cite_file,
-                               paper_cite_moddate)),
+  tar_target(paper_metadata_covid,
+             load_osf_csv(paper_metadata_covid_file,
+                          paper_metadata_covid_moddate)),
   
-  ## Raw data with unknown use ----
-  # CR_metadata_prepool.csv
-  tar_target(CR_metadata_prepool_file,
-             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
-  tar_target(CR_metadata_prepool_moddate,
-             get_google_mod_date(CR_metadata_prepool_file),
+  # paper_metadata_raw.csv ----
+  # Raw metadata for papers from which research claims were extracted 
+  # (excluding COVID preprints)
+  tar_target(paper_metadata_raw_file,
+             "j4gkp"),
+  tar_target(paper_metadata_raw_moddate,
+             get_osf_mod_date(paper_metadata_raw_file),
              cue = tar_cue("always")),
-  tar_target(CR_metadata_prepool,
-             read_google_csv(CR_metadata_prepool_file,
-                             CR_metadata_prepool_moddate)),
-  
-  # p2_id_key.csv
-  # Links cannonical paper ID to the IDs used by other teams
-  # Does not include COVID papers
-  tar_target(p2_id_key_file,
-             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
-  tar_target(p2_id_key_moddate,
-             get_google_mod_date(p2_id_key_file),
-             cue = tar_cue("always")),
-  tar_target(p2_id_key,
-             read_google_csv(p2_id_key_file,
-                             p2_id_key_moddate))
-  
+  tar_target(paper_metadata_raw,
+             load_osf_csv(paper_metadata_raw_file,
+                          paper_metadata_raw_moddate))
 )
 ```
 
@@ -1020,7 +997,30 @@ list(
   tar_target(all_rr_attempts,
              read_google_sheet(all_rr_attempts_gsheet,
                                all_rr_attempts_moddate,
-                               sheet = "full_sweep"))
+                               sheet = "full_sweep")),
+  
+  ## Raw data with unknown use ----
+  # CR_metadata_prepool.csv
+  tar_target(CR_metadata_prepool_file,
+             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
+  tar_target(CR_metadata_prepool_moddate,
+             get_google_mod_date(CR_metadata_prepool_file),
+             cue = tar_cue("always")),
+  tar_target(CR_metadata_prepool,
+             read_google_csv(CR_metadata_prepool_file,
+                             CR_metadata_prepool_moddate)),
+  
+  # p2_id_key.csv
+  # Links cannonical paper ID to the IDs used by other teams
+  # Does not include COVID papers
+  tar_target(p2_id_key_file,
+             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
+  tar_target(p2_id_key_moddate,
+             get_google_mod_date(p2_id_key_file),
+             cue = tar_cue("always")),
+  tar_target(p2_id_key,
+             read_google_csv(p2_id_key_file,
+                             p2_id_key_moddate))
 )
 ```
 
@@ -1131,10 +1131,10 @@ list(
   # Metadata for covid papers was collected separately from other papers
   # Reconcile differences for merging
   tar_target(covid_metadata,
-             transform_covid_metadata(covid_metadata_raw)),
+             transform_covid_metadata(paper_metadata_covid)),
   
   tar_target(non_covid_metadata,
-             transform_paper_metadata(all_metadata_filled, status))
+             transform_paper_metadata(paper_metadata_raw, status))
 )
 
 ```
@@ -1275,7 +1275,7 @@ list(
   tar_target(paper_metadata,
              merge_paper_metadata(non_covid_metadata,
                                   covid_metadata,
-                                  paper_cite,
+                                  paper_citations,
                                   publications)),
   
   # Claims made in original studies 
