@@ -165,70 +165,78 @@ list(
 
 ```{targets raw-claims}
 list(
-  # tagtable_covid_p1.tsv
-  # Claims extracted from phase 1 COVID papers with canonical paper IDs
-  # Needed in orig to denote covid papers, and for IDs in PR
-  tar_target(tagtable_covid_p1_file,
-             "1lc2P9N2RPXR2YZB6_Zh1E8eXNiRdm50t"),
-  tar_target(tagtable_covid_p1_moddate,
-             get_google_mod_date(tagtable_covid_p1_file),
+  # orig_claims_bushel-complex.csv
+  # Indicates bushel claims where the evidence is anything other than a single
+  # statistically significant effect
+  tar_target(orig_claims_bushel_complex_file,
+             "qjgwb"),
+  tar_target(orig_claims_bushel_complex_moddate,
+             get_osf_mod_date(orig_claims_bushel_complex_file),
              cue = tar_cue("always")),
-  tar_target(tagtable_covid_p1,
-             read_google_tsv(tagtable_covid_p1_file,
-                             tagtable_covid_p1_moddate)),
-  
-  # stitched_claims.tsv
-  # All bushel claims with canonical paper IDs
-  tar_target(stitched_claims_file,
-             "1v_ci1nEomtT1ZJKaOeJXqauCsmQJG40b"),
-  tar_target(stitched_claims_moddate,
-             get_google_mod_date(stitched_claims_file),
-             cue = tar_cue("always")),
-  tar_target(stitched_claims,
-             read_google_tsv(stitched_claims_file,
-                             stitched_claims_moddate)),
-  
-  # P1 claims
-  tar_target(tagtable_p1_file,
-             "1NmhTX53-SWsMpIbgZpm2bWm1SzRq071F"),
-  tar_target(tagtable_p1_moddate,
-             get_google_mod_date(tagtable_p1_file),
-             cue = tar_cue("always")),
-  tar_target(tagtable_p1,
-             read_google_tsv(tagtable_p1_file,
-                             tagtable_p1_moddate)),
-  
-  # P2 claims
-  tar_target(tagtable_p2_CES_file,
-             "1Lr2SXHO261GaifluZSZ1kl7OjjbnHrqe"),
-  tar_target(tagtable_p2_CES_moddate,
-             get_google_mod_date(tagtable_p2_CES_file),
-             cue = tar_cue("always")),
-  tar_target(tagtable_p2_CES,
-             read_google_tsv(tagtable_p2_CES_file,
-                             tagtable_p2_CES_moddate)),
-  
-  # covid_ta2.csv
-  # Claims extracted from phase 1 COVID papers with paper IDs for TA2
-  # Used to reconcile IDs in process reproducibility
-  tar_target(covid_ta2_osf,
-             "yr3w8"),
-  tar_target(covid_ta2_mod_date, 
-             get_osf_mod_date(covid_ta2_osf),
+  tar_target(orig_claims_bushel_complex,
+             load_osf_csv(orig_claims_bushel_complex_file,
+                          orig_claims_bushel_complex_moddate)),
+
+  # orig_claims_covid_ta2-ids.csv
+  # Claims extracted from phase 1 COVID preprints with IDs for human assessment
+  # teams. Used to reconcile IDs for process reproducibility work.
+  tar_target(orig_claims_covid_ta2_file,
+             "q4kca"),
+  tar_target(orig_claims_covid_ta2_moddate, 
+             get_osf_mod_date(orig_claims_covid_ta2_file),
              cue = tar_cue("always")), 
-  tar_target(covid_ta2,
-             load_osf_csv(covid_ta2_osf,
-                          covid_ta2_mod_date)),
+  tar_target(orig_claims_covid_ta2,
+             load_osf_csv(orig_claims_covid_ta2_file,
+                          orig_claims_covid_ta2_moddate)),
   
-  # Complex Bushel
-  tar_target(complex_bushel_gsheet,
-             "1hlcidipFCVV4WlGyCT6cMDFjyQsGA8CCoGUFASuQAhY"),
-  tar_target(complex_bushel_mod_date,
-             get_google_mod_date(complex_bushel_gsheet),
+  # orig_claims_p1-covid.csv
+  # Claims extracted from phase 1 COVID preprints with canonical paper IDs.
+  # Preprints were from PsyarXiv, SocArXiv, and medRxiv.
+  tar_target(orig_claims_p1_covid_file,
+             "94dfs"),
+  tar_target(orig_claims_p1_covid_moddate,
+             get_osf_mod_date(orig_claims_p1_covid_file),
              cue = tar_cue("always")),
-  tar_target(complex_bushel,
-             read_google_sheet(complex_bushel_gsheet,
-                               complex_bushel_mod_date))
+  tar_target(orig_claims_p1_covid,
+             load_osf_csv(orig_claims_p1_covid_file,
+                          orig_claims_p1_covid_moddate)),
+  
+  # orig_claims_p1.csv
+  # Claims extracted from articles during phase 1 (February 2019 to December
+  # 2020) with canonical paper IDs
+  tar_target(orig_claims_p1_file,
+             "na35f"),
+  tar_target(orig_claims_p1_moddate,
+             get_osf_mod_date(orig_claims_p1_file),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_p1,
+             load_osf_csv(orig_claims_p1_file,
+                          orig_claims_p1_moddate)),
+  
+  # orig_claims_p2-bushel.csv
+  # Bushel claims from phase 2 with canonical paper IDs. 
+  # Rather than focusing on an individual claim in a paper, bushel claim traces 
+  # may branch at any point of a paper up until the test description (claim 4)
+  tar_target(orig_claims_p2_bushel_file,
+             "9m57d"),
+  tar_target(orig_claims_p2_bushel_moddate,
+             get_osf_mod_date(orig_claims_p2_bushel_file),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_p2_bushel,
+             load_osf_csv(orig_claims_p2_bushel_file,
+                          orig_claims_p2_bushel_moddate)),
+  
+  # orig_claims_p2-single.csv
+  # Single-trace claims extracted from articles during phase 2 (January 2021 to
+  # May 2022) with canonical paper IDs
+  tar_target(orig_claims_p2_single_file,
+             "nakxy"),
+  tar_target(orig_claims_p2_single_moddate,
+             get_osf_mod_date(orig_claims_p2_single_file),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_p2_single,
+             load_osf_csv(orig_claims_p2_single_file,
+                          orig_claims_p2_single_moddate))
 )
 ```
 
@@ -484,19 +492,19 @@ list(
 
 <!--   # tar_target(valid_ids, -->
 <!--   #            create_id_list(status, -->
-<!--   #                           tagtable_covid_p1, -->
+<!--   #                           orig_claims_p1_covid, -->
 <!--   #                           finalized_claim4_table, -->
 <!--   #                           rr_projects)), -->
 <!--   # Temp rr project list -->
 
 <!--   #  -->
 <!--   # tar_target(id_key, -->
-<!--   #            create_id_key(covid_ta2, -->
-<!--   #                         tagtable_covid_p1, -->
+<!--   #            create_id_key(orig_claims_covid_ta2, -->
+<!--   #                         orig_claims_p1_covid, -->
 <!--   #                         status, -->
 <!--   #                         p2_id_key, -->
 <!--   #                         SCORE_CVD2, -->
-<!--   #                         stitched_claims, -->
+<!--   #                         orig_claims_p2_bushel, -->
 <!--   #                         replication_qa, -->
 <!--   #                         reproduction_qa)) -->
 <!-- ) -->
@@ -1151,7 +1159,7 @@ list(
                               original_inftest_dataset,
                               orig_statistics_manual_data_entry,
                               orig_vars_qa,
-                              tagtable_covid_p1,
+                              orig_claims_p1_covid,
                               orig_cases)),
   ## Update ----
   tar_target(orig_updated,
@@ -1249,8 +1257,8 @@ list(
   
   tar_target(pr_data_form,
              process_pr_data(pr_data_raw,
-                           covid_ta2,
-                           tagtable_covid_p1)),
+                           orig_claims_covid_ta2,
+                           orig_claims_p1_covid)),
            
   tar_target(pr_qc,
              update_pr(pr_data_form,
@@ -1280,18 +1288,18 @@ list(
   
   # Claims made in original studies 
   tar_target(extracted_claims,
-             merge_claims(tagtable_p1,
-                          tagtable_covid_p1,
-                          tagtable_p2_CES,
-                          stitched_claims,
-                          complex_bushel,
+             merge_claims(orig_claims_p1,
+                          orig_claims_p1_covid,
+                          orig_claims_p2_single,
+                          orig_claims_p2_bushel,
+                          orig_claims_bushel_complex,
                           status,
                           covid_metadata)),
   
   # Original study variables
   tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset,
-                                complex_bushel,
+                                orig_claims_bushel_complex,
                                 effectsize_orig,
                                 effectsize_outcome,
                                 repli_export)),
@@ -1302,7 +1310,7 @@ list(
                                    rr_attempts_minted,
                                    rr_statistics_output_p2,
                                    status,
-                                   stitched_claims,
+                                   orig_claims_p2_bushel,
                                    effectsize_outcome,
                                    orig_outcomes,
                                    paper_metadata,
@@ -1405,7 +1413,7 @@ list(
                     rr_sample_size_90_for_50 = rr_stage2_analytic_sample_size)),
   
   tar_target(claims_bushel_ids,
-             select(stitched_claims,
+             select(orig_claims_p2_bushel,
                     paper_id,
                     claim4_id)),
   
