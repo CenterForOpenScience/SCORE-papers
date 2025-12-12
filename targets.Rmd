@@ -165,7 +165,7 @@ list(
 
 ```{targets raw-claims}
 list(
-  # orig_claims_bushel-complex.csv
+  # orig_claims_bushel-complex.csv ----
   # Indicates bushel claims where the evidence is anything other than a single
   # statistically significant effect
   tar_target(orig_claims_bushel_complex_file,
@@ -177,7 +177,7 @@ list(
              load_osf_csv(orig_claims_bushel_complex_file,
                           orig_claims_bushel_complex_moddate)),
 
-  # orig_claims_covid_ta2-ids.csv
+  # orig_claims_covid_ta2-ids.csv ----
   # Claims extracted from phase 1 COVID preprints with IDs for human assessment
   # teams. Used to reconcile IDs for process reproducibility work.
   tar_target(orig_claims_covid_ta2_file,
@@ -189,7 +189,7 @@ list(
              load_osf_csv(orig_claims_covid_ta2_file,
                           orig_claims_covid_ta2_moddate)),
   
-  # orig_claims_p1-covid.csv
+  # orig_claims_p1-covid.csv ----
   # Claims extracted from phase 1 COVID preprints with canonical paper IDs.
   # Preprints were from PsyarXiv, SocArXiv, and medRxiv.
   tar_target(orig_claims_p1_covid_file,
@@ -201,7 +201,7 @@ list(
              load_osf_csv(orig_claims_p1_covid_file,
                           orig_claims_p1_covid_moddate)),
   
-  # orig_claims_p1.csv
+  # orig_claims_p1.csv ----
   # Claims extracted from articles during phase 1 (February 2019 to December
   # 2020) with canonical paper IDs
   tar_target(orig_claims_p1_file,
@@ -213,7 +213,7 @@ list(
              load_osf_csv(orig_claims_p1_file,
                           orig_claims_p1_moddate)),
   
-  # orig_claims_p2-bushel.csv
+  # orig_claims_p2-bushel.csv ----
   # Bushel claims from phase 2 with canonical paper IDs. 
   # Rather than focusing on an individual claim in a paper, bushel claim traces 
   # may branch at any point of a paper up until the test description (claim 4)
@@ -226,7 +226,7 @@ list(
              load_osf_csv(orig_claims_p2_bushel_file,
                           orig_claims_p2_bushel_moddate)),
   
-  # orig_claims_p2-single.csv
+  # orig_claims_p2-single.csv ----
   # Single-trace claims extracted from articles during phase 2 (January 2021 to
   # May 2022) with canonical paper IDs
   tar_target(orig_claims_p2_single_file,
@@ -241,121 +241,115 @@ list(
 ```
 
 #### Original Study Variables
-```{targets raw-original-variables}
+
+```{targets raw-orig-stats}
 list(
-  # orig_statistics_dataset_p1.tsv
-  tar_target(orig_statistics_p1_file,
-             "1TLm9loSU8n3pSRoz0ugekJ6VfSiS792p"),
-  tar_target(orig_statistics_p1_moddate,
-             get_google_mod_date(orig_statistics_p1_file),
-             cue = tar_cue("always")),
-  tar_target(
-    orig_statistics_dataset_p1,
-    read_google_tsv(
-      orig_statistics_p1_file,
-      orig_statistics_p1_moddate,
-      col_types = list(
-        # All load in by default as character, so manually set to double
-        original_statistic_value_reported = col_double(),
-        original_statistic_df1_reported = col_double(),
-        original_statistic_df2_reported = col_double(),
-        # There is a weird data corruption in this field that throws a warning, 
-        # but it gets fixed in the changelog:
-        original_coefficient_value_reported = col_double(),
-        original_coefficient_se_reported = col_double(),
-        original_effect_size_value_reported = col_double(),
-        original_analytic_sample_size_value_reference = col_double(),
-        original_statistic_value_reference = col_double(),
-        original_statistic_df1_reference = col_double(),
-        original_statistic_df2_reference = col_double(),
-        original_coefficient_se_reference = col_double(),
-        original_p_value_value_reference = col_double(),
-        original_effect_size_value_reference = col_double(),
-        rr_threshold_analytic_sample_size = col_double(),
-        rr_stage1_analytic_sample_size = col_double(),
-        rr_stage2_analytic_sample_size = col_double(),
-        original_total_model_parameters = col_double()
-      )
-    )
-  ),
-  
-  # orig_statistics_manual_dataset.tsv
-  tar_target(orig_statistics_manual_file,
-             "1B8-fTy_wpCcwHJAGt8FZKIuIoeHeE0T6"),
-  tar_target(orig_statistics_manual_moddate,
-             get_google_mod_date(orig_statistics_manual_file),
-             cue = tar_cue("always")),
-  tar_target(
-    orig_statistics_manual_data_entry,
-    read_google_tsv(
-      orig_statistics_manual_file,
-      orig_statistics_manual_moddate,
-      col_types = list(
-        # originally: logical
-        original_statistic_type_reported = col_character(),
-        original_statistic_type_reference = col_character()
-      )
-    )
-  ),
-  
-  # original_inftest_dataset.tsv
-  tar_target(original_inftest_file,
-             "1goGxpXYcpCWNxBa1HE1oEEifVFlUOix7"),
-  tar_target(original_inftest_moddate,
-             get_google_mod_date(original_inftest_file),
-             cue = tar_cue("always")),
-  tar_target(original_inftest_dataset,
-             read_google_tsv(original_inftest_file,
-                             original_inftest_moddate)),
-  
-  # SCORE-P2-103: Original variables coding form (Responses)
-  tar_target(orig_vars_qa_gsheet,
-             "1_rgG3r318tpsakc8wSA0dMAYJ--pkiybVq5s9dfek6M"),
-  tar_target(orig_vars_qa_mod_date,
-             get_google_mod_date(orig_vars_qa_gsheet),
+  # orig_stats_effective.csv ----
+  # Adjusted sample sizes and degrees of freedom for the purpose of 
+  # effect size estimation.
+  tar_target(orig_stats_effect_file,
+             "k5chq"),
+  tar_target(orig_stats_effect_moddate,
+             get_osf_mod_date(orig_stats_effect_file),
              cue = tar_cue("always")), 
-  tar_target(orig_vars_qa,
-             read_google_sheet(orig_vars_qa_gsheet,
-                               orig_vars_qa_mod_date)),
+  tar_target(orig_stats_effect,
+             load_osf_csv(orig_stats_effect_file,
+                          orig_stats_effect_moddate)),
   
-  # Added SCORE variables - Gsheet
-  tar_target(effectsize_gsheet,
-             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
-  tar_target(effectsize_moddate,
-             get_google_mod_date(effectsize_gsheet),
+  # orig_stats_extended.csv ----
+  # Additional statistics for original studies calculated by collaborators at
+  # Tilburg University.
+  tar_target(orig_stats_extended_file,
+             "9fbm8"),
+  tar_target(orig_stats_extended_moddate, 
+             get_osf_mod_date(orig_stats_extended_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_stats_extended,
+             # Delivered data has everything encased in quotes
+             # These are removed before merging into analytic datasets
+             load_osf_csv(orig_stats_extended_file,
+                          orig_stats_extended_moddate)),
+  
+  # orig_stats_p1.csv ----
+  # Statistics from original articles that underwent replication/reproduction 
+  # in phase 1. Each record is a paper that documents the single claim and
+  # inferential test selected for that paper. In Phase 1, the (unique)
+  # inferential test from the (unique) focal claim is coded and stored across
+  # several different workflows, then aggregated into a ground truth version
+  # post QA and merging. Original variables may have been coded in either/both
+  # of main or repro type pipelines, so there are sometimes multiple rows 
+  # per paper.
+  tar_target(orig_stats_p1_file,
+             "fa6ub"),
+  tar_target(orig_stats_p1_moddate,
+             get_osf_mod_date(orig_stats_p1_file),
              cue = tar_cue("always")),
+  tar_target(orig_stats_p1,
+             load_osf_csv(orig_stats_p1_file,
+                          orig_stats_p1_moddate)),
   
-  # Added SCORE variables - Original
-  tar_target(effectsize_orig,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "original")),
-  
-  # orig_statistics_output_p2.tsv
-  tar_target(orig_statistics_output_p2_osf,
-             "hk63r"),
-  tar_target(orig_statistics_output_p2_mod_date, 
-             get_osf_mod_date(orig_statistics_output_p2_osf),
+  # orig_stats_p2_additional.csv ----
+  # Statistics from original articles that underwent replications/reproductions
+  # in phase 2 that were entered manually later in the process
+  tar_target(orig_stats_p2_additional_file,
+             "y84gf"),
+  tar_target(orig_stats_p2_additional_moddate, 
+             get_osf_mod_date(orig_stats_p2_additional_file),
              cue = tar_cue("always")), 
   tar_target(
-    orig_statistics_output_p2,
-    load_osf_tsv(orig_statistics_output_p2_osf,
-                 orig_statistics_output_p2_mod_date,
-                 quote = "\\\"")
-  ),
+    orig_stats_p2_additional,
+    load_osf_csv(orig_stats_p2_additional_file,
+                 orig_stats_p2_additional_moddate,
+                 col_types = list(
+                   # All entries "F", which should load as char, not logical
+                   original_statistic_type_reported = col_character(),
+                   original_statistic_analysis_type_statsteam = col_character()
+                   )
+      )
+    ),
   
-  # Additional Cases - Gsheet
-  tar_target(repli_cases_gsheet,
-             "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
-  tar_target(repli_cases_moddate,
-             get_google_mod_date(repli_cases_gsheet),
+  # orig_stats_p2_form-outputs.csv ----
+  # Statistics from original articles that underwent replications/reproductions
+  # in phase 2 that were entered via google form.
+  tar_target(orig_stats_p2_form_file,
+             "6qg4a"),
+  tar_target(orig_stats_p2_form_moddate,
+             get_osf_mod_date(orig_stats_p2_form_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_stats_p2_form,
+             load_osf_csv(orig_stats_p2_form_file,
+                          orig_stats_p2_form_moddate)),
+  
+  # orig_stats_p2_manual-entry.csv ----
+  # Statistics from original articles that underwent replications in phase 2
+  # that were entered manually rather than through the other workflows.
+  tar_target(orig_stats_p2_manual_file,
+             "dusqm"),
+  tar_target(orig_stats_p2_manual_moddate,
+             get_osf_mod_date(orig_stats_p2_manual_file),
              cue = tar_cue("always")),
+  tar_target(
+    orig_stats_p2_manual,
+    load_osf_csv(orig_stats_p2_manual_file,
+                 orig_stats_p2_manual_moddate,
+                 col_types = list(
+                   # Empty columns that should load as char, not logical
+                   original_statistic_type_reported = col_character(),
+                   original_statistic_type_reference = col_character()
+                   ))
+    ),
   
-  # Additional Cases - Original Variables
-  tar_target(orig_cases,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "orig_dataset"))
+  # orig_stats_p2_power-outputs.csv ----
+  # Statistics from original articles that underwent replications in phase 2
+  # that were gathered from power analysis outputs
+  tar_target(orig_stats_p2_pwr_file,
+             "6cweg"),
+  tar_target(orig_stats_p2_pwr_moddate,
+             get_osf_mod_date(orig_stats_p2_pwr_file),
+             cue = tar_cue("always")),
+  tar_target(orig_stats_p2_pwr,
+             load_osf_csv(orig_stats_p2_pwr_file,
+                          orig_stats_p2_pwr_moddate))
 )
 ```
 
@@ -365,6 +359,18 @@ list(
 
 ```{targets replications}
 list(
+    # Added SCORE variables - Gsheet
+  tar_target(effectsize_gsheet,
+             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
+  tar_target(effectsize_moddate,
+             get_google_mod_date(effectsize_gsheet),
+             cue = tar_cue("always")),
+    # Additional Cases - Gsheet
+  tar_target(repli_cases_gsheet,
+             "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
+  tar_target(repli_cases_moddate,
+             get_google_mod_date(repli_cases_gsheet),
+             cue = tar_cue("always")),
   # File: SCORE-P2-081: Variable form - replications (Responses)
   tar_target(replication_qa_gsheet,
              "1Cs7iFLA29JwVDfp8DY0ZIaTlRTTnK0KsFSudLDHxjFQ"),
@@ -1056,6 +1062,16 @@ list(
              load_changelog(orig_input_changelog_file,
                             orig_input_changelog_moddate)),
   
+  # orig_stats_extended_changelog (Google Sheet)
+  tar_target(orig_stats_extended_changelog_file,
+             "1ODw_EGLJuMqxbce07sagKlEB2klTZXN6XJ92bDSGGy0"),
+  tar_target(orig_stats_extended_changelog_moddate,
+             get_google_mod_date(orig_stats_extended_changelog_file),
+             cue = tar_cue("always")),
+  tar_target(orig_stats_extended_changelog,
+             load_changelog(orig_stats_extended_changelog_file,
+                            orig_stats_extended_changelog_moddate)),
+  
   # rr_attempts_minted_changelog (Google Sheet)
   tar_target(rr_attempts_minted_changelog_file,
              "1rlVy9A4jBwQzpxTH4my4FUWaZkq7388YfpRmQOZWihw"),
@@ -1155,21 +1171,25 @@ list(
 list(
   ## Merge ----
   tar_target(orig_merged,
-             merge_orig_input(orig_statistics_dataset_p1,
-                              original_inftest_dataset,
-                              orig_statistics_manual_data_entry,
-                              orig_vars_qa,
+             merge_orig_input(orig_stats_p1,
+                              orig_stats_p2_pwr,
+                              orig_stats_p2_manual,
+                              orig_stats_p2_form,
                               orig_claims_p1_covid,
-                              orig_cases)),
+                              orig_stats_p2_additional)),
   ## Update ----
   tar_target(orig_updated,
              update_orig_input(orig_merged,
                                orig_input_changelog)),
   
+  tar_target(orig_extended_updated,
+             update_orig_extended(orig_stats_extended,
+                                  orig_stats_extended_changelog)),
+  
   ## Refine ----
   tar_target(orig_dataset,
              export_orig(orig_updated,
-                         orig_statistics_output_p2))
+                         orig_extended_updated))
 )
 ```
 
@@ -1300,7 +1320,7 @@ list(
   tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset,
                                 orig_claims_bushel_complex,
-                                effectsize_orig,
+                                orig_stats_effect,
                                 effectsize_outcome,
                                 repli_export)),
   
@@ -1428,7 +1448,7 @@ list(
 
 Run the `{targets}` pipeline. Expected warnings:
 
-1) orig_statistics_dataset_p1: One or more parsing issues
+1) orig_stats_p1: One or more parsing issues
 2) replication_qa: There was 1 warning in mutate
 3) rr_confrontations_repro_claim: There was 1 warning in mutate.
 

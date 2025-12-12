@@ -1,8 +1,6 @@
 # Transform, merge, and update raw data
 export_orig <- function(orig_updated,
-                        orig_statistics_output_p2) {
-  
-  orig_extended <- transform_orig_output(orig_statistics_output_p2)
+                        orig_extended_updated) {
   
   orig_updated %>%
     mutate(
@@ -52,10 +50,5 @@ export_orig <- function(orig_updated,
     relocate(data_source_priority, .after = original_data_source) %>%
     distinct(unique_claim_id, .keep_all = TRUE) %>%
     select(-c(data_source_priority)) %>%
-    left_join(orig_extended, join_by(paper_id, claim_id)) %>%
-    # REMOVE REMOVE REMOVE
-    rows_update(tibble(unique_claim_id = "Eb2N_single-trace",
-                       original_effect_size_value_statsteam = 0.00353),
-                by = "unique_claim_id")
-  
+    left_join(orig_extended_updated, join_by(paper_id, claim_id))
 }

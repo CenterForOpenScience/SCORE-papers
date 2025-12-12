@@ -1,7 +1,7 @@
 # Transform Tilburg extension data
-transform_orig_output <- function(orig_statistics_output_p2) {
+transform_orig_output <- function(orig_stats_extended) {
   
-  orig_statistics_output_p2 %>%
+  orig_stats_extended %>%
     # All character values and variable names are encased in quotes, so we need
     # to deal with that to get all of the lines to read in correctly, even when
     # there is quoted text within a value. Values that contain actual
@@ -36,3 +36,13 @@ transform_orig_output <- function(orig_statistics_output_p2) {
                                               .default = FALSE))
   
 }
+
+update_orig_extended <- function(orig_stats_extended,
+                                 orig_stats_extended_changelog) {
+  
+  transform_orig_output(orig_stats_extended) %>%
+    apply_changelog(orig_stats_extended_changelog, "paper_id")
+  
+}
+
+

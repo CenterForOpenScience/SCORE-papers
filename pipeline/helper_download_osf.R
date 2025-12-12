@@ -14,7 +14,9 @@ get_osf_mod_date <- function(osf_file) {
 # Downloads CSV from OSF if it has been updated, stores the output, and 
 # deletes the temp downloaded file
 load_osf_csv <- function(osf_id,
-                         osf_mod_date) {
+                         osf_mod_date,
+                         quote = "\"",
+                         col_types = NULL) {
   
   # This triggers tar_make() to load data if the modification date has
   # changed since last run
@@ -31,6 +33,8 @@ load_osf_csv <- function(osf_id,
     pull(local_path)
   
   osf_csv_data <- read_csv(osf_csv_file,
+                           col_types = col_types,
+                           quote = quote,
                            show_col_types = FALSE)
   
   file.remove(osf_csv_file)
