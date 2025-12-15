@@ -504,55 +504,32 @@ list(
 )
 ```
 
-<!-- ### Helpers -->
-
-<!-- The `valid_ids` object is used to check that files being loaded in the following sections only use valid IDs. Also load in `rr_projects.csv` here for convenience since it is used to generate the list of valid IDs.  -->
-
-<!-- The `id_key` object is used to match up the canonical paper IDs with the IDs assigned to papers for TA2 and TA3.  -->
-
-<!-- ```{targets helpers} -->
-<!-- list( -->
-
-
-
-<!--   # tar_target(valid_ids, -->
-<!--   #            create_id_list(status, -->
-<!--   #                           orig_claims_p1_covid, -->
-<!--   #                           finalized_claim4_table, -->
-<!--   #                           rr_projects)), -->
-<!--   # Temp rr project list -->
-
-<!--   #  -->
-<!--   # tar_target(id_key, -->
-<!--   #            create_id_key(orig_claims_covid_ta2, -->
-<!--   #                         orig_claims_p1_covid, -->
-<!--   #                         status, -->
-<!--   #                         p2_id_key, -->
-<!--   #                         SCORE_CVD2, -->
-<!--   #                         orig_claims_p2_bushel, -->
-<!--   #                         replication_qa, -->
-<!--   #                         repro_stats)) -->
-<!-- ) -->
-<!-- ``` -->
-
 ### Process Reproducibility
 
 ```{targets raw-pr}
 list(
-  # COS SCORE Data Google Drive - raw/process_reproducibility ----
-  # https://drive.google.com/drive/folders/1y2X2jFBH7t6wDhviEqI85rbniYtm33AK
-  
-  # Original Author Outreach (OA_outreach_PR_coding)
-  tar_target(oa_sheet,
-             "1ke9auRcjFeFscpH53zM98dV6_ObpKckzX-YaXRzkuIw",
+  # orig-material_author-outreach.csv ----
+  # Original study data and code availability based on author outreach efforts
+  tar_target(materials_author_outreach_file,
+             "uxj48"),
+  tar_target(materials_author_outreach_moddate,
+             get_osf_mod_date(materials_author_outreach_file),
              cue = tar_cue("always")),
+  tar_target(materials_author_outreach,
+             load_osf_csv(materials_author_outreach_file,
+                          materials_author_outreach_moddate)),
   
-  # Process Reproducibility
-  tar_target(pr_gsheet,
-             "1E8LvpcuoUyVZV-EDqVPW_H1Cd-4OJCuR3Kl8HMJMVtI",
+  # orig-material_availability.csv ----
+  # Original study data and code availability determinations from a 
+  # variety of sources
+  tar_target(materials_availability_file,
+             "dz5cs"),
+  tar_target(materials_availability_moddate,
+             get_osf_mod_date(materials_availability_file),
              cue = tar_cue("always")),
-  tar_target(pr_data_raw,
-             load_pr_data(pr_gsheet))
+  tar_target(materials_availability,
+             load_osf_csv(materials_availability_file,
+                          materials_availability_moddate))
 )
 ```
 
@@ -1286,18 +1263,15 @@ Process reproducibility data.
 ```{targets processed-pr}
 
 list(
-
-  tar_target(oa_raw,
-             load_process_oa(oa_sheet)),
   
   tar_target(oa_outreach,
-             update_oa(oa_raw,
+             update_oa(materials_author_outreach,
                        oa_changelog)),
   
   tar_target(pr_data_form,
-             process_pr_data(pr_data_raw,
-                           orig_claims_covid_ta2,
-                           orig_claims_p1_covid)),
+             process_pr_data(materials_availability,
+                             orig_claims_covid_ta2,
+                             orig_claims_p1_covid)),
            
   tar_target(pr_qc,
              update_pr(pr_data_form,

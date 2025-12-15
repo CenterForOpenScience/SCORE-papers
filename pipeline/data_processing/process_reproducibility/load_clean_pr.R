@@ -22,21 +22,21 @@ load_pr_data <- function(pr_gsheet){
 }
 
 # Clean/transform PR data
-process_pr_data <- function(pr_data_raw,
-                            covid_ta2,
-                            tagtable_covid_p1) {
+process_pr_data <- function(materials_availability,
+                            orig_claims_covid_ta2,
+                            orig_claims_p1_covid) {
   
   # COVID papers use a different ID in their pdf file name than other papers
   # Use this key to insert the correct paper IDs 
-  id_key <- covid_ta2 %>%
+  id_key <- orig_claims_covid_ta2 %>%
     select(ta2_pid,
            DOI = DOI_CR) %>%
-    left_join(tagtable_covid_p1 %>% 
+    left_join(orig_claims_p1_covid %>% 
                 select(paper_id, DOI),
               by = "DOI") %>%
     select(-c(DOI))
   
-  pr_data_raw %>%
+  materials_availability %>%
     select(-c(`Email Address`,
               auditor_name,
               paper_data_availability_statement,
@@ -60,6 +60,8 @@ process_pr_data <- function(pr_data_raw,
         "Yes - same responses" ~ pr_data_location_description,
         .default = pr_code_location_description
       ),
+      # Should be considered a character field for processing
+      pr_code_date = as.character(pr_code_date),
       pr_code_date = case_match(
         pr_code_responses_same_as_data,
         "Yes - same responses" ~ pr_data_date,
