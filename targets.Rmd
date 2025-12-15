@@ -159,7 +159,7 @@ list(
 )
 ```
 
-### Original Articles
+### Original Studies
 
 #### Original Study Claims
 
@@ -244,6 +244,17 @@ list(
 
 ```{targets raw-orig-stats}
 list(
+  # orig_effect-size.csv ----
+  # Calculated effect sizes with upper and lower bounds for original studies
+  tar_target(orig_effect_size_file,
+             "4s3de"),
+  tar_target(orig_effect_size_moddate,
+             get_osf_mod_date(orig_effect_size_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_effect_size,
+             load_osf_csv(orig_effect_size_file,
+                          orig_effect_size_moddate)),
+  
   # orig_stats_effective.csv ----
   # Adjusted sample sizes and degrees of freedom for the purpose of 
   # effect size estimation.
@@ -353,135 +364,143 @@ list(
 )
 ```
 
-### Replications and Reproductions
-
-#### Replications
+### Replication Studies
 
 ```{targets replications}
 list(
-    # Added SCORE variables - Gsheet
-  tar_target(effectsize_gsheet,
-             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
-  tar_target(effectsize_moddate,
-             get_google_mod_date(effectsize_gsheet),
+  # repli_effective.csv ----
+  # Adjusted sample sizes and degrees of freedom for the purpose of 
+  # effect size estimation.
+  tar_target(repli_effective_file,
+             "mhf8d"),
+  tar_target(repli_effective_moddate,
+             get_osf_mod_date(repli_effective_file),
              cue = tar_cue("always")),
-    # Additional Cases - Gsheet
-  tar_target(repli_cases_gsheet,
-             "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
-  tar_target(repli_cases_moddate,
-             get_google_mod_date(repli_cases_gsheet),
-             cue = tar_cue("always")),
-  # File: SCORE-P2-081: Variable form - replications (Responses)
-  tar_target(replication_qa_gsheet,
-             "1Cs7iFLA29JwVDfp8DY0ZIaTlRTTnK0KsFSudLDHxjFQ"),
-  tar_target(replication_qa_mod_date,
-             get_google_mod_date(replication_qa_gsheet)),
-  tar_target(replication_qa_raw,
-             read_google_sheet(replication_qa_gsheet,
-                               replication_qa_mod_date),
-             cue = tar_cue("always")),
-  
-  # Additional cases - replications
-  tar_target(replication_cases,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "repli_export")),
+  tar_target(repli_effective,
+             load_osf_csv(repli_effective_file,
+                          repli_effective_moddate)),
 
-  # Replication case exclusions
-  tar_target(repli_case_exclusions_gsheet,
-             "17cyjatTcqN36_vZ_IvWtcr4n2Ep-KlKJ-PS3K-q6wdU"),
-  tar_target(repli_case_exclusions_mod_date,
-             get_google_mod_date(repli_case_exclusions_gsheet),
+  # repli_effect-size.csv ----
+  # Calculated effect sizes with upper and lower bounds for replication studies
+  tar_target(repli_effect_size_file,
+             "yxw5t"),
+  tar_target(repli_effect_size_moddate,
+             get_osf_mod_date(repli_effect_size_file),
+             cue = tar_cue("always")),
+  tar_target(repli_effect_size,
+             load_osf_csv(repli_effect_size_file,
+                          repli_effect_size_moddate)),
+  
+  # repli_exclusions.csv ----
+  # The replication findings excluded from the main replication reporting 
+  # and their exclusion reasons
+  tar_target(repli_case_exclusions_file,
+             "wq65j"),
+  tar_target(repli_case_exclusions_moddate,
+             get_osf_mod_date(repli_case_exclusions_file),
              cue = tar_cue("always")), 
   tar_target(repli_case_exclusions,
-             read_google_sheet(repli_case_exclusions_gsheet,
-                               repli_case_exclusions_mod_date)),
-
-  # rr_outcomes_dataset_p1.tsv
-  tar_target(rr_outcomes_dataset_p1_file,
-             "113CSsObKagvQToj-inv4bO3KaS5zif6D"),
-  tar_target(rr_outcomes_dataset_p1_moddate,
-             get_google_mod_date(rr_outcomes_dataset_p1_file),
-             cue = tar_cue("always")),
-  tar_target(rr_outcomes_dataset_p1,
-             read_google_tsv(rr_outcomes_dataset_p1_file,
-                             rr_outcomes_dataset_p1_moddate)),
+             load_osf_csv(repli_case_exclusions_file,
+                          repli_case_exclusions_moddate)),
   
-  # Added SCORE variables - Replication
-  tar_target(effectsize_repli,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "replication")),
-  
-  # rr_statistics_output_p2.txt
-  tar_target(rr_statistics_output_p2_osf,
-             "6u7hc"),
-  tar_target(rr_statistics_output_p2_mod_date, 
-             get_osf_mod_date(rr_statistics_output_p2_osf),
+  # repli_extended.csv ----
+  # Additional statistics for replication studies calculated by collaborators 
+  # at Tilburg University.
+  tar_target(repli_extended_file,
+             "e9v5x"),
+  tar_target(repli_extended_moddate, 
+             get_osf_mod_date(repli_extended_file),
              cue = tar_cue("always")), 
-  tar_target(
-    rr_statistics_output_p2,
-    load_rr_statistics_output_p2(rr_statistics_output_p2_osf,
-                                 rr_statistics_output_p2_mod_date)
-  )
+  tar_target(repli_extended,
+             load_osf_csv(repli_extended_file,
+                          repli_extended_moddate)),
+  
+  # repli_stats_p1.csv ----
+  # Statistics from replication studies in phase 1.
+  tar_target(repli_stats_p1_file,
+             "cyr63"),
+  tar_target(repli_stats_p1_moddate,
+             get_osf_mod_date(repli_stats_p1_file),
+             cue = tar_cue("always")),
+  tar_target(repli_stats_p1,
+             load_osf_csv(repli_stats_p1_file,
+                          repli_stats_p1_moddate)),
+  
+  # repli_stats_p2_additional.csv ----
+  # Statistics from replication studies in phase 2 that were entered 
+  # manually later in the process
+  tar_target(repli_stats_p2_additional_file,
+             "6jhy7"),
+  tar_target(repli_stats_p2_additional_moddate,
+             get_osf_mod_date(repli_stats_p2_additional_file),
+             cue = tar_cue("always")),
+  tar_target(repli_stats_p2_additional,
+             load_osf_csv(repli_stats_p2_additional_file,
+                          repli_stats_p2_additional_moddate)),
+  
+  # repli_stats_p2.csv ----
+  # Statistics from replication studies in phase 2 that were entered via 
+  # google form.
+  tar_target(repli_stats_p2_file,
+             "7xfpq"),
+  tar_target(repli_stats_p2_moddate,
+             get_osf_mod_date(repli_stats_p2_file),
+             cue = tar_cue("always")),
+  tar_target(repli_stats_p2,
+             load_osf_csv(repli_stats_p2_file,
+                          repli_stats_p2_moddate))
 )
 ```
 
-#### Reproductions
+### Reproduction Studies
 
 ```{targets reproductions}
 list(
-  # Additional cases - reproductions
-  tar_target(reproduction_cases,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "repro_export")),
+  # repro_prereg-check.csv ----
+  # Researcher check-in information for reproduction registrations
+  tar_target(repro_prereg_check_file,
+             "7kydz"),
+  tar_target(repro_prereg_check_moddate,
+             get_osf_mod_date(repro_prereg_check_file),
+             cue = tar_cue("always")),
+  tar_target(repro_prereg_check,
+             load_osf_csv(repro_prereg_check_file,
+                               repro_prereg_check_moddate)),
   
-  # File: SCORE-P2-113: Variable form - reproductions (Responses)
-  tar_target(reproduction_qa_gsheet,
-             "1vCVHLymiT-IcVGvWH_a3cJ4dfhjrf8lvmi4qe24LuZs"),
-  tar_target(reproduction_qa_moddate,
-             get_google_mod_date(reproduction_qa_gsheet),
+  # repro_stats_additional.csv ----
+  # Statistics from reproduction studies that were entered later in the 
+  # process rather than through the google form
+  tar_target(repro_stats_additional_file,
+             "sw49d"),
+  tar_target(repro_stats_additional_moddate,
+             get_osf_mod_date(repro_stats_additional_file),
              cue = tar_cue("always")),
-  tar_target(reproduction_qa,
-             read_google_sheet(reproduction_qa_gsheet,
-                               reproduction_qa_moddate),
-             cue = tar_cue("always")),
+  tar_target(repro_stats_additional,
+             load_osf_csv(repro_stats_additional_file,
+                          repro_stats_additional_moddate)),
   
-  # File: SCORE-P2-097: Prereg check-in form (Reproduction) (Responses)
-  tar_target(prereg_checkin_repro_gsheet,
-             "11UCF2cuoBwLfJrQZC7AoWqG7EjCBoxV_GC-aFMsy6u4"),
-  tar_target(prereg_checkin_repro_moddate,
-             get_google_mod_date(prereg_checkin_repro_gsheet),
+  # repro_stats.csv ----
+  # Statistics from reproduction studies that were entered via google form.
+  tar_target(repro_stats_file,
+             "h82yc"),
+  tar_target(repro_stats_moddate,
+             get_osf_mod_date(repro_stats_file),
              cue = tar_cue("always")),
-  tar_target(prereg_checkin_repro,
-             read_google_sheet(prereg_checkin_repro_gsheet,
-                               prereg_checkin_repro_moddate),
-             cue = tar_cue("always")),
+  tar_target(repro_stats,
+             load_osf_csv(repro_stats_file,
+                          repro_stats_moddate)),
   
-  # File: repro_vor
-  # Reproduction Version of Record
-  tar_target(repro_vor_gsheet,
-             "1jxgJQDIiKOOodtZR9bTLoBxZya4KlGexhwi2SekbBU0"),
+  # repro_vor.csv ----
+  # Source of the reproduction version of record in cases with multiple
+  # reproductions for the same claim
+  tar_target(repro_vor_file,
+             "k8e7w"),
   tar_target(repro_vor_moddate,
-             get_google_mod_date(repro_vor_gsheet),
+             get_osf_mod_date(repro_vor_file),
              cue = tar_cue("always")),
   tar_target(repro_vor,
-             read_google_sheet(repro_vor_gsheet,
-                               repro_vor_moddate,
-                               sheet = "repro_version_of_record"))
-)
-```
-
-#### Outcomes
-
-```{targets raw-score}
-list(
-  # Added SCORE variables - Outcomes
-  tar_target(effectsize_outcome,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "outcomes"))
+             load_osf_csv(repro_vor_file,
+                          repro_vor_moddate))
 )
 ```
 
@@ -512,7 +531,7 @@ list(
 <!--   #                         SCORE_CVD2, -->
 <!--   #                         orig_claims_p2_bushel, -->
 <!--   #                         replication_qa, -->
-<!--   #                         reproduction_qa)) -->
+<!--   #                         repro_stats)) -->
 <!-- ) -->
 <!-- ``` -->
 
@@ -965,8 +984,8 @@ list(
   
   # Additional cases - rr projects 
   tar_target(repli_cases_projects,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
+             read_google_sheet("1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg",
+                               "2024-11-14T14:03:25.632Z",
                                sheet = "rr_projects")),
   
   # rr_reporting_checkin.tsv
@@ -1216,15 +1235,15 @@ Replications/Reproductions variables data. QC'ed and merged.
 list(
   # Transform replication form data
   tar_target(replication_qa,
-             transform_replication_qa(replication_qa_raw,
+             transform_replication_qa(repli_stats_p2,
                                       rr_attempts_minted)),
   
   tar_target(repli_merged,
-             merge_repli_input(rr_outcomes_dataset_p1,
+             merge_repli_input(repli_stats_p1,
                                replication_qa,
                                rr_reporting_checkin,
-                               replication_cases,
-                               effectsize_repli)),
+                               repli_stats_p2_additional,
+                               repli_effective)),
   
   tar_target(repli_export,
              export_repli(repli_merged,
@@ -1233,16 +1252,16 @@ list(
   # Reproduction targets ----
   # Transformed data from forms
   tar_target(repro_data_entry,
-             transform_repro_input(reproduction_qa)),
+             transform_repro_input(repro_stats)),
   
   # Transform reproduction claims
   tar_target(rr_confrontations_repro_claim,
-             transform_repro_claims(prereg_checkin_repro)),
+             transform_repro_claims(repro_prereg_check)),
   
   # Merge with additional cases
   tar_target(repro_merged,
              merge_repro(repro_data_entry,
-                         reproduction_cases,
+                         repro_stats_additional,
                          repro_vor)),
   
   # Update transformed data from forms
@@ -1321,17 +1340,17 @@ list(
              create_ov_analytic(orig_dataset,
                                 orig_claims_bushel_complex,
                                 orig_stats_effect,
-                                effectsize_outcome,
+                                orig_effect_size,
                                 repli_export)),
   
   # Replication study variables
   tar_target(repli_outcomes,
              create_repli_analytic(repli_export,
                                    rr_attempts_minted,
-                                   rr_statistics_output_p2,
+                                   repli_extended,
                                    status,
                                    orig_claims_p2_bushel,
-                                   effectsize_outcome,
+                                   repli_effect_size,
                                    orig_outcomes,
                                    paper_metadata,
                                    repli_case_exclusions)),
