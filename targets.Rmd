@@ -176,6 +176,18 @@ list(
   tar_target(orig_claims_bushel_complex,
              load_osf_csv(orig_claims_bushel_complex_file,
                           orig_claims_bushel_complex_moddate)),
+  
+  # orig_claims_bushel-non-sig.csv ----
+  # Indicates which bushel claims use non-significant evidence.
+  tar_target(orig_claims_bushel_sig_gsheet,
+             "sgqf8"),
+  tar_target(orig_claims_bushel_sig_moddate,
+             get_osf_mod_date(orig_claims_bushel_sig_gsheet),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_bushel_sig,
+             load_osf_csv(orig_claims_bushel_sig_gsheet,
+                               orig_claims_bushel_sig_moddate)),
+  
 
   # orig_claims_covid_ta2-ids.csv ----
   # Claims extracted from phase 1 COVID preprints with IDs for human assessment
@@ -215,8 +227,9 @@ list(
   
   # orig_claims_p2-bushel.csv ----
   # Bushel claims from phase 2 with canonical paper IDs. 
-  # Rather than focusing on an individual claim in a paper, bushel claim traces 
-  # may branch at any point of a paper up until the test description (claim 4)
+  # Rather than focusing on an individual claim in a paper, bushel claim 
+  # traces may branch at any point of a paper up until the 
+  # test description (claim 4)
   tar_target(orig_claims_p2_bushel_file,
              "9m57d"),
   tar_target(orig_claims_p2_bushel_moddate,
@@ -242,7 +255,7 @@ list(
 
 #### Original Study Variables
 
-```{targets raw-orig-stats}
+```{targets raw-orig}
 list(
   # orig_effect-size.csv ----
   # Calculated effect sizes with upper and lower bounds for original studies
@@ -254,6 +267,29 @@ list(
   tar_target(orig_effect_size,
              load_osf_csv(orig_effect_size_file,
                           orig_effect_size_moddate)),
+  
+  # orig_n_ser.csv ----
+  # Set of sample sizes calculated via the SER method for power calculations
+  tar_target(orig_n_ser_file,
+             "nhw8q"),
+  tar_target(orig_n_ser_moddate,
+             get_osf_mod_date(orig_n_ser_file),
+             cue = tar_cue("always")),
+  tar_target(orig_n_ser,
+             load_osf_csv(orig_n_ser_file,
+                          orig_n_ser_moddate)),
+  
+  # orig_n_traditional.csv ----
+  # Set of sample sizes calculated via traditional methods for 
+  # power calculations
+  tar_target(orig_n_traditional_file,
+             "pbftz"),
+  tar_target(orig_n_traditional_moddate,
+             get_osf_mod_date(orig_n_traditional_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_n_traditional,
+             load_osf_csv(orig_n_traditional_file,
+                          orig_n_traditional_moddate)),
   
   # orig_stats_effective.csv ----
   # Adjusted sample sizes and degrees of freedom for the purpose of 
@@ -360,13 +396,27 @@ list(
              cue = tar_cue("always")),
   tar_target(orig_stats_p2_pwr,
              load_osf_csv(orig_stats_p2_pwr_file,
-                          orig_stats_p2_pwr_moddate))
+                          orig_stats_p2_pwr_moddate)),
+  
+  # orig_prereg-indicated.csv ----
+  # Indicates whether the original study paper mentions preregistration
+  tar_target(orig_prereg_indicated_file,
+             "2k34q"),
+  tar_target(orig_prereg_indicated_moddate,
+             get_osf_mod_date(orig_prereg_indicated_file),
+             cue = tar_cue("always")),
+  tar_target(orig_prereg_indicated,
+             load_osf_csv(orig_prereg_indicated_file,
+                          orig_prereg_indicated_moddate,
+                          col_types = c("clcd")))
 )
 ```
 
+
+
 ### Replication Studies
 
-```{targets replications}
+```{targets raw-repli}
 list(
   # repli_effective.csv ----
   # Adjusted sample sizes and degrees of freedom for the purpose of 
@@ -454,7 +504,7 @@ list(
 
 ### Reproduction Studies
 
-```{targets reproductions}
+```{targets raw-repro}
 list(
   # repro_prereg-check.csv ----
   # Researcher check-in information for reproduction registrations
@@ -533,23 +583,118 @@ list(
 )
 ```
 
-### Auxiliary Datasets
+### Project Management
 
-```{targets aux-data}
+Some information comes from datasets used in project management.
+
+```{targets rr-projects}
 list(
-  # Non-significant bushels
-  # Coding out significant vs non-significant bushel claims
-  tar_target(non_significant_bushels_gsheet,
-             "1C89wRO_dZ1_qq9Ow0RpaWK2jWteloo9zPS9pW9VdbP0"),
-  tar_target(non_significant_bushels_moddate,
-             get_google_mod_date(non_significant_bushels_gsheet),
+    # status.csv
+  # Canonical source for sub-samples of the data
+  # Does not contain COVID papers
+  tar_target(status_file,
+             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
+  tar_target(status_moddate,
+             get_google_mod_date(status_file),
              cue = tar_cue("always")),
-  tar_target(non_significant_bushels,
-             read_google_sheet(non_significant_bushels_gsheet,
-                               non_significant_bushels_moddate,
-                               sheet = "claims")),
+  tar_target(status,
+             read_google_csv(status_file,
+                             status_moddate)),
+  # Full Dates
+  # Start and end dates of projects
+  tar_target(full_dates_file,
+             "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
+  tar_target(full_dates_moddate,
+             get_google_mod_date(full_dates_file),
+             cue = tar_cue("always")),
+  tar_target(full_dates,
+             read_google_csv(full_dates_file,
+                             full_dates_moddate,
+                             col_types = c("cccDDD"))),
+  # rr_projects.csv
+  tar_target(rr_projects_file,
+             "11paXdFzhCmz8ywFomUhZ6qrfp1wlKLIx"),
+  tar_target(rr_projects_moddate,
+             get_google_mod_date(rr_projects_file),
+             cue = tar_cue("always")),
+  tar_target(rr_projects_raw,
+             read_google_csv(rr_projects_file,
+                             rr_projects_moddate)),
   
-  # RR sourced 
+  # Additional cases - rr projects 
+  tar_target(repli_cases_projects,
+             read_google_sheet("1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg",
+                               "2024-11-14T14:03:25.632Z",
+                               sheet = "rr_projects")),
+  
+  # rr_reporting_checkin.tsv
+  # This info is used once and then dropped -- REMOVE   
+  tar_target(rr_reporting_checkin_file,
+             "1jB97FM-desZatqabwBVMPrSYk0qXWFjM"),
+  tar_target(rr_reporting_checkin_moddate,
+             get_google_mod_date(rr_reporting_checkin_file),
+             cue = tar_cue("always")),
+  tar_target(rr_reporting_checkin,
+             read_google_tsv(rr_reporting_checkin_file,
+                             rr_reporting_checkin_moddate)),
+  
+  # Not Used - REMOVE
+  # # p2_repli_vf.csv
+  # tar_target(p2_repli_vf_file,
+  #            "1fwWX7ebwhBF9IYt2dQyhEByBnRNavOmj"),
+  # tar_target(p2_repli_vf_moddate,
+  #            get_google_mod_date(p2_repli_vf_file),
+  #            cue = tar_cue("always")),
+  # tar_target(p2_repli_vf,
+  #            read_google_csv(p2_repli_vf_file,
+  #                            p2_repli_vf_moddate)),
+  
+  # rr_attempts_minted.csv
+  # Status and tracking for rr projects. 
+  # Source for if a replication is a "generalizibility" 
+  tar_target(rr_attempts_minted_file,
+             "1aHuTwRVeqADWVC4Lxq5n3B4ebbSa9Mqc"),
+  tar_target(rr_attempts_minted_moddate,
+             get_google_mod_date(rr_attempts_minted_file),
+             cue = tar_cue("always")),
+  tar_target(rr_attempts_minted_raw,
+             read_google_csv(rr_attempts_minted_file,
+                             rr_attempts_minted_moddate)),
+  
+  tar_target(all_rr_attempts_gsheet,
+             "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),
+  tar_target(all_rr_attempts_moddate,
+             get_google_mod_date(all_rr_attempts_gsheet),
+             cue = tar_cue("always")),
+  tar_target(all_rr_attempts,
+             read_google_sheet(all_rr_attempts_gsheet,
+                               all_rr_attempts_moddate,
+                               sheet = "full_sweep")),
+  
+  ## Raw data with unknown use ----
+  # CR_metadata_prepool.csv
+  tar_target(CR_metadata_prepool_file,
+             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
+  tar_target(CR_metadata_prepool_moddate,
+             get_google_mod_date(CR_metadata_prepool_file),
+             cue = tar_cue("always")),
+  tar_target(CR_metadata_prepool,
+             read_google_csv(CR_metadata_prepool_file,
+                             CR_metadata_prepool_moddate)),
+  
+  # p2_id_key.csv
+  # Links cannonical paper ID to the IDs used by other teams
+  # Does not include COVID papers
+  tar_target(p2_id_key_file,
+             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
+  tar_target(p2_id_key_moddate,
+             get_google_mod_date(p2_id_key_file),
+             cue = tar_cue("always")),
+  tar_target(p2_id_key,
+             read_google_csv(p2_id_key_file,
+                             p2_id_key_moddate)),
+  
+    # RR sourced 
   # All replication and reproduction projects that were matched with a team. 
   tar_target(rr_sourced_gsheet,
              "1EyUGgw8uGaCIP9nLXKh3IwqqU4DoAM4ZV6K5i1dOTHo"),
@@ -573,67 +718,7 @@ list(
              read_google_sheet(never_sourced_gsheet,
                                never_sourced_moddate,
                                sheet = "never_sourced",
-                               drop_cols = c("paper_link", "confidence"))),
-  
-  # Alternative Power Coding
-  tar_target(ser_vs_traditional_gsheet,
-             "1hGT5cEnadMVocvu-9LnfnFfZRZadYCjjPiFy41zwxWw"),
-  tar_target(ser_vs_traditional_moddate,
-             get_google_mod_date(ser_vs_traditional_gsheet),
-             cue = tar_cue("always")),
-  
-  ## Traditional
-  tar_target(traditional_power,
-             read_google_sheet(ser_vs_traditional_gsheet,
-                               ser_vs_traditional_moddate,
-                               sheet = "traditional")),
-  ## SER
-  tar_target(ser_power,
-             read_google_sheet(ser_vs_traditional_gsheet,
-                               ser_vs_traditional_moddate,
-                               sheet = "ser")),
-  
-  # Preregistration Indicators
-  # Whether the original paper mentions preregistration
-  tar_target(prereg_indicators_file,
-             "1fOO4EoOkM8uswzgFczBlArsHbrf2KFeE"),
-  tar_target(prereg_indicators_moddate,
-             get_google_mod_date(prereg_indicators_file),
-             cue = tar_cue("always")),
-  tar_target(prereg_indicators,
-             read_google_csv(prereg_indicators_file,
-                             prereg_indicators_moddate,
-                             col_types = c("clcd"))),
-  
-  # Summary of methodological approaches in original studies.
-  # llm_method_data.csv
-  tar_target(llm_method_data_file,
-             "vxysn"),
-  tar_target(llm_method_data_moddate,
-             get_osf_mod_date(llm_method_data_file)),
-  tar_target(llm_method_data,
-             load_osf_csv(llm_method_data_file,
-                          llm_method_data_moddate)),
-  
-  # Summary of research questions in original studies
-  # llm_research_question_table.csv
-  tar_target(llm_research_question_table_file,
-             "mg794"),
-  tar_target(llm_research_question_table_moddate,
-             get_osf_mod_date(llm_research_question_table_file)),
-  tar_target(llm_research_question_table,
-             load_osf_csv(llm_research_question_table_file,
-                          llm_research_question_table_moddate)),
-  
-  # Summary of theoretical frameworks of original studies
-  # llm_theory_data.csv
-  tar_target(llm_theory_data_file,
-             "mp3rq"),
-  tar_target(llm_theory_data_moddate,
-             get_osf_mod_date(llm_theory_data_file)),
-  tar_target(llm_theory_data,
-             load_osf_csv(llm_theory_data_file,
-                          llm_theory_data_moddate))
+                               drop_cols = c("paper_link", "confidence")))
 )
 ```
 
@@ -921,116 +1006,40 @@ list(
 
 ```
 
-### Project Management
 
-Some information comes from datasets used in project management.
+### LLM Summaries
 
-```{targets rr-projects}
+```{targets raw-llm}
 list(
-    # status.csv
-  # Canonical source for sub-samples of the data
-  # Does not contain COVID papers
-  tar_target(status_file,
-             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
-  tar_target(status_moddate,
-             get_google_mod_date(status_file),
-             cue = tar_cue("always")),
-  tar_target(status,
-             read_google_csv(status_file,
-                             status_moddate)),
-  # Full Dates
-  # Start and end dates of projects
-  tar_target(full_dates_file,
-             "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
-  tar_target(full_dates_moddate,
-             get_google_mod_date(full_dates_file),
-             cue = tar_cue("always")),
-  tar_target(full_dates,
-             read_google_csv(full_dates_file,
-                             full_dates_moddate,
-                             col_types = c("cccDDD"))),
-  # rr_projects.csv
-  tar_target(rr_projects_file,
-             "11paXdFzhCmz8ywFomUhZ6qrfp1wlKLIx"),
-  tar_target(rr_projects_moddate,
-             get_google_mod_date(rr_projects_file),
-             cue = tar_cue("always")),
-  tar_target(rr_projects_raw,
-             read_google_csv(rr_projects_file,
-                             rr_projects_moddate)),
+  # Summary of methodological approaches in original studies.
+  # llm_method_data.csv
+  tar_target(llm_method_data_file,
+             "vxysn"),
+  tar_target(llm_method_data_moddate,
+             get_osf_mod_date(llm_method_data_file)),
+  tar_target(llm_method_data,
+             load_osf_csv(llm_method_data_file,
+                          llm_method_data_moddate)),
   
-  # Additional cases - rr projects 
-  tar_target(repli_cases_projects,
-             read_google_sheet("1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg",
-                               "2024-11-14T14:03:25.632Z",
-                               sheet = "rr_projects")),
+  # Summary of research questions in original studies
+  # llm_research_question_table.csv
+  tar_target(llm_research_question_table_file,
+             "mg794"),
+  tar_target(llm_research_question_table_moddate,
+             get_osf_mod_date(llm_research_question_table_file)),
+  tar_target(llm_research_question_table,
+             load_osf_csv(llm_research_question_table_file,
+                          llm_research_question_table_moddate)),
   
-  # rr_reporting_checkin.tsv
-  # This info is used once and then dropped -- REMOVE   
-  tar_target(rr_reporting_checkin_file,
-             "1jB97FM-desZatqabwBVMPrSYk0qXWFjM"),
-  tar_target(rr_reporting_checkin_moddate,
-             get_google_mod_date(rr_reporting_checkin_file),
-             cue = tar_cue("always")),
-  tar_target(rr_reporting_checkin,
-             read_google_tsv(rr_reporting_checkin_file,
-                             rr_reporting_checkin_moddate)),
-  
-  # Not Used - REMOVE
-  # # p2_repli_vf.csv
-  # tar_target(p2_repli_vf_file,
-  #            "1fwWX7ebwhBF9IYt2dQyhEByBnRNavOmj"),
-  # tar_target(p2_repli_vf_moddate,
-  #            get_google_mod_date(p2_repli_vf_file),
-  #            cue = tar_cue("always")),
-  # tar_target(p2_repli_vf,
-  #            read_google_csv(p2_repli_vf_file,
-  #                            p2_repli_vf_moddate)),
-  
-  # rr_attempts_minted.csv
-  # Status and tracking for rr projects. 
-  # Source for if a replication is a "generalizibility" 
-  tar_target(rr_attempts_minted_file,
-             "1aHuTwRVeqADWVC4Lxq5n3B4ebbSa9Mqc"),
-  tar_target(rr_attempts_minted_moddate,
-             get_google_mod_date(rr_attempts_minted_file),
-             cue = tar_cue("always")),
-  tar_target(rr_attempts_minted_raw,
-             read_google_csv(rr_attempts_minted_file,
-                             rr_attempts_minted_moddate)),
-  
-  tar_target(all_rr_attempts_gsheet,
-             "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),
-  tar_target(all_rr_attempts_moddate,
-             get_google_mod_date(all_rr_attempts_gsheet),
-             cue = tar_cue("always")),
-  tar_target(all_rr_attempts,
-             read_google_sheet(all_rr_attempts_gsheet,
-                               all_rr_attempts_moddate,
-                               sheet = "full_sweep")),
-  
-  ## Raw data with unknown use ----
-  # CR_metadata_prepool.csv
-  tar_target(CR_metadata_prepool_file,
-             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
-  tar_target(CR_metadata_prepool_moddate,
-             get_google_mod_date(CR_metadata_prepool_file),
-             cue = tar_cue("always")),
-  tar_target(CR_metadata_prepool,
-             read_google_csv(CR_metadata_prepool_file,
-                             CR_metadata_prepool_moddate)),
-  
-  # p2_id_key.csv
-  # Links cannonical paper ID to the IDs used by other teams
-  # Does not include COVID papers
-  tar_target(p2_id_key_file,
-             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
-  tar_target(p2_id_key_moddate,
-             get_google_mod_date(p2_id_key_file),
-             cue = tar_cue("always")),
-  tar_target(p2_id_key,
-             read_google_csv(p2_id_key_file,
-                             p2_id_key_moddate))
+  # Summary of theoretical frameworks of original studies
+  # llm_theory_data.csv
+  tar_target(llm_theory_data_file,
+             "mp3rq"),
+  tar_target(llm_theory_data_moddate,
+             get_osf_mod_date(llm_theory_data_file)),
+  tar_target(llm_theory_data,
+             load_osf_csv(llm_theory_data_file,
+                          llm_theory_data_moddate))
 )
 ```
 
@@ -1374,7 +1383,7 @@ list(
                     all_types)),
   
   tar_target(claims_non_significant_bushels,
-             select(non_significant_bushels,
+             select(orig_claims_bushel_sig,
                     paper_id,
                     claim4_id,
                     coded_stat_evidence,
@@ -1412,14 +1421,14 @@ list(
                     dar_reason)),
   
   tar_target(claims_ser_power,
-             select(ser_power,
+             select(orig_n_ser,
                     claim_id = unique_claim_id,
                     rr_sample_size_50_for_100 = threshold,
                     rr_sample_size_90_for_75 = s1,
                     rr_sample_size_90_for_50 = s2)),
   
   tar_target(claims_traditional_power,
-             select(traditional_power,
+             select(orig_n_traditional,
                     claim_id,
                     rr_sample_size_50_for_100 = rr_threshold_analytic_sample_size,
                     rr_sample_size_90_for_75 = rr_stage1_analytic_sample_size,
