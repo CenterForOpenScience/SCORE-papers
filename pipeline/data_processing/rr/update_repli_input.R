@@ -4,7 +4,10 @@ update_repli_input <- function(repli_merged,
                                repli_input_changelog) {
   
   rr_replication_outcomes <- repli_merged %>%
-    apply_changelog(repli_input_changelog, "unique_report_id")
+    apply_changelog(repli_input_changelog %>% 
+                      # This field gets dropped, removed for smooth updating
+                      filter(col_name != "rr_analysis_link"), 
+                    "unique_report_id")
   
   # Data type changes 
   mutate(

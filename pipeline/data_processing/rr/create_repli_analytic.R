@@ -201,7 +201,6 @@ create_repli_analytic <- function(repli_export,
     ) %>%
     # Columns to drop ----
     select(-c(rr_original_data_overlap,
-              rr_analysis_link,
               rr_expected_sample_reached_reported,
               rr_analytic_subsample_n1,
               rr_analytic_subsample_n2,

@@ -589,136 +589,109 @@ Some information comes from datasets used in project management.
 
 ```{targets rr-projects}
 list(
-    # status.csv
-  # Canonical source for sub-samples of the data
-  # Does not contain COVID papers
-  tar_target(status_file,
-             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
-  tar_target(status_moddate,
-             get_google_mod_date(status_file),
-             cue = tar_cue("always")),
-  tar_target(status,
-             read_google_csv(status_file,
-                             status_moddate)),
-  # Full Dates
-  # Start and end dates of projects
-  tar_target(full_dates_file,
-             "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
-  tar_target(full_dates_moddate,
-             get_google_mod_date(full_dates_file),
-             cue = tar_cue("always")),
-  tar_target(full_dates,
-             read_google_csv(full_dates_file,
-                             full_dates_moddate,
-                             col_types = c("cccDDD"))),
-  # rr_projects.csv
-  tar_target(rr_projects_file,
-             "11paXdFzhCmz8ywFomUhZ6qrfp1wlKLIx"),
-  tar_target(rr_projects_moddate,
-             get_google_mod_date(rr_projects_file),
-             cue = tar_cue("always")),
-  tar_target(rr_projects_raw,
-             read_google_csv(rr_projects_file,
-                             rr_projects_moddate)),
-  
-  # Additional cases - rr projects 
-  tar_target(repli_cases_projects,
-             read_google_sheet("1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg",
-                               "2024-11-14T14:03:25.632Z",
-                               sheet = "rr_projects")),
-  
-  # rr_reporting_checkin.tsv
-  # This info is used once and then dropped -- REMOVE   
-  tar_target(rr_reporting_checkin_file,
-             "1jB97FM-desZatqabwBVMPrSYk0qXWFjM"),
-  tar_target(rr_reporting_checkin_moddate,
-             get_google_mod_date(rr_reporting_checkin_file),
-             cue = tar_cue("always")),
-  tar_target(rr_reporting_checkin,
-             read_google_tsv(rr_reporting_checkin_file,
-                             rr_reporting_checkin_moddate)),
-  
-  # Not Used - REMOVE
-  # # p2_repli_vf.csv
-  # tar_target(p2_repli_vf_file,
-  #            "1fwWX7ebwhBF9IYt2dQyhEByBnRNavOmj"),
-  # tar_target(p2_repli_vf_moddate,
-  #            get_google_mod_date(p2_repli_vf_file),
-  #            cue = tar_cue("always")),
-  # tar_target(p2_repli_vf,
-  #            read_google_csv(p2_repli_vf_file,
-  #                            p2_repli_vf_moddate)),
-  
-  # rr_attempts_minted.csv
-  # Status and tracking for rr projects. 
-  # Source for if a replication is a "generalizibility" 
-  tar_target(rr_attempts_minted_file,
-             "1aHuTwRVeqADWVC4Lxq5n3B4ebbSa9Mqc"),
-  tar_target(rr_attempts_minted_moddate,
-             get_google_mod_date(rr_attempts_minted_file),
-             cue = tar_cue("always")),
-  tar_target(rr_attempts_minted_raw,
-             read_google_csv(rr_attempts_minted_file,
-                             rr_attempts_minted_moddate)),
-  
-  tar_target(all_rr_attempts_gsheet,
-             "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),
-  tar_target(all_rr_attempts_moddate,
-             get_google_mod_date(all_rr_attempts_gsheet),
-             cue = tar_cue("always")),
-  tar_target(all_rr_attempts,
-             read_google_sheet(all_rr_attempts_gsheet,
-                               all_rr_attempts_moddate,
-                               sheet = "full_sweep")),
-  
-  ## Raw data with unknown use ----
-  # CR_metadata_prepool.csv
-  tar_target(CR_metadata_prepool_file,
-             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
-  tar_target(CR_metadata_prepool_moddate,
-             get_google_mod_date(CR_metadata_prepool_file),
-             cue = tar_cue("always")),
-  tar_target(CR_metadata_prepool,
-             read_google_csv(CR_metadata_prepool_file,
-                             CR_metadata_prepool_moddate)),
-  
-  # p2_id_key.csv
-  # Links cannonical paper ID to the IDs used by other teams
+  # score_paper_id-key.csv ----
+  # Links canonical paper ID to the IDs used by other teams. 
   # Does not include COVID papers
-  tar_target(p2_id_key_file,
-             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
-  tar_target(p2_id_key_moddate,
-             get_google_mod_date(p2_id_key_file),
+  tar_target(score_paper_id_key_file,
+             "qgdwh"),
+  tar_target(score_paper_id_key_moddate,
+             get_osf_mod_date(score_paper_id_key_file),
              cue = tar_cue("always")),
-  tar_target(p2_id_key,
-             read_google_csv(p2_id_key_file,
-                             p2_id_key_moddate)),
+  tar_target(score_paper_id_key,
+             load_osf_csv(score_paper_id_key_file,
+                          score_paper_id_key_moddate)),
   
-    # RR sourced 
-  # All replication and reproduction projects that were matched with a team. 
-  tar_target(rr_sourced_gsheet,
-             "1EyUGgw8uGaCIP9nLXKh3IwqqU4DoAM4ZV6K5i1dOTHo"),
-  tar_target(rr_sourced_moddate,
-             get_google_mod_date(rr_sourced_gsheet),
+  # score_paper_status.csv ----
+  # Status of articles at each stage in SCORE. 
+  # Does not contain COVID preprints.
+  tar_target(score_paper_status_file,
+             "smpd6"),
+  tar_target(score_paper_status_moddate,
+             get_osf_mod_date(score_paper_status_file),
              cue = tar_cue("always")),
-  tar_target(rr_sourced,
-             read_google_sheet(rr_sourced_gsheet,
-                               rr_sourced_moddate,
-                               sheet = "sourced",
-                               drop_cols = "indicator")),
+  tar_target(score_paper_status,
+             load_osf_csv(score_paper_status_file,
+                          score_paper_status_moddate)),
   
-  # Never sourced
+  # score_rr-projects_dates.csv ----
+  # Start and end dates of replication/reproduction projects
+  tar_target(score_rr_dates_file,
+             "6tpf7"),
+  tar_target(score_rr_dates_moddate,
+             get_osf_mod_date(score_rr_dates_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_dates,
+             load_osf_csv(score_rr_dates_file,
+                          score_rr_dates_moddate,
+                          col_types = c("cccDDD"))),
+  
+  # score_rr-projects_not-sourced.csv ----
   # Reasons why non-matched papers were not plausible for replication
-  tar_target(never_sourced_gsheet,
-             "1OVfv_dDsfAeBOtx9-IaTNgPJv5-OFaHS4cK45aYsBpo"),
-  tar_target(never_sourced_moddate,
-             get_google_mod_date(never_sourced_gsheet),
+  tar_target(score_rr_not_sourced_file,
+             "3hxzj"),
+  tar_target(score_rr_not_sourced_moddate,
+             get_osf_mod_date(score_rr_not_sourced_file),
              cue = tar_cue("always")),
-  tar_target(never_sourced,
-             read_google_sheet(never_sourced_gsheet,
-                               never_sourced_moddate,
-                               sheet = "never_sourced",
-                               drop_cols = c("paper_link", "confidence")))
+  tar_target(score_rr_not_sourced,
+             load_osf_csv(score_rr_not_sourced_file,
+                          score_rr_not_sourced_moddate)),
+  
+  # score_rr-projects_osf-ids_add.csv ----
+  # Links to replication and reproduction OSF projects and components for
+  # additional projects not in the original tracking file.
+  tar_target(score_rr_osf_ids_add_file,
+             "et6ng"),
+  tar_target(score_rr_osf_ids_add_moddate,
+             get_osf_mod_date(score_rr_osf_ids_add_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_osf_ids_add,
+             load_osf_csv(score_rr_osf_ids_add_file,
+                          score_rr_osf_ids_add_moddate)),
+  
+  # score_rr-projects_osf-ids_raw.csv ----
+  # Links to replication and reproduction OSF projects and components.
+  tar_target(score_rr_osf_ids_raw_file,
+             "7nmgy"),
+  tar_target(score_rr_osf_ids_raw_moddate,
+             get_osf_mod_date(score_rr_osf_ids_raw_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_osf_ids_raw,
+             load_osf_csv(score_rr_osf_ids_raw_file,
+                          score_rr_osf_ids_raw_moddate)),
+  
+  # score_rr-projects_sourced.csv ----
+  # All replication and reproduction projects that were matched with a team. 
+  tar_target(score_rr_sourced_file,
+             "x2cbe"),
+  tar_target(score_rr_sourced_moddate,
+             get_osf_mod_date(score_rr_sourced_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_sourced,
+             load_osf_csv(score_rr_sourced_file,
+                          score_rr_sourced_moddate)),
+
+  # score_rr-project_status.csv ----
+  # Status tracking and other internal documentation for replication and
+  # reproduction studies
+  tar_target(score_rr_status_file,
+             "khpbu"),
+  tar_target(score_rr_status_moddate,
+             get_osf_mod_date(score_rr_status_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_status,
+             load_osf_csv(score_rr_status_file,
+                          score_rr_status_moddate)),
+  
+  # score_rr-project_types.csv ----
+  # Internal project types for replication and reproduction studies. 
+  tar_target(score_rr_details_file,
+             "dx759"),
+  tar_target(score_rr_details_moddate,
+             get_osf_mod_date(score_rr_details_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_details,
+             load_osf_csv(score_rr_details_file,
+                          score_rr_details_moddate))
 )
 ```
 
@@ -1163,7 +1136,7 @@ list(
              transform_covid_metadata(paper_metadata_covid)),
   
   tar_target(non_covid_metadata,
-             transform_paper_metadata(paper_metadata_raw, status))
+             transform_paper_metadata(paper_metadata_raw, score_paper_status))
 )
 
 ```
@@ -1203,12 +1176,12 @@ list(
 list(
   ## Merge ----
   tar_target(rr_projects,
-             extend_rr_projects(rr_projects_raw,
-                                repli_cases_projects)),
+             extend_rr_projects(score_rr_osf_ids_raw,
+                                score_rr_osf_ids_add)),
   
   ## Update ----
   tar_target(rr_attempts_minted,
-             update_attempts_minted(rr_attempts_minted_raw,
+             update_attempts_minted(score_rr_details,
                                     rr_attempts_minted_changelog))
 )
 ```
@@ -1227,7 +1200,6 @@ list(
   tar_target(repli_merged,
              merge_repli_input(repli_stats_p1,
                                replication_qa,
-                               rr_reporting_checkin,
                                repli_stats_p2_additional,
                                repli_effective)),
   
@@ -1315,7 +1287,7 @@ list(
                           orig_claims_p2_single,
                           orig_claims_p2_bushel,
                           orig_claims_bushel_complex,
-                          status,
+                          score_paper_status,
                           covid_metadata)),
   
   # Original study variables
@@ -1331,7 +1303,7 @@ list(
              create_repli_analytic(repli_export,
                                    rr_attempts_minted,
                                    repli_extended,
-                                   status,
+                                   score_paper_status,
                                    orig_claims_p2_bushel,
                                    repli_effect_size,
                                    orig_outcomes,
@@ -1354,7 +1326,7 @@ list(
   
   # Other datasets ----
   tar_target(paper_status_tracking,
-             select(status,
+             select(score_paper_status,
                     paper_id,
                     prepool,
                     pool,
@@ -1369,7 +1341,7 @@ list(
                     bushel)),
   
   tar_target(rr_internal_tracking,
-             select(all_rr_attempts,
+             select(score_rr_status,
                     rr_id,
                     paper_id,
                     project_guid,
@@ -1390,7 +1362,7 @@ list(
                     nonsig)),
   
   tar_target(rr_type_key,
-             select(rr_sourced,
+             select(score_rr_sourced,
                     rr_id,
                     paper_id,
                     type)),
@@ -1404,7 +1376,7 @@ list(
                     rr_repl_exact_replicated_reference)),
 
   tar_target(rr_project_dates,
-             select(full_dates,
+             select(score_rr_dates,
                     rr_id,
                     project_guid,
                     type,
@@ -1413,7 +1385,7 @@ list(
                     completed)),
   
   tar_target(papers_not_sourced,
-             select(never_sourced,
+             select(score_rr_not_sourced,
                     paper_id,
                     dr_plausible,
                     dr_reason,
