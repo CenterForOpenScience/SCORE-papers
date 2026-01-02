@@ -502,6 +502,42 @@ list(
 )
 ```
 
+#### LLM Summaries
+
+```{targets raw-llm}
+list(
+  # llm_method_data.csv ----
+  # Summary of methodological approaches in original studies.
+  tar_target(llm_method_data_file,
+             "vxysn"),
+  tar_target(llm_method_data_moddate,
+             get_osf_mod_date(llm_method_data_file)),
+  tar_target(llm_method_data,
+             load_osf_csv(llm_method_data_file,
+                          llm_method_data_moddate)),
+  
+  # llm_research_question_table.csv ----
+  # Summary of research questions in original studies
+  tar_target(llm_research_question_table_file,
+             "mg794"),
+  tar_target(llm_research_question_table_moddate,
+             get_osf_mod_date(llm_research_question_table_file)),
+  tar_target(llm_research_question_table,
+             load_osf_csv(llm_research_question_table_file,
+                          llm_research_question_table_moddate)),
+  
+  # llm_theory_data.csv ----
+  # Summary of theoretical frameworks of original studies
+  tar_target(llm_theory_data_file,
+             "mp3rq"),
+  tar_target(llm_theory_data_moddate,
+             get_osf_mod_date(llm_theory_data_file)),
+  tar_target(llm_theory_data,
+             load_osf_csv(llm_theory_data_file,
+                          llm_theory_data_moddate))
+)
+```
+
 ### Reproduction Studies
 
 ```{targets raw-repro}
@@ -697,322 +733,319 @@ list(
 
 ### Correlations Datasets
 
-```{targets correlations}
+```{targets corr-raw}
 list(
-  # Elicitations ----
-  # Elicitations phase 1
-  tar_target(melb_p1_osf,
-             "7n2qe"),
-  tar_target(melb_p1_mod_date, 
-             get_osf_mod_date(melb_p1_osf),
-             cue = tar_cue("always")), 
-  tar_target(melb_p1,
-             load_osf_csv(melb_p1_osf,
-                          melb_p1_mod_date)),
-  
-  # Elicitations phase 2
-  tar_target(melb_p2_osf,
-             "9khpj"),
-  tar_target(melb_p2_mod_date, 
-             get_osf_mod_date(melb_p2_osf),
-             cue = tar_cue("always")), 
-  tar_target(melb_p2,
-             load_osf_csv(melb_p2_osf,
-                          melb_p2_mod_date)),
-  
-  # Elicitations bushel
-  tar_target(melb_bushel_osf,
-             "wy9sv"),
-  tar_target(melb_bushel_mod_date, 
-             get_osf_mod_date(melb_bushel_osf),
-             cue = tar_cue("always")), 
-  tar_target(melb_bushel,
-             load_osf_csv(melb_bushel_osf,
-                          melb_bushel_mod_date)),
-  
-  # Prediction Markets ----
-  tar_target(kw_scores_osf,
-             "jn9dg"),
-  tar_target(kw_scores_mod_date, 
-             get_osf_mod_date(kw_scores_osf),
-             cue = tar_cue("always")), 
-  tar_target(kw_scores,
-             load_osf_csv(kw_scores_osf,
-                          kw_scores_mod_date)),
-  
-  # A+ ----
-  # A+ sprint 1
-  tar_target(ts_s1_osf,
-             "56xqd"),
-  tar_target(ts_s1_mod_date, 
-             get_osf_mod_date(ts_s1_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_s1,
-             load_osf_csv(ts_s1_osf,
-                          ts_s1_mod_date)),
-  
-  # A+ sprint 2
-  tar_target(ts_s2_osf,
-             "c28g4"),
-  tar_target(ts_s2_mod_date, 
-             get_osf_mod_date(ts_s2_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_s2,
-             load_osf_csv(ts_s2_osf,
-                          ts_s2_mod_date)),
-  
-  # A+ sprint 3
-  tar_target(ts_s3_osf,
-             "2z96n"),
-  tar_target(ts_s3_mod_date, 
-             get_osf_mod_date(ts_s3_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_s3,
-             load_osf_csv(ts_s3_osf,
-                          ts_s3_mod_date)),
-  
-  # A+ bushel
-  tar_target(ts_bushel_osf,
-             "d8kc3"),
-  tar_target(ts_bushel_mod_date, 
-             get_osf_mod_date(ts_bushel_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_bushel,
-             load_osf_csv(ts_bushel_osf,
-                          ts_bushel_mod_date)),
-  
-  # MACROSCORE ----
-  # MACROSCORE sprint 1
-  tar_target(usc_s1_osf,
-             "u8qea"),
-  tar_target(usc_s1_mod_date, 
-             get_osf_mod_date(usc_s1_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_s1,
-             load_osf_csv(usc_s1_osf,
-                          usc_s1_mod_date)),
-  
-  # MACROSCORE sprint 2
-  tar_target(usc_s2_osf,
-             "xc396"),
-  tar_target(usc_s2_mod_date, 
-             get_osf_mod_date(usc_s2_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_s2,
-             load_osf_csv(usc_s2_osf,
-                          usc_s2_mod_date)),
-  
-  # MACROSCORE sprint 3
-  tar_target(usc_s3_osf,
-             "9rcd7"),
-  tar_target(usc_s3_mod_date, 
-             get_osf_mod_date(usc_s3_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_s3,
-             load_osf_csv(usc_s3_osf,
-                          usc_s3_mod_date)),
-  
-  # MACROSCORE bushel
-  tar_target(usc_bushel_osf,
-             "jmdpk"),
-  tar_target(usc_bushel_mod_date, 
-             get_osf_mod_date(usc_bushel_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_bushel,
-             load_osf_csv(usc_bushel_osf,
-                          usc_bushel_mod_date)),
-  
-  # Synthetic Markets ----
-  # Synthetic markets sprint 1
-  tar_target(psu_s1_osf,
-             "u7dnr"),
-  tar_target(psu_s1_mod_date, 
-             get_osf_mod_date(psu_s1_osf),
-             cue = tar_cue("always")), 
-  tar_target(psu_s1,
-             load_osf_csv(psu_s1_osf,
-                          psu_s1_mod_date)),
-  
-  # Synthetic markets sprint 2
-  tar_target(psu_s2_osf,
-             "efp92"),
-  tar_target(psu_s2_mod_date, 
-             get_osf_mod_date(psu_s2_osf),
-             cue = tar_cue("always")), 
-  tar_target(psu_s2,
-             load_osf_csv(psu_s2_osf,
-                          psu_s2_mod_date)),
-  
-  # Synthetic markets sprint 3
-  tar_target(psu_s3_osf,
-             "rc6aw"),
-  tar_target(psu_s3_mod_date, 
-             get_osf_mod_date(psu_s3_osf),
-             cue = tar_cue("always")), 
-  tar_target(psu_s3,
-             load_osf_csv(psu_s3_osf,
-                          psu_s3_mod_date)),
-  
-  # Sciscore ----
-  tar_target(sciscore_file,
-             "1YSXZHGfSwEY3zSwReaq6iJQcUT4HT_qE"),
-  tar_target(sciscore_moddate,
-             get_google_mod_date(sciscore_file),
-             cue = tar_cue("always")),
-  tar_target(sciscore,
-             read_google_csv(sciscore_file,
-                             sciscore_moddate)),
-  
-  # StatCheck ----
-  tar_target(statcheck_file,
-             "1mcdyTvXchktzYl3IoOLF_pDFLADH2zKi"),
-  tar_target(statcheck_moddate,
-             get_google_mod_date(statcheck_file),
-             cue = tar_cue("always")),
-  tar_target(statcheck,
-             read_google_tsv(statcheck_file,
-                             statcheck_moddate)),
-  
-  # Robustness ----
-  tar_target(m100_file,
-             "1EvH6fblQZqMpumlNAj1U6CPH6e68RJMu"),
-  tar_target(m100_moddate,
-             get_google_mod_date(m100_file),
-             cue = tar_cue("always")),
-  tar_target(m100,
-             read_google_csv(m100_file,
-                             m100_moddate)),
-  
-  # Original claims effect sizes ----
-  tar_target(es_file,
-             "1k42kApZgmSyyC1A-EsUoimFmNEc5cDuJLZGk4GrQQjA"),
-  tar_target(es_moddate,
-             get_google_mod_date(es_file),
-             cue = tar_cue("always")),
-  tar_target(es,
-             read_google_sheet(es_file,
-                               es_moddate)),
-  
-  # Original claims significance ----
-  # stat_sig and stat_sig_p2 sheets needed, merged
-  tar_target(sig_file,
-             "1_ZRyWIrPOO3JwzGTUZOMMLo7fKcENAOwW6tmtSxQ_js"),
-  tar_target(sig_moddate,
-             get_google_mod_date(sig_file),
-             cue = tar_cue("always")),
-  tar_target(stat_sig,
-             read_google_sheet(sig_file,
-                               sig_moddate,
-                               sheet = "stat_sig")),
-  tar_target(stat_sig_p2,
-             read_google_sheet(sig_file,
-                               sig_moddate,
-                               sheet = "stat_sig_p2") %>%
-               add_column(p_value_avail = NA_character_)),
-  tar_target(sig,
-             rbind(stat_sig, stat_sig_p2)),
-  
-  # Hedging and humility ----
-  tar_target(hedge_file,
-             "16-7o5x0j2jJEEVw6E1vyUl_2vG2Xnjap"),
-  tar_target(hedge_moddate,
-             get_google_mod_date(hedge_file),
-             cue = tar_cue("always")),
-  tar_target(hedge,
-             read_google_tsv(hedge_file,
-                             hedge_moddate)),
-  
-  # Original author metadata ----
-  tar_target(oa_metadata_file,
-             "1YquUUy2-OdUe0DpTR-7qF29f0t5HxOOz"),
-  tar_target(oa_metadata_moddate,
-             get_google_mod_date(oa_metadata_file),
-             cue = tar_cue("always")),
-  tar_target(oa_metadata,
-             read_google_csv(oa_metadata_file,
-                             oa_metadata_moddate)),
-  
-  # Original author citations ----
+  # corr_citation-counts.csv ----
+  # Original author citation counts
   tar_target(oa_citations_file,
-             "1gwj6SZfZI8Gw6fcWAsK6f65oKyDsyC-6"),
+             "bsfwk"),
   tar_target(oa_citations_moddate,
-             get_google_mod_date(oa_citations_file),
+             get_osf_mod_date(oa_citations_file),
              cue = tar_cue("always")),
   tar_target(oa_citations,
-             read_google_rds(oa_citations_file,
-                             oa_citations_moddate) %>%
-               # Warnings expected as "NA" the string changes to NA
-               mutate(cs = as.numeric(cs),
-                      log_count = as.numeric(log_count))),
+             load_osf_csv(oa_citations_file,
+                          oa_citations_moddate)),
   
-  # DataSeer ----
+  # corr_dataseer_orig-metadata.csv ----
+  # Extended metadata and data/code availability from DataSeer
   tar_target(dataseer_file,
-             "1j9680t7HeRV9cRfOlROCNBrH_SAILNe5"),
+             "cdvh2"),
   tar_target(dataseer_moddate,
-             get_google_mod_date(dataseer_file),
+             get_osf_mod_date(dataseer_file),
              cue = tar_cue("always")),
   tar_target(dataseer,
-             read_google_rds(dataseer_file,
-                             dataseer_moddate)),
+             load_osf_csv(dataseer_file,
+                          dataseer_moddate)),
   
-  # Automated bibliometric analyses ----
+  # corr_ksu_bibliometric.csv ----
+  # Automated bibliometric analyses from KSU
   tar_target(ksu_file,
-             "1T1mD0wdCafBm5vu0JaHRl3HuSHVaxEJ2"),
+             "uenaj"),
   tar_target(ksu_moddate,
-             get_google_mod_date(ksu_file),
+             get_osf_mod_date(ksu_file),
              cue = tar_cue("always")),
   tar_target(ksu,
-             read_google_csv(ksu_file,
-                             ksu_moddate)),
+             load_osf_csv(ksu_file,
+                          ksu_moddate)),
   
-  # Extracted open science indicators ----
+  # corr_multi100.csv ----
+  # Multi100 Robustness dataset
+  tar_target(m100_file,
+             "v2r4g"),
+  tar_target(m100_moddate,
+             get_osf_mod_date(m100_file),
+             cue = tar_cue("always")),
+  tar_target(m100,
+             load_osf_csv(m100_file,
+                          m100_moddate)),
+  
+  # corr_orig-effect-size.csv ----
+  # Original study claims effect sizes and their source
+  tar_target(es_file,
+             "7sc4f"),
+  tar_target(es_moddate,
+             get_osf_mod_date(es_file),
+             cue = tar_cue("always")),
+  tar_target(es,
+             load_osf_csv(es_file,
+                          es_moddate)),
+  
+  # corr_orig-significance_p1.csv ----
+  # Original study claims significance for phase 1 claims
+  tar_target(stat_sig_p1_file,
+             "ftxyn"),
+  tar_target(stat_sig_p1_moddate,
+             get_osf_mod_date(stat_sig_p1_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig_p1,
+             load_osf_csv(stat_sig_p1_file,
+                          stat_sig_p1_moddate)),
+  
+  # corr_orig-significance_p2.csv ----
+  # Original study claims significance for phase 2 claims
+  tar_target(stat_sig_p2_file,
+             "kqp2w"),
+  tar_target(stat_sig_p2_moddate,
+             get_osf_mod_date(stat_sig_p2_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig_p2,
+             load_osf_csv(stat_sig_p2_file,
+                          stat_sig_p2_moddate)),
+  
+  # corr_scholarcy.csv ----
+  # Extracted open science indicators from scholarcy
   tar_target(scholarcy_file,
-             "1G1ipJh-aaF5_GdNJU7qUb6Kd2nEWPzyn"),
+             "68xp3"),
   tar_target(scholarcy_moddate,
-             get_google_mod_date(scholarcy_file),
+             get_osf_mod_date(scholarcy_file),
              cue = tar_cue("always")),
   tar_target(scholarcy,
-             read_google_csv(scholarcy_file,
-                             scholarcy_moddate))
+             load_osf_csv(scholarcy_file,
+                          scholarcy_moddate)),
   
-)
+  # corr_sciscore.csv ----
+  # SciScore report, scoring SCORE papers on a ten point rigor and 
+  # transparency index. 
+  # Delivered to The Center For Open Science from SciCrunch.
+  tar_target(sciscore_file,
+             "7u2pa"),
+  tar_target(sciscore_moddate,
+             get_osf_mod_date(sciscore_file),
+             cue = tar_cue("always")),
+  tar_target(sciscore,
+             load_osf_csv(sciscore_file,
+                          sciscore_moddate)),
+  
+  # corr_sit_orig-authors.csv ----
+  # Original author metadata from the Stevens Institute of Technology
+  tar_target(oa_metadata_file,
+             "38upf"),
+  tar_target(oa_metadata_moddate,
+             get_osf_mod_date(oa_metadata_file),
+             cue = tar_cue("always")),
+  tar_target(oa_metadata,
+             load_osf_csv(oa_metadata_file,
+                          oa_metadata_moddate)),
+  
+  # corr_statcheck.csv ----
+  # Statcheck report of Null Hypothesis Significance test (NHST) results from
+  # SCORE papers assessing whether the extracted results are 
+  # internally consistent.
+  tar_target(statcheck_file,
+             "jm2ka"),
+  tar_target(statcheck_moddate,
+             get_osf_mod_date(statcheck_file),
+             cue = tar_cue("always")),
+  tar_target(statcheck,
+             load_osf_csv(statcheck_file,
+                          statcheck_moddate)),
 
+  # corr_usc_hedging-humility.csv ----
+  # Hedging and humility data from the University of Southern California
+  tar_target(hedge_file,
+             "tj36g"),
+  tar_target(hedge_moddate,
+             get_osf_mod_date(hedge_file),
+             cue = tar_cue("always")),
+  tar_target(hedge,
+             load_osf_csv(hedge_file,
+                          hedge_moddate))
+)
 ```
 
+#### Confidence Scores
 
-### LLM Summaries
-
-```{targets raw-llm}
+```{r corr-confidence-scores}
 list(
-  # Summary of methodological approaches in original studies.
-  # llm_method_data.csv
-  tar_target(llm_method_data_file,
-             "vxysn"),
-  tar_target(llm_method_data_moddate,
-             get_osf_mod_date(llm_method_data_file)),
-  tar_target(llm_method_data,
-             load_osf_csv(llm_method_data_file,
-                          llm_method_data_moddate)),
+  # Prediction Markets ----
+  ## corr_keywest_cs.csv ----
+  ## Prediction markets confidence scores
+  tar_target(kw_scores_file,
+             "gdw29"),
+  tar_target(kw_scores_moddate, 
+             get_osf_mod_date(kw_scores_file),
+             cue = tar_cue("always")), 
+  tar_target(kw_scores,
+             load_osf_csv(kw_scores_file,
+                          kw_scores_moddate)),
+
+  # Synthetic Markets ----
+  ## corr_psu_cs_1.csv ----
+  ## Sythentic markets confidence scores for sprint 1
+  tar_target(psu_s1_file,
+             "ch9dk"),
+  tar_target(psu_s1_moddate, 
+             get_osf_mod_date(psu_s1_file),
+             cue = tar_cue("always")), 
+  tar_target(psu_s1,
+             load_osf_csv(psu_s1_file,
+                          psu_s1_moddate)),
   
-  # Summary of research questions in original studies
-  # llm_research_question_table.csv
-  tar_target(llm_research_question_table_file,
-             "mg794"),
-  tar_target(llm_research_question_table_moddate,
-             get_osf_mod_date(llm_research_question_table_file)),
-  tar_target(llm_research_question_table,
-             load_osf_csv(llm_research_question_table_file,
-                          llm_research_question_table_moddate)),
+  ## corr_psu_cs_2.csv ----
+  ## Sythentic markets confidence scores for sprint 2
+  tar_target(psu_s2_file,
+             "ayjdb"),
+  tar_target(psu_s2_moddate, 
+             get_osf_mod_date(psu_s2_file),
+             cue = tar_cue("always")), 
+  tar_target(psu_s2,
+             load_osf_csv(psu_s2_file,
+                          psu_s2_moddate)),
   
-  # Summary of theoretical frameworks of original studies
-  # llm_theory_data.csv
-  tar_target(llm_theory_data_file,
-             "mp3rq"),
-  tar_target(llm_theory_data_moddate,
-             get_osf_mod_date(llm_theory_data_file)),
-  tar_target(llm_theory_data,
-             load_osf_csv(llm_theory_data_file,
-                          llm_theory_data_moddate))
+  ## corr_psu_cs_3.csv ----
+  ## Sythentic markets confidence scores for sprint 3
+  tar_target(psu_s3_file,
+             "tkqax"),
+  tar_target(psu_s3_moddate, 
+             get_osf_mod_date(psu_s3_file),
+             cue = tar_cue("always")), 
+  tar_target(psu_s3,
+             load_osf_csv(psu_s3_file,
+                          psu_s3_moddate)),
+  
+  # A+ ----
+  ## corr_twosix_cs_1.csv ----
+  ## A+ confidence scores for sprint 1
+  tar_target(ts_s1_file,
+             "r245a"),
+  tar_target(ts_s1_moddate, 
+             get_osf_mod_date(ts_s1_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_s1,
+             load_osf_csv(ts_s1_file,
+                          ts_s1_moddate)),
+  
+  ## corr_twosix_cs_2.csv ----
+  ## A+ confidence scores for sprint 2
+  tar_target(ts_s2_file,
+             "fzchp"),
+  tar_target(ts_s2_moddate, 
+             get_osf_mod_date(ts_s2_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_s2,
+             load_osf_csv(ts_s2_file,
+                          ts_s2_moddate)),
+  
+  ## corr_twosix_cs_3.csv ----
+  ## A+ confidence scores for sprint 3
+  tar_target(ts_s3_file,
+             "tje32"),
+  tar_target(ts_s3_moddate, 
+             get_osf_mod_date(ts_s3_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_s3,
+             load_osf_csv(ts_s3_file,
+                          ts_s3_moddate)),
+  
+  ## corr_twosix_cs_bushel.csv ----
+  ## A+ confidence scores for bushel claims
+  tar_target(ts_bushel_file,
+             "fz3w9"),
+  tar_target(ts_bushel_moddate, 
+             get_osf_mod_date(ts_bushel_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_bushel,
+             load_osf_csv(ts_bushel_file,
+                          ts_bushel_moddate)),
+  
+  # Elicitations ----
+  ## corr_umelb_cs_1.csv ----
+  ## Elicitations team confidence scores for phase 1
+  tar_target(melb_p1_file,
+             "p7x53"),
+  tar_target(melb_p1_moddate, 
+             get_osf_mod_date(melb_p1_file),
+             cue = tar_cue("always")), 
+  tar_target(melb_p1,
+             load_osf_csv(melb_p1_file,
+                          melb_p1_moddate)),
+  
+  ## corr_umelb_cs_2.csv ----
+  ## Elicitations team confidence scores for phase 2
+  tar_target(melb_p2_file,
+             "p8t4d"),
+  tar_target(melb_p2_moddate, 
+             get_osf_mod_date(melb_p2_file),
+             cue = tar_cue("always")), 
+  tar_target(melb_p2,
+             load_osf_csv(melb_p2_file,
+                          melb_p2_moddate)),
+  
+  ## corr_umelb_cs_bushel.csv ----
+  ## Elicitations team confidence scores for bushel claims
+  tar_target(melb_bushel_file,
+             "5mr6c"),
+  tar_target(melb_bushel_moddate, 
+             get_osf_mod_date(melb_bushel_file),
+             cue = tar_cue("always")), 
+  tar_target(melb_bushel,
+             load_osf_csv(melb_bushel_file,
+                          melb_bushel_moddate)),
+  
+  # MACROSCORE ----
+  ## corr_usc_cs_1.csv ----
+  ## MACROSCORE confidence scores for sprint 1
+  tar_target(usc_s1_file,
+             "uhavw"),
+  tar_target(usc_s1_moddate, 
+             get_osf_mod_date(usc_s1_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_s1,
+             load_osf_csv(usc_s1_file,
+                          usc_s1_moddate)),
+  
+  ## corr_usc_cs_2.csv ----
+  ## MACROSCORE confidence scores for sprint 2
+  tar_target(usc_s2_file,
+             "djtnh"),
+  tar_target(usc_s2_moddate, 
+             get_osf_mod_date(usc_s2_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_s2,
+             load_osf_csv(usc_s2_file,
+                          usc_s2_moddate)),
+  
+  ## corr_usc_cs_3.csv ----
+  ## MACROSCORE confidence scores for sprint 3
+  tar_target(usc_s3_file,
+             "mf74q"),
+  tar_target(usc_s3_moddate, 
+             get_osf_mod_date(usc_s3_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_s3,
+             load_osf_csv(usc_s3_file,
+                          usc_s3_moddate)),
+  
+  ## corr_usc_cs_bushel.csv ----
+  ## MACROSCORE confidence scores for bushel claims
+  tar_target(usc_bushel_file,
+             "ta4sh"),
+  tar_target(usc_bushel_moddate, 
+             get_osf_mod_date(usc_bushel_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_bushel,
+             load_osf_csv(usc_bushel_file,
+                          usc_bushel_moddate))
 )
 ```
 
@@ -1020,7 +1053,7 @@ list(
 
 ```{targets change-logs}
 list(
-    # Publications Changelog
+  # Publications Changelog
   tar_target(pub_changelog_file,
              "1CM0wbYnRvBMIyDVFzvwxw3GVH_uRJ3BXRtdwlxTmS1A"),
   tar_target(pub_changelog_moddate,
@@ -1261,6 +1294,16 @@ list(
 )
 
 ```
+
+### Correlations
+
+```{r int-correlations}
+list(
+  tar_target(sig,
+             rbind(stat_sig_p1, stat_sig_p2))
+)
+```
+
 
 ## Analysis-ready Data
 
