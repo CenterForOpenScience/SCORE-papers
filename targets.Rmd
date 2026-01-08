@@ -990,7 +990,7 @@ list(
   # claims_bushel_ids.csv ----
   # Key IDs for bushel claims, where multiple inferential tests were evaluated 
   # within a single study
-  # https://osf.io/x9fb6/files/kxr7p
+  # https://osf.io/dtzx4/files/kxr7p
   tar_target(claims_bushel_ids,
              select(orig_claims_p2_bushel,
                     paper_id,
@@ -998,7 +998,7 @@ list(
   
   # claims_non_signigicant_bushels.csv ----
   # Which bushel claims use non-significant evidence
-  # https://osf.io/x9fb6/files/4az3m
+  # https://osf.io/dtzx4/files/4az3m
   tar_target(claims_non_significant_bushels,
              select(orig_claims_bushel_sig,
                     paper_id,
@@ -1008,7 +1008,7 @@ list(
   
   # claims_ser_power.csv ----
   # Set of sample sizes calculated via the SER method
-  # https://osf.io/x9fb6/files/xscnj
+  # https://osf.io/dtzx4/files/xscnj
   tar_target(claims_ser_power,
              select(orig_n_ser,
                     claim_id = unique_claim_id,
@@ -1018,7 +1018,7 @@ list(
   
   # claims_traditional_power.csv ----
   # Set of sample sizes calculated via traditional methods
-  # https://osf.io/x9fb6/files/dkqns
+  # https://osf.io/dtzx4/files/dkqns
   tar_target(claims_traditional_power,
              select(
                orig_n_traditional,
@@ -1030,7 +1030,7 @@ list(
   
   # extracted_claims.csv ----
   # Claims extracted from original studies
-  # https://osf.io/x9fb6/files/j2fp5
+  # https://osf.io/dtzx4/files/j2fp5
   tar_target(extracted_claims,
              merge_claims(orig_claims_p1,
                           orig_claims_p1_covid,
@@ -1075,7 +1075,7 @@ list(
   
   # orig_outcomes.csv ----
   # Statistics from original studies from which claims were extracted
-  # https://osf.io/x9fb6/files/y7bq5
+  # https://osf.io/dtzx4/files/y7bq5
   tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset,
                                 orig_claims_bushel_complex,
@@ -1085,7 +1085,7 @@ list(
   
   # paper_metadata.csv ----
   # Metadata for original study articles
-  # https://osf.io/x9fb6/files/jg54h
+  # https://osf.io/dtzx4/files/jg54h
   tar_target(paper_metadata,
              merge_paper_metadata(papers_transformed,
                                   papers_covid_transformed,
@@ -1095,7 +1095,7 @@ list(
   # papers_not_sourced.csv ----
   # Accounting for all papers that were never sourced for a replication 
   # attempt
-  # https://osf.io/x9fb6/files/rdzc5
+  # https://osf.io/dtzx4/files/rdzc5
   tar_target(papers_not_sourced,
              select(score_rr_not_sourced,
                     paper_id,
@@ -1107,7 +1107,7 @@ list(
   # paper_status_tracking.csv ----
   # An internal tracking dataset showing which stages of the project each 
   # paper was involved in
-  # https://osf.io/x9fb6/files/yag6n
+  # https://osf.io/dtzx4/files/yag6n
   tar_target(paper_status_tracking,
              select(score_paper_status,
                     paper_id,
@@ -1130,7 +1130,7 @@ list(
   # as how feasible conducting a reproduction might be, based on the 
   # availability of original materials necessary to reproduce the findings of 
   # a given paper.
-  # https://osf.io/x9fb6/files/e58n9
+  # https://osf.io/dtzx4/files/e58n9
   tar_target(pr_outcomes,
              create_pr_analytic(pr_updated, oa_outreach)),
   
@@ -1138,7 +1138,7 @@ list(
   # Replication outcomes, including cases that were excluded from analysis for 
   # non-significant findings, incomplete/insufficient data collection, or 
   # power/sample size issues.
-  # https://osf.io/x9fb6/files/2k9ht
+  # https://osf.io/dtzx4/files/2k9ht
   tar_target(repli_all_cases,
              select(repli_dataset,
                     rr_id,
@@ -1149,7 +1149,7 @@ list(
   
   # repli_binary.csv ----
   # A series of boolean fields describing replication measures
-  # https://osf.io/x9fb6/files/q6rtd
+  # https://osf.io/dtzx4/files/q6rtd
   tar_target(repli_binary,
              calculate_repli_binary(repli_outcomes,
                                     orig_outcomes,
@@ -1169,7 +1169,7 @@ list(
   
   # repli_outcomes.csv ----
   # Replications of the original studies from which claims were extracted
-  # https://osf.io/x9fb6/files/2c8gh
+  # https://osf.io/dtzx4/files/2c8gh
   tar_target(repli_outcomes,
              create_repli_analytic(repli_dataset,
                                    score_rr_types,
@@ -1184,13 +1184,13 @@ list(
   # repro_journal_policies.csv ----
   # Journal policies about reproducibility and data/code sharing
   # Renamed to keep consistent with analysis code
-  # https://osf.io/x9fb6/files/6t8gy
+  # https://osf.io/dtzx4/files/6t8gy
   tar_target(repro_journal_policies,
              journal_repro_policies),
   
   # repro_outcomes.csv ----
   # Reproductions of the original studies from which claims were extracted
-  # https://osf.io/x9fb6/files/47jhm
+  # https://osf.io/dtzx4/files/47jhm
   tar_target(repro_outcomes,
              create_repro_analytic(repro_dataset,
                                    repro_summary)),
@@ -1201,7 +1201,7 @@ list(
   # time that the variables were created and are no longer meaningful 
   # reflections of the present state of the SCORE data. For that reason, 
   # external use of these variables should be done cautiously. 
-  # https://osf.io/x9fb6/files/2e5nk
+  # https://osf.io/dtzx4/files/2e5nk
   tar_target(rr_internal_tracking,
              select(score_rr_status,
                     rr_id,
@@ -1218,7 +1218,7 @@ list(
   
   # rr_project_dates.csv ----
   # Milestone dates of replication studies
-  # https://osf.io/x9fb6/files/n629a
+  # https://osf.io/dtzx4/files/n629a
   tar_target(rr_project_dates,
              select(score_rr_dates,
                     rr_id,
@@ -1231,7 +1231,7 @@ list(
   # rr_type_key.csv ----
   # Dataset of replication and reproduction projects sourced to a research  
   # team for completion, including their project types.
-  # https://osf.io/x9fb6/files/abq68
+  # https://osf.io/dtzx4/files/abq68
   tar_target(rr_type_key,
              select(score_rr_sourced,
                     rr_id,
@@ -1301,7 +1301,7 @@ list(
   
   # corr_orig-significance.csv ----
   # Original study claims significance
-  # https://osf.io/x9fb6/files/d5qke
+  # https://osf.io/dtzx4/files/d5qke
   tar_target(sig,
              rbind(stat_sig_p1, stat_sig_p2)),
   
