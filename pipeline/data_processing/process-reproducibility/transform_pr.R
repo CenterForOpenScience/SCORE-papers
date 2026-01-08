@@ -1,30 +1,9 @@
-# Load and transform PR data
-
-# Load PR data
-load_pr_data <- function(pr_gsheet){
-  
-  read_sheet(pr_gsheet,
-             sheet = "Form Responses 1") %>%
-    filter(!is.na(Timestamp)) %>%
-    add_count(pdf_filename) %>%
-    filter(is_vor | n == 1) %>%
-    select(-c(n)) %>%
-    # Correct variables that load in as lists
-    mutate(pr_data_date = as.character(pr_data_date) %>%
-             na_if("NULL"),
-           pr_data_notes = as.character(pr_data_notes) %>%
-             na_if("NULL"),
-           pr_code_date = as.character(pr_code_date) %>%
-             na_if("NULL"),
-           pr_code_notes = as.character(pr_code_notes) %>%
-             na_if("NULL"))
-  
-}
-
 # Clean/transform PR data
-process_pr_data <- function(materials_availability,
-                            orig_claims_covid_ta2,
-                            orig_claims_p1_covid) {
+transform_pr <- function(
+    materials_availability,
+    orig_claims_covid_ta2,
+    orig_claims_p1_covid
+) {
   
   # COVID papers use a different ID in their pdf file name than other papers
   # Use this key to insert the correct paper IDs 
@@ -111,47 +90,5 @@ process_pr_data <- function(materials_availability,
     left_join(id_key, join_by(pdf_paper_id == ta2_pid)) %>%
     mutate(paper_id = coalesce(paper_id, pdf_paper_id)) %>%
     select(-c(pdf_paper_id))
-  
-}
-
-update_pr <- function(pr_data_form,
-                      pr_input_changelog) {
-  
-  # We only want to work with the highest version for each claim
-  changelog <- pr_input_changelog %>%
-    arrange(paper_id,
-            col_name,
-            desc(pr_stat_version)) %>%
-    distinct(paper_id,
-             col_name,
-             .keep_all = TRUE) 
-  
-  versions <- changelog %>%
-    group_by(paper_id) %>%
-    summarise(max_version = max(pr_stat_version))
-  
-  data_entry <- pr_data_form %>%
-    add_column(pr_stat_version = 1)
-  
-  for(i in 1:nrow(changelog)){
-    
-    col_name <- changelog[i,]$col_name
-    
-    version <- versions %>%
-      filter(paper_id == changelog[i, ]$paper_id) %>%
-      pull(max_version)
-    
-    change_to <- changelog[i, ]$change_to
-    
-    change_tbl <- tibble(paper_id = changelog[i, ]$paper_id,
-                         pr_stat_version = version,
-                         {{ col_name }} := change_to)
-    
-    data_entry <- data_entry %>%
-      rows_update(change_tbl, by = "paper_id")
-    
-  }
-  
-  return(data_entry)
   
 }

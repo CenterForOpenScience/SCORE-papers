@@ -29,19 +29,23 @@ transform_orig_output <- function(orig_stats_extended) {
            Tilburg_team_finished) %>%
     # Including "skipped" as finished because Tilburg has finished what they
     # can/will do with that claim
-    mutate(Tilburg_team_finished = case_match(Tilburg_team_finished,
-                                              "skipped" ~ TRUE,
-                                              "finished" ~ TRUE,
-                                              NA ~ NA,
-                                              .default = FALSE))
+    mutate(
+      Tilburg_team_finished = case_match(
+        Tilburg_team_finished,
+        "skipped" ~ TRUE,
+        "finished" ~ TRUE,
+        NA ~ NA,
+        .default = FALSE
+      )
+    )
   
 }
 
 update_orig_extended <- function(orig_stats_extended,
-                                 orig_stats_extended_changelog) {
+                                 changes_orig_stats_extended) {
   
   transform_orig_output(orig_stats_extended) %>%
-    apply_changelog(orig_stats_extended_changelog, "paper_id")
+    apply_changelog(changes_orig_stats_extended, "paper_id")
   
 }
 

@@ -1,6 +1,5 @@
-# Transform, merge, and update raw data
-export_orig <- function(orig_updated,
-                        orig_extended_updated) {
+# Remove duplicates, standardize values, and arrange columns in sensible order
+transform_orig_updated <- function(orig_updated, orig_extended_updated) {
   
   orig_updated %>%
     mutate(

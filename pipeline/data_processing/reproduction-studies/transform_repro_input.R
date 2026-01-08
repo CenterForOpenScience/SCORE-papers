@@ -1,7 +1,7 @@
 # Transform reproduction raw data entry
-transform_repro_input <- function(reproduction_qa) {
+transform_repro_input <- function(repro_stats) {
   
-  reproduction_qa %>%
+  repro_stats %>%
     mutate(
       # Original row index is used to create unique record id later
       original_index = as.character(row_number()-1),

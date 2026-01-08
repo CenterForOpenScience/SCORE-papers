@@ -5,7 +5,11 @@ create_ov_analytic <- function(orig_dataset,
                                orig_effect_size,
                                repli_export) {
   
-  bushel <- transform_complex_bushel(complex_bushel)
+  bushel <- complex_bushel %>%
+    mutate(unique_claim_id = str_c(paper_id, "_", claim_id),
+           complex = as.logical(complex)) %>%
+    select(unique_claim_id,
+           bushel_complex = complex)
   
   repli_ids <- repli_export %>% 
     mutate(claim_id = str_c(paper_id, "_", claim_id)) %>%

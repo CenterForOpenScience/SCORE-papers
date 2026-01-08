@@ -1,7 +1,7 @@
-transform_replication_qa <- function(replication_qa_raw,
-                                     rr_attempts_minted) {
+transform_repli_stats_p2 <- function(repli_stats_p2,
+                                     score_rr_types) {
   
-  replication_qa_raw %>%
+  repli_stats_p2 %>%
     # Original row index is used to create unique record id later
     mutate(original_index = as.character(row_number()-1)) %>%
     mutate(
@@ -72,16 +72,22 @@ transform_replication_qa <- function(replication_qa_raw,
         "spearman's rho" ~ "spearman_rho",
         .default = rr_effect_size_type_reported
       ),
-      across(c(rr_expected_sample_reached_reported,
-               rr_repl_pattern_replicated_reported,
-               rr_repl_effect_direction_reported,
-               rr_repl_exact_replicated_reported), ~ .x == "yes")
+      across(
+        c(rr_expected_sample_reached_reported,
+          rr_repl_pattern_replicated_reported,
+          rr_repl_effect_direction_reported,
+          rr_repl_exact_replicated_reported), 
+        ~ .x == "yes"
+      )
     ) %>%
     # Minting data is used to determine RR type
-    left_join(select(rr_attempts_minted, 
-                     rr_type,
-                     rr_id,
-                     is_hsr), by = "rr_id") %>%
+    left_join(
+      select(score_rr_types, 
+             rr_type,
+             rr_id,
+             is_hsr), 
+      by = "rr_id"
+    ) %>%
     rename(minted_as = rr_type) %>%
     mutate(
       rr_type_internal = case_when(
@@ -89,52 +95,53 @@ transform_replication_qa <- function(replication_qa_raw,
         rr_original_data_overlap == "hybrid" ~ "Hybrid",
         is_hsr == "Non-HSR" ~ "Data Analytic Replication",
         is_hsr == "HSR" ~ "Direct Replication",
-        .default = "Undefined"),
+        .default = "Undefined"
+      ),
       rr_type = rr_type_internal
     ) %>%
     select(
-      "pdf_filename",
-      "paper_id", 
-      "rr_id",
-      "claim_id",
-      "unique_report_id",
-      "rr_input_source",
-      "rr_is_manylabs",
-      "rr_original_data_overlap", 
-      "rr_analytic_sample_stage",
-      "rr_analytic_sample_size_value_reported",
-      "rr_analytic_sample_size_units_reported",
-      "rr_expected_sample_reached_reported",
-      "rr_analytic_sample_cells_reported", 
-      "rr_statistic_fulltext_reported",
-      "rr_statistic_analysis_type_reported",
-      "rr_statistic_interaction_reported",
-      "rr_coefficient_type_reported",
-      "rr_coefficient_value_reported",
-      "rr_coefficient_se_reported",
-      "rr_total_model_parameters", 
-      "rr_statistic_type_reported",
-      "rr_statistic_value_reported",
-      "rr_statistic_df1_reported",
-      "rr_statistic_df2_reported",
-      "rr_p_value_value_reported",
-      "rr_p_value_confirmation_reported", 
-      "rr_effect_size_fulltext_reported",
-      "rr_effect_size_type_reported",
-      "rr_effect_size_value_reported",
-      "rr_repl_effect_direction_reported", 
-      "rr_replication_difference_notes",
-      "rr_repl_pattern_criteria_reported",
-      "rr_repl_pattern_description_reported",
-      "rr_repl_pattern_replicated_reported",
-      "rr_repl_exact_replicated_reported",
-      "rr_repl_subjective_replicated_reported",
-      "rr_repl_subjective_description_reported", 
-      "rr_labteam_notes",
-      "is_covid",
-      "rr_type_internal",
-      "rr_type",
-      "rr_stat_version",
-      "ready_for_export"
+      pdf_filename,
+      paper_id, 
+      rr_id,
+      claim_id,
+      unique_report_id,
+      rr_input_source,
+      rr_is_manylabs,
+      rr_original_data_overlap, 
+      rr_analytic_sample_stage,
+      rr_analytic_sample_size_value_reported,
+      rr_analytic_sample_size_units_reported,
+      rr_expected_sample_reached_reported,
+      rr_analytic_sample_cells_reported, 
+      rr_statistic_fulltext_reported,
+      rr_statistic_analysis_type_reported,
+      rr_statistic_interaction_reported,
+      rr_coefficient_type_reported,
+      rr_coefficient_value_reported,
+      rr_coefficient_se_reported,
+      rr_total_model_parameters, 
+      rr_statistic_type_reported,
+      rr_statistic_value_reported,
+      rr_statistic_df1_reported,
+      rr_statistic_df2_reported,
+      rr_p_value_value_reported,
+      rr_p_value_confirmation_reported, 
+      rr_effect_size_fulltext_reported,
+      rr_effect_size_type_reported,
+      rr_effect_size_value_reported,
+      rr_repl_effect_direction_reported, 
+      rr_replication_difference_notes,
+      rr_repl_pattern_criteria_reported,
+      rr_repl_pattern_description_reported,
+      rr_repl_pattern_replicated_reported,
+      rr_repl_exact_replicated_reported,
+      rr_repl_subjective_replicated_reported,
+      rr_repl_subjective_description_reported, 
+      rr_labteam_notes,
+      is_covid,
+      rr_type_internal,
+      rr_type,
+      rr_stat_version,
+      ready_for_export
     )
 }

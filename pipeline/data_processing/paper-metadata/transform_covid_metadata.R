@@ -1,8 +1,8 @@
-# Metadata for covid papers was collected separately from other papers
+# Metadata for COVID preprints were collected separately from other papers
 # Reconcile differences for merging
-transform_covid_metadata <- function(covid_metadata_raw) {
+transform_covid_metadata <- function(paper_metadata_covid) {
   
-  covid_metadata_raw %>%
+  paper_metadata_covid %>%
     filter(external == TRUE) %>%
     mutate(published = ymd(published) %>% 
              format("%b %Y") %>% 

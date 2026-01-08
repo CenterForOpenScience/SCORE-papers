@@ -1,11 +1,12 @@
 # Add changes to the raw publications dataset and recode publication categories
-transform_pubs <- function(publications_raw,
-                           pub_changelog) {
+transform_update_journal <- function(
+    journal_metadata_raw,
+    changes_journal_metadata
+) {
   
-  publications_raw %>%
+  journal_metadata_raw %>%
     add_column(pub_stat_version = 1) %>%
-    apply_changelog(changes = pub_changelog,
-                    id = "ISSN") %>%
+    apply_changelog(changes = changes_journal_metadata, id = "ISSN") %>%
     select(-c(pub_stat_version)) %>%
     mutate(
       # We want both the 10 field and 6 field versions  

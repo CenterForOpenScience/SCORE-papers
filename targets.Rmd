@@ -14,14 +14,14 @@ library(readr)
 library(googledrive)
 library(googlesheets4)
 library(dplyr)
-# Silly workaround to get renv to store these packages
+# Workaround to get renv to store these packages
 library(hashids)
 library(usethis)
 library(visNetwork)
 tar_unscript()
 ```
 
-The R package `targets` is a [make](https://www.gnu.org/software/make/)-like tool for reproducibly running the code that generates project products, such as analytic datasets, models, and figures. 
+# The Targets Package
 
 Rendering this file using `rmarkdown::render("targets.Rmd")` executes a series of functions in the correct order to build target files (also known as "targets", e.g., analytic datasets, figures) from source files (e.g., raw data). It also documents the dependencies of the target file, including all files (whether source files or other targets) which are used as inputs to the commands in the functions used to generate the target file.
 
@@ -31,14 +31,7 @@ We first define the global options and source functions used to generate target 
 
 ```{targets globals, tar_globals = TRUE}
 options(tidyverse.quiet = TRUE,
-        # Gmail authorization for accessing sheets
-        # Set google_oauth_email="youremail@cos.io" in your .Renviron file 
-        # to use this document without changing the code.
-        gargle_oauth_email = Sys.getenv("google_oauth_email"),
         scipen = 999)
-
-googledrive::drive_auth()
-googlesheets4::gs4_auth()
 
 tar_option_set(
   # Packages the targets need to run
@@ -67,7 +60,7 @@ tar_option_set(
                "tidyr") 
 )
 
-# All functions used are found in the folder named "pipeline"
+# All functions used to create targets are found in the folder named "pipeline"
 tar_source(files = "pipeline")
 
 ```
@@ -76,7 +69,13 @@ tar_source(files = "pipeline")
 
 ## Raw Data
 
-Most raw data files will have three targets associated with them - one for their ID on OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
+Most raw data files will have three targets associated with them - one for their ID on OSF, one for the modification date of the file, and one that actually represents the data loaded into R. 
+
+The file targets are the GUID for the file on [OSF](https://osf.io/x9fb6/files/osfstorage). These files can be found in the "Raw Data" folder.
+
+The modification date targets are set to run every time `tar_make()` is called (with the parameter `cue = tar_cue("always")`) so that the file is pulled again if, and only if, it is ever updated online. 
+
+The `get_osf_mod_date()` and `load_osf_csv()` functions can be found in `pipeline/helper_download_osf.R`. 
 
 ### Journal Metadata
 
@@ -91,7 +90,7 @@ list(
              get_osf_mod_date(journal_metadata_file),
              cue = tar_cue("always")),
   tar_target(journal_metadata_raw,
-             load_osf_csv(journal_metadata_file,
+             load_osf_csv(journal_metadata_file, 
                           journal_metadata_moddate)),
   
   # journal_repro-policies.csv ----
@@ -114,12 +113,12 @@ list(
              get_osf_mod_date(journal_top_factor_file),
              cue = tar_cue("always")),
   tar_target(journal_top_factor,
-             load_osf_csv(journal_top_factor_file,
+             load_osf_csv(journal_top_factor_file, 
                           journal_top_factor_moddate))
 )
 ```
 
-### Paper-level Metadata
+### Paper Metadata
 
 ```{targets raw-paper}
 list(
@@ -131,7 +130,7 @@ list(
              get_osf_mod_date(paper_citations_file),
              cue = tar_cue("always")),
   tar_target(paper_citations,
-             load_osf_csv(paper_citations_file,
+             load_osf_csv(paper_citations_file, 
                           paper_citations_moddate)),
   
   # paper_metadata_covid.csv ----
@@ -186,9 +185,8 @@ list(
              cue = tar_cue("always")),
   tar_target(orig_claims_bushel_sig,
              load_osf_csv(orig_claims_bushel_sig_gsheet,
-                               orig_claims_bushel_sig_moddate)),
+                          orig_claims_bushel_sig_moddate)),
   
-
   # orig_claims_covid_ta2-ids.csv ----
   # Claims extracted from phase 1 COVID preprints with IDs for human assessment
   # teams. Used to reconcile IDs for process reproducibility work.
@@ -345,15 +343,16 @@ list(
              cue = tar_cue("always")), 
   tar_target(
     orig_stats_p2_additional,
-    load_osf_csv(orig_stats_p2_additional_file,
-                 orig_stats_p2_additional_moddate,
-                 col_types = list(
-                   # All entries "F", which should load as char, not logical
-                   original_statistic_type_reported = col_character(),
-                   original_statistic_analysis_type_statsteam = col_character()
-                   )
+    load_osf_csv(
+      orig_stats_p2_additional_file,
+      orig_stats_p2_additional_moddate,
+      col_types = list(
+        # All entries "F", which should load as char, not logical
+        original_statistic_type_reported = col_character(),
+        original_statistic_analysis_type_statsteam = col_character()
       )
-    ),
+    )
+  ),
   
   # orig_stats_p2_form-outputs.csv ----
   # Statistics from original articles that underwent replications/reproductions
@@ -377,14 +376,16 @@ list(
              cue = tar_cue("always")),
   tar_target(
     orig_stats_p2_manual,
-    load_osf_csv(orig_stats_p2_manual_file,
-                 orig_stats_p2_manual_moddate,
-                 col_types = list(
-                   # Empty columns that should load as char, not logical
-                   original_statistic_type_reported = col_character(),
-                   original_statistic_type_reference = col_character()
-                   ))
-    ),
+    load_osf_csv(
+      orig_stats_p2_manual_file,
+      orig_stats_p2_manual_moddate,
+      col_types = list(
+        # Empty columns that should load as char, not logical
+        original_statistic_type_reported = col_character(),
+        original_statistic_type_reference = col_character()
+      )
+    )
+  ),
   
   # orig_stats_p2_power-outputs.csv ----
   # Statistics from original articles that underwent replications in phase 2
@@ -573,7 +574,7 @@ list(
 
 Some information comes from datasets used in project management.
 
-```{targets rr-projects}
+```{targets raw-project}
 list(
   # score_paper_id-key.csv ----
   # Links canonical paper ID to the IDs used by other teams. 
@@ -675,13 +676,44 @@ list(
   tar_target(score_rr_types_moddate,
              get_osf_mod_date(score_rr_types_file),
              cue = tar_cue("always")),
-  tar_target(score_rr_types,
+  tar_target(score_rr_types_raw,
              load_osf_csv(score_rr_types_file,
                           score_rr_types_moddate))
 )
 ```
 
+### Correlations
+
+```{targets raw-corr}
+list(
+  # corr_orig-significance_p1.csv ----
+  # Original study claims significance for phase 1 claims
+  tar_target(stat_sig_p1_file,
+             "ftxyn"),
+  tar_target(stat_sig_p1_moddate,
+             get_osf_mod_date(stat_sig_p1_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig_p1,
+             load_osf_csv(stat_sig_p1_file,
+                          stat_sig_p1_moddate)),
+  
+  # corr_orig-significance_p2.csv ----
+  # Original study claims significance for phase 2 claims
+  tar_target(stat_sig_p2_file,
+             "kqp2w"),
+  tar_target(stat_sig_p2_moddate,
+             get_osf_mod_date(stat_sig_p2_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig_p2,
+             load_osf_csv(stat_sig_p2_file,
+                          stat_sig_p2_moddate))
+)
+```
+
+
 ## Change Logs
+
+If changes ever needed to be made to any dataset for any reason, these changes were recorded in a change log. Change logs record who requested the change, when the change was implemented, the key ID of the record to change, the column the change was in, what the change was to, what data was recorded there previously, and the reasoning behind the change.
 
 ```{targets change-logs}
 list(
@@ -762,16 +794,16 @@ list(
              load_osf_csv(changes_repro_merged_file,
                           changes_repro_merged_moddate)),
   
-  # changes_repro_supplement.csv ----
-  # Change log for reproduction supplemental variables
-  tar_target(changes_repro_supplement_file,
+  # changes_repro_summary.csv ----
+  # Change log for reproduction summary variables
+  tar_target(changes_repro_summary_file,
              "e498m"),
-  tar_target(changes_repro_supplement_moddate,
-             get_osf_mod_date(changes_repro_supplement_file),
+  tar_target(changes_repro_summary_moddate,
+             get_osf_mod_date(changes_repro_summary_file),
              cue = tar_cue("always")),
-  tar_target(changes_repro_supplement,
-             load_osf_csv(changes_repro_supplement_file,
-                          changes_repro_supplement_moddate)),
+  tar_target(changes_repro_summary,
+             load_osf_csv(changes_repro_summary_file,
+                          changes_repro_summary_moddate)),
   
   # changes_score_rr_types.csv ----
   # Change log for score internal project types
@@ -788,19 +820,31 @@ list(
 
 ## Intermediate Data
 
-### Publications
+These are data at various stages of processing between the raw data and analysis-ready data. 
 
-```{targets publications}
+### Project Management
+
+```{targets int-project}
 list(
-  # Update and Transform ----
-  tar_target(journal_metadata_updated,
-             transform_pubs(journal_metadata_raw,
-                            changes_journal_metadata)),
+  # Updated replication/reproduction project types
+  tar_target(score_rr_types,
+             update_attempts_minted(score_rr_types_raw,
+                                    changes_score_rr_types))
+)
+```
+
+### Journal Metadata
+
+```{targets int-journal}
+list(
+  # Update and transform journal metadata
+  tar_target(journal_updated,
+             transform_update_journal(journal_metadata_raw,
+                                      changes_journal_metadata)),
   
-  # Information about journals the original studies were from as well as
-  # some journal policy information
-  tar_target(publications,
-             left_join(journal_metadata_updated,
+  # Join journal metadata and policy information
+  tar_target(journal_metadata,
+             left_join(journal_updated,
                        journal_top_factor,
                        by = join_by(publication_standard == Journal)))
 )
@@ -808,145 +852,136 @@ list(
 
 ### Paper Metadata
 
-```{targets paper-metadata}
+```{targets int-paper}
 list(
-  # Transform ----
   # Metadata for covid papers was collected separately from other papers
   # Reconcile differences for merging
-  tar_target(covid_metadata,
+  tar_target(papers_covid_transformed,
              transform_covid_metadata(paper_metadata_covid)),
   
-  tar_target(non_covid_metadata,
-             transform_paper_metadata(paper_metadata_raw, score_paper_status))
+  tar_target(papers_transformed,
+             transform_paper_metadata(paper_metadata_raw, 
+                                      score_paper_status))
 )
 ```
 
-### Original Study Variables
+### Original Studies
 
-```{targets original-outcomes}
+```{targets int-orig}
 list(
-  ## Merge ----
+  # Transformed and merged raw original statistics data
   tar_target(orig_merged,
-             merge_orig_input(orig_stats_p1,
+             merge_orig_stats(orig_stats_p1,
+                              orig_claims_p1_covid,
                               orig_stats_p2_pwr,
                               orig_stats_p2_manual,
                               orig_stats_p2_form,
-                              orig_claims_p1_covid,
                               orig_stats_p2_additional)),
-  ## Update ----
+  
+  # Merged original statistics updated with changes
   tar_target(orig_updated,
-             update_orig_input(orig_merged,
+             update_orig_stats(orig_merged,
                                changes_orig_merged)),
   
+  # Extended original study statistics updated with changes
   tar_target(orig_extended_updated,
              update_orig_extended(orig_stats_extended,
                                   changes_orig_stats_extended)),
   
-  ## Refine ----
+  # Original study statistics, merged and transformed into a semi-final form
   tar_target(orig_dataset,
-             export_orig(orig_updated,
-                         orig_extended_updated))
+             transform_orig_updated(orig_updated,
+                                    orig_extended_updated))
 )
 ```
 
-### Replication/Reproduction Projects
+### Replication Studies
 
-```{targets projects}
+```{targets int-repli}
 list(
-  ## Merge ----
-  tar_target(rr_projects,
-             extend_rr_projects(score_rr_osf_ids_raw,
-                                score_rr_osf_ids_add)),
+  # Transformed replication form data
+  tar_target(repli_stats_p2_transformed,
+             transform_repli_stats_p2(repli_stats_p2, 
+                                      score_rr_types)),
   
-  ## Update ----
-  tar_target(rr_attempts_minted,
-             update_attempts_minted(score_rr_types,
-                                    changes_score_rr_types))
-)
-```
-
-Replications/Reproductions variables data. QC'ed and merged.
-
-```{targets processed-rr}
-list(
-  # Transform replication form data
-  tar_target(replication_qa,
-             transform_replication_qa(repli_stats_p2,
-                                      rr_attempts_minted)),
-  
+  # Merged replication study variables
   tar_target(repli_merged,
              merge_repli_input(repli_stats_p1,
-                               replication_qa,
+                               repli_stats_p2_transformed,
                                repli_stats_p2_additional,
                                repli_effective)),
   
-  tar_target(repli_export,
-             export_repli(repli_merged,
-                          changes_repli_merged)),
-  
-  # Reproduction targets ----
+  # Replication study statistics, updated and transformed 
+  # into a semi-final form
+  tar_target(repli_dataset,
+             update_transform_repli(repli_merged, 
+                                    changes_repli_merged))
+)
+```
+
+### Reproduction Studies
+
+```{targets int-repro}
+list(
   # Transformed data from forms
   tar_target(repro_data_entry,
              transform_repro_input(repro_stats)),
   
-  # Transform reproduction claims
+  # Transformed reproduction preregistration check-ins
   tar_target(rr_confrontations_repro_claim,
-             transform_repro_claims(repro_prereg_check)),
+             transform_repro_prereg(repro_prereg_check)),
   
-  # Merge with additional cases
+  # Merged reproduction study statistics
   tar_target(repro_merged,
              merge_repro(repro_data_entry,
                          repro_stats_additional,
                          repro_vor)),
   
-  # Update transformed data from forms
-  tar_target(repro_export,
+  # Updated and transformed reproduction study statistics
+  tar_target(repro_dataset,
              update_repro(repro_merged,
                           changes_repro_merged)),
   
-  # Create repro supplement
-  tar_target(repro_supplement_raw,
-             transform_repro_outcomes(repro_export,
-                                      orig_dataset,
-                                      rr_confrontations_repro_claim)),
+  # Reproduction study summary variables
+  tar_target(repro_summary_raw,
+             create_repro_summary(repro_dataset,
+                                  orig_dataset,
+                                  rr_confrontations_repro_claim)),
   
-  tar_target(repro_supplement,
-             update_repro_supplement(repro_supplement_raw,
-                                     changes_repro_supplement))
+  # Reproduction study summary variables updated with new categories
+  tar_target(repro_summary,
+             update_repro_summary(repro_summary_raw,
+                                  changes_repro_summary))
 )
 ```
 
-### Process reproducibility data
 
-```{targets processed-pr}
+### Process Reproducibility
+
+```{targets int-pr}
 list(
-  
+  # Updated original author outreach 
   tar_target(oa_outreach,
              update_oa(materials_author_outreach,
                        changes_author_outreach)),
   
-  tar_target(pr_data_form,
-             process_pr_data(materials_availability,
-                             orig_claims_covid_ta2,
-                             orig_claims_p1_covid)),
-           
-  tar_target(pr_qc,
-             update_pr(pr_data_form,
+  # Transformed process reproducibility 
+  tar_target(pr_transformed,
+             transform_pr(materials_availability,
+                          orig_claims_covid_ta2,
+                          orig_claims_p1_covid)),
+  
+  # Updated process reproducibility 
+  tar_target(pr_updated,
+             update_pr(pr_transformed,
                        changes_pr_data_form))
   
 )
 ```
 
-### Correlations
-
-```{r int-correlations}
-list(
-  tar_target(sig,
-             rbind(stat_sig_p1, stat_sig_p2))
-)
-```
-
 ## Analysis-ready Data
+
+Datasets that were used in papers produced during the SCORE project.
 
 ### Replication and Reproduction Papers
 
@@ -1003,7 +1038,7 @@ list(
                           orig_claims_p2_bushel,
                           orig_claims_bushel_complex,
                           score_paper_status,
-                          covid_metadata)),
+                          papers_covid_transformed)),
   
   # llm_method_data.csv ----
   # Summarizes the prevalence and scoring of various  
@@ -1046,16 +1081,16 @@ list(
                                 orig_claims_bushel_complex,
                                 orig_stats_effect,
                                 orig_effect_size,
-                                repli_export)),
+                                repli_dataset)),
   
   # paper_metadata.csv ----
   # Metadata for original study articles
   # https://osf.io/x9fb6/files/jg54h
   tar_target(paper_metadata,
-             merge_paper_metadata(non_covid_metadata,
-                                  covid_metadata,
+             merge_paper_metadata(papers_transformed,
+                                  papers_covid_transformed,
                                   paper_citations,
-                                  publications)),
+                                  journal_metadata)),
 
   # papers_not_sourced.csv ----
   # Accounting for all papers that were never sourced for a replication 
@@ -1097,7 +1132,7 @@ list(
   # a given paper.
   # https://osf.io/x9fb6/files/e58n9
   tar_target(pr_outcomes,
-             create_pr_analytic(pr_qc, oa_outreach)),
+             create_pr_analytic(pr_updated, oa_outreach)),
   
   # repli_all_cases.csv ----
   # Replication outcomes, including cases that were excluded from analysis for 
@@ -1105,7 +1140,7 @@ list(
   # power/sample size issues.
   # https://osf.io/x9fb6/files/2k9ht
   tar_target(repli_all_cases,
-             select(repli_export,
+             select(repli_dataset,
                     rr_id,
                     paper_id,
                     rr_type_internal,
@@ -1136,8 +1171,8 @@ list(
   # Replications of the original studies from which claims were extracted
   # https://osf.io/x9fb6/files/2c8gh
   tar_target(repli_outcomes,
-             create_repli_analytic(repli_export,
-                                   rr_attempts_minted,
+             create_repli_analytic(repli_dataset,
+                                   score_rr_types,
                                    repli_extended,
                                    score_paper_status,
                                    orig_claims_p2_bushel,
@@ -1157,8 +1192,8 @@ list(
   # Reproductions of the original studies from which claims were extracted
   # https://osf.io/x9fb6/files/47jhm
   tar_target(repro_outcomes,
-             create_repro_analytic(repro_export,
-                                   repro_supplement)),
+             create_repro_analytic(repro_dataset,
+                                   repro_summary)),
   
   # rr_internal_tracking.csv ----
   # This is a convenience dataset used by COS staff for a variety of purposes. 
@@ -1264,27 +1299,11 @@ list(
              load_osf_csv(es_file,
                           es_moddate)),
   
-  # corr_orig-significance_p1.csv ----
-  # Original study claims significance for phase 1 claims
-  tar_target(stat_sig_p1_file,
-             "ftxyn"),
-  tar_target(stat_sig_p1_moddate,
-             get_osf_mod_date(stat_sig_p1_file),
-             cue = tar_cue("always")),
-  tar_target(stat_sig_p1,
-             load_osf_csv(stat_sig_p1_file,
-                          stat_sig_p1_moddate)),
-  
-  # corr_orig-significance_p2.csv ----
-  # Original study claims significance for phase 2 claims
-  tar_target(stat_sig_p2_file,
-             "kqp2w"),
-  tar_target(stat_sig_p2_moddate,
-             get_osf_mod_date(stat_sig_p2_file),
-             cue = tar_cue("always")),
-  tar_target(stat_sig_p2,
-             load_osf_csv(stat_sig_p2_file,
-                          stat_sig_p2_moddate)),
+  # corr_orig-significance.csv ----
+  # Original study claims significance
+  # https://osf.io/x9fb6/files/d5qke
+  tar_target(sig,
+             rbind(stat_sig_p1, stat_sig_p2)),
   
   # corr_scholarcy.csv ----
   # Extracted open science indicators from scholarcy
@@ -1349,7 +1368,7 @@ list(
 
 #### Confidence Scores
 
-```{r corr-confidence-scores}
+```{targets corr-confidence-scores}
 list(
   # Prediction Markets ----
   ## corr_keywest_cs.csv ----
@@ -1523,13 +1542,25 @@ list(
 )
 ```
 
+### Other
+
+```{targets analytic-other}
+list(
+  # A list of all reproduction/replication projects with their OSF GUIDs
+  tar_target(score_rr_osf_ids,
+             extend_rr_projects(score_rr_osf_ids_raw,
+                                score_rr_osf_ids_add))
+)
+```
+
+
 # Run Pipeline
 
 Run the `{targets}` pipeline. Expected warnings:
 
-1) orig_stats_p1: One or more parsing issues
-2) replication_qa: There was 1 warning in mutate
-3) rr_confrontations_repro_claim: There was 1 warning in mutate.
+- repli_stats_p2_transformed: There were 2 warnings in `mutate()`.
+- repli_binary: There was 1 warning in `mutate()`.
+
 
 ```{r make}
 tar_make()
