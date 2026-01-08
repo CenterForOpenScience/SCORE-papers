@@ -86,7 +86,7 @@ The data pipeline uses the R package [osfr](https://cran.r-project.org/web/packa
 
 ## The Data Pipeline
 
-The code in the `pipeline/` folder can be used to reproduce the analytic datasets used in the SCORE project from the raw data found on [Project-Wide Data OSF Project](https://osf.io/x9fb6/overview). 
+The code in the `pipeline/` folder can be used to reproduce the analytic datasets used in the SCORE project from the raw data found on [SCORE Documentation OSF Project](https://osf.io/dtzx4/files/osfstorage). 
 
 This project uses the R package `{targets}` to facilitate reproducibility. Targets is a [make](https://www.gnu.org/software/make/)-like tool for reproducibly running the code that generates project products, such as analytic datasets, models, and figures. 
 

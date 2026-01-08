@@ -71,7 +71,7 @@ tar_source(files = "pipeline")
 
 Most raw data files will have three targets associated with them - one for their ID on OSF, one for the modification date of the file, and one that actually represents the data loaded into R. 
 
-The file targets are the GUID for the file on [OSF](https://osf.io/x9fb6/files/osfstorage). These files can be found in the "Raw Data" folder.
+The file targets are the GUID for the file on [OSF](https://osf.io/dtzx4/files/osfstorage). These files can be found in the "Raw Data" folder.
 
 The modification date targets are set to run every time `tar_make()` is called (with the parameter `cue = tar_cue("always")`) so that the file is pulled again if, and only if, it is ever updated online. 
 
