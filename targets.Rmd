@@ -14,9 +14,6 @@ library(readr)
 library(googledrive)
 library(googlesheets4)
 library(dplyr)
-# Workaround to get renv to store these packages
-library(hashids)
-library(usethis)
 library(visNetwork)
 tar_unscript()
 ```

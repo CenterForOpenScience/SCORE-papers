@@ -10,37 +10,40 @@ Project code is largely separated by type into `Analysis/`, `pipeline/`, and `up
 - `pipeline/`: contains code run by the targets-based data pipeline
 - `upkeep/`: contains code that is mostly internal-process focused. These files are not used in any final data processing or analysis, but are included for transparency and general interest.
 
-## Packages
+## Packages and Versions
+
+R version 4.5.0 (2025-04-11)
 
 This project uses the following R packages:
 
-- BayesFactor
-- BayesRep
-- BFF (Version 4.2.1 REQUIRED)
-- dplyr
-- effectsize
-- ggExtra
-- glue
-- googlesheets4
-- googledrive
-- here
-- kableExtra
-- lubridate
-- metaBMA
-- metafor
-- osfr
-- purrr
-- pwr
-- readr
-- ReplicationSuccess
-- rmarkdown
-- sjPlot
-- stringr
-- targets
-- tibble
-- tidyr  
-- usethis
-- visNetwork
+Packages and versions used in the data pipeline and analysis:
+
+- BayesFactor (0.9.12-4.7)
+- BayesRep (0.42.2)
+- BFF (Version 4.2.1 Required)  
+- dplyr (1.1.4)
+- effectsize (1.0.1)
+- ggExtra (0.10.1)
+- glue (1.8.0)
+- googlesheets4 (1.1.1)
+- googledrive (2.1.1)
+- here (1.0.1)
+- kableExtra (1.4.0)
+- lubridate (1.9.4)
+- metaBMA (0.6.9)
+- metafor (4.8-0)
+- osfr (0.2.9)
+- purrr (1.0.4)
+- pwr (1.3-0)
+- readr (2.1.5)
+- ReplicationSuccess (1.3.3)
+- sjPlot (2.8.17)
+- stringr (1.5.1)
+- targets (1.11.3)
+- tibble (3.3.0)
+- tidyr (1.3.1)
+- usethis (3.1.0)
+- visNetwork (2.1.2)
                
 The following code can be used to install all of these packages:
 
