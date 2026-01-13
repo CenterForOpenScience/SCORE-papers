@@ -1,5 +1,5 @@
 # Process data from prereg checkin
-transform_repro_claims <- function(prereg_checkin_repro) {
+transform_repro_prereg <- function(repro_prereg_check) {
   
   criteria_cols <- c("criteria_name",
                      "original_value",
@@ -7,7 +7,7 @@ transform_repro_claims <- function(prereg_checkin_repro) {
                      "approx_reproduction",
                      "non_reproduction")
   
-  repro_checkin <- prereg_checkin_repro %>%
+  repro_checkin <- repro_prereg_check %>%
     filter(is.na(confrontation_status)) %>%
     mutate(
       pdf_filename = str_extract(asana_ticket_name, ".+?(?= - )"),
@@ -23,13 +23,15 @@ transform_repro_claims <- function(prereg_checkin_repro) {
       primary_criteria = str_split(confrontation_repro_primary_criteria, "\\n")
     ) %>%
     unnest(primary_criteria) %>%
-    separate_wider_delim(primary_criteria,
-                         delim = regex("\\t"),
-                         names = c("criteria_name",
-                                   "original_value",
-                                   "precise_reproduction",
-                                   "approx_reproduction",
-                                   "non_reproduction")) %>%
+    separate_wider_delim(
+      primary_criteria,
+      delim = regex("\\t"),
+      names = c("criteria_name",
+                "original_value",
+                "precise_reproduction",
+                "approx_reproduction",
+                "non_reproduction")
+    ) %>%
     mutate(
       across(all_of(criteria_cols), str_trim),
       criteria_type = case_match(
@@ -42,31 +44,36 @@ transform_repro_claims <- function(prereg_checkin_repro) {
         "Focal test statistic" ~ "test_statistic",
         .default = "undefined"
       ),
-      across(all_of(criteria_cols), na_if, "NA"),
-      across(all_of(criteria_cols), na_if, "nan"),
-      across(all_of(criteria_cols), na_if, "N/A"),
-      across(all_of(criteria_cols), na_if, "n/a"),
-      across(all_of(criteria_cols), na_if, "N/a"),
-      across(all_of(criteria_cols), na_if, "na"),
+      across(all_of(criteria_cols), \(x) na_if(x, "NA")),
+      across(all_of(criteria_cols), \(x) na_if(x, "nan")),
+      across(all_of(criteria_cols), \(x) na_if(x, "N/A")),
+      across(all_of(criteria_cols), \(x) na_if(x, "n/a")),
+      across(all_of(criteria_cols), \(x) na_if(x, "N/a")),
+      across(all_of(criteria_cols), \(x) na_if(x, "na")),
       primary_criteria_check = if_else(
-        str_detect(confrontation_primary_criteria_available,
-                   criteria_type),
+        str_detect(
+          confrontation_primary_criteria_available,
+          criteria_type
+        ),
         !is.na(original_value) & 
           !is.na(precise_reproduction) & 
           !is.na(non_reproduction),
         is.na(original_value) & 
           is.na(precise_reproduction) & 
-          is.na(non_reproduction))
+          is.na(non_reproduction)
+      )
     ) %>%
     # bespoke hotfix for Travers (claim id: zqwm_single-trace, RRID: 2w7w2) 
     # because there are no primary criteria
-    rows_update(tibble(rr_id = "2w7w2",
-                       confrontation_claim4_id = "single-trace",
-                       criteria_type = "sample_size",
-                       primary_criteria_check = TRUE),
-                by = c("rr_id",
-                       "confrontation_claim4_id",
-                       "criteria_type")) %>%
+    rows_update(
+      tibble(rr_id = "2w7w2",
+             confrontation_claim4_id = "single-trace",
+             criteria_type = "sample_size",
+             primary_criteria_check = TRUE),
+      by = c("rr_id",
+             "confrontation_claim4_id",
+             "criteria_type")
+    ) %>%
     group_by(across(-c(all_of(criteria_cols), criteria_type))) %>%
     nest() %>%
     select(-c(data)) %>%

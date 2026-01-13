@@ -2,10 +2,14 @@
 create_ov_analytic <- function(orig_dataset,
                                complex_bushel,
                                effectsize_orig,
-                               effectsize_outcome,
+                               orig_effect_size,
                                repli_export) {
   
-  bushel <- transform_complex_bushel(complex_bushel)
+  bushel <- complex_bushel %>%
+    mutate(unique_claim_id = str_c(paper_id, "_", claim_id),
+           complex = as.logical(complex)) %>%
+    select(unique_claim_id,
+           bushel_complex = complex)
   
   repli_ids <- repli_export %>% 
     mutate(claim_id = str_c(paper_id, "_", claim_id)) %>%
@@ -160,9 +164,8 @@ create_ov_analytic <- function(orig_dataset,
               original_poweranalysis_notes,
               Tilburg_team_finished))
   
-  manual <- effectsize_outcome %>%
-    rename(claim_id = `...1`,
-           cos_r = r,
+  manual <- orig_effect_size %>%
+    rename(cos_r = r,
            cos_r_lb = r_lb,
            cos_r_ub = r_ub) %>%
     filter(claim_id %in% orig$claim_id)

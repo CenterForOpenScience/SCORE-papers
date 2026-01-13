@@ -1,13 +1,15 @@
 # Create Replications Analytic Dataset
 create_repli_analytic <- function(repli_export,
                                   rr_attempts_minted,
-                                  rr_statistics_output_p2,
+                                  repli_extended,
                                   status,
                                   stitched_claims,
-                                  effectsize_outcome,
+                                  repli_effect_size,
                                   orig_outcomes,
                                   paper_metadata,
                                   repli_case_exclusions) {
+  
+  repli_extended_transformed <- transform_repli_extended(repli_extended)
   
   # Determine what delivery each RR was from
   type_p1 <- status %>%
@@ -73,7 +75,7 @@ create_repli_analytic <- function(repli_export,
               ml_preference, 
               rr_type_internal)) %>%
     # Extended variables from Tilburg
-    left_join(rr_statistics_output_p2, by = "unique_report_id") %>%
+    left_join(repli_extended_transformed, by = "unique_report_id") %>%
     mutate(
       claim_id = str_c(paper_id,
                        "_",
@@ -199,7 +201,6 @@ create_repli_analytic <- function(repli_export,
     ) %>%
     # Columns to drop ----
     select(-c(rr_original_data_overlap,
-              rr_analysis_link,
               rr_expected_sample_reached_reported,
               rr_analytic_subsample_n1,
               rr_analytic_subsample_n2,
@@ -222,9 +223,8 @@ create_repli_analytic <- function(repli_export,
               pi_ub_pearson,
               pi_lb_pearson))
   
-  manual <- effectsize_outcome %>%
-    rename(report_id = `...1`,
-           cos_r = r,
+  manual <- repli_effect_size %>%
+    rename(cos_r = r,
            cos_r_lb = r_lb,
            cos_r_ub = r_ub) %>%
     filter(report_id %in% repli$report_id)
@@ -263,5 +263,38 @@ create_repli_analytic <- function(repli_export,
                                  "phase 1",
                                  "phase 2")
     )
+  
+}
+
+transform_repli_extended <- function(repli_extended) {
+  
+  repli_extended %>%
+    select(unique_report_id,
+           rr_effect_size_type_reference = rr_effect_size_type_statsteam,
+           rr_effect_size_value_reference = rr_effect_size_value_statsteam,
+           rr_es_ub_ci_nativeunits,
+           rr_es_lb_ci_nativeunits,
+           rr_pearsons_r_defined,
+           rr_pearsons_r_value,
+           rr_es_ub_ci_pearson,
+           rr_es_lb_ci_pearson,
+           pi_ub_nativeunits = comparison_es_ub_pi_nativeunits,
+           pi_lb_nativeunits = comparison_es_lb_pi_nativeunits,
+           pi_ub_pearson = comparison_es_ub_pi_pearson,
+           pi_lb_pearson = comparison_es_lb_pi_pearson,
+           rr_power_small,
+           rr_power_medium,
+           rr_power_50_original_effect,
+           rr_power_75_original_effect,
+           rr_power_100_original_effect,
+           rr_power_50_original_effect_alpha_.025,
+           rr_power_75_original_effect_alpha_.025,
+           rr_power_100_original_effect_alpha_.025,
+           rr_power_50_original_effect_design,
+           rr_power_75_original_effect_design,
+           rr_power_100_original_effect_design,
+           rr_power_50_original_effect_alpha_.025_design,
+           rr_power_75_original_effect_alpha_.025_design,
+           rr_power_100_original_effect_alpha_.025_design)
   
 }

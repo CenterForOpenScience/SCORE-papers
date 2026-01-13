@@ -14,14 +14,11 @@ library(readr)
 library(googledrive)
 library(googlesheets4)
 library(dplyr)
-# Silly workaround to get renv to store these packages
-library(hashids)
-library(usethis)
 library(visNetwork)
 tar_unscript()
 ```
 
-The R package `targets` is a [make](https://www.gnu.org/software/make/)-like tool for reproducibly running the code that generates project products, such as analytic datasets, models, and figures. 
+# The Targets Package
 
 Rendering this file using `rmarkdown::render("targets.Rmd")` executes a series of functions in the correct order to build target files (also known as "targets", e.g., analytic datasets, figures) from source files (e.g., raw data). It also documents the dependencies of the target file, including all files (whether source files or other targets) which are used as inputs to the commands in the functions used to generate the target file.
 
@@ -31,14 +28,7 @@ We first define the global options and source functions used to generate target 
 
 ```{targets globals, tar_globals = TRUE}
 options(tidyverse.quiet = TRUE,
-        # Gmail authorization for accessing sheets
-        # Set google_oauth_email="youremail@cos.io" in your .Renviron file 
-        # to use this document without changing the code.
-        gargle_oauth_email = Sys.getenv("google_oauth_email"),
         scipen = 999)
-
-googledrive::drive_auth()
-googlesheets4::gs4_auth()
 
 tar_option_set(
   # Packages the targets need to run
@@ -67,7 +57,7 @@ tar_option_set(
                "tidyr") 
 )
 
-# All functions used are found in the folder named "pipeline"
+# All functions used to create targets are found in the folder named "pipeline"
 tar_source(files = "pipeline")
 
 ```
@@ -76,588 +66,980 @@ tar_source(files = "pipeline")
 
 ## Raw Data
 
-Most raw data files will have three targets associated with them - one for their ID on Google Drive or OSF, one for the modification date of the file, and one that actually represents the data loaded into R. The modification date targets are set to run every time `tar_make()` is called so that the file is pulled again if it is ever updated online. 
+Most raw data files will have three targets associated with them - one for their ID on OSF, one for the modification date of the file, and one that actually represents the data loaded into R. 
 
-### Publication-level Metadata
+The file targets are the GUID for the file on [OSF](https://osf.io/dtzx4/files/osfstorage). These files can be found in the "Raw Data" folder.
 
-``` {targets raw-publications}
+The modification date targets are set to run every time `tar_make()` is called (with the parameter `cue = tar_cue("always")`) so that the file is pulled again if, and only if, it is ever updated online. 
+
+The `get_osf_mod_date()` and `load_osf_csv()` functions can be found in `pipeline/helper_download_osf.R`. 
+
+### Journal Metadata
+
+``` {targets raw-journal}
 list(
-  # publications.csv -> journal-metadata.csv
-  # Journal names, ISSNs, and general publication category
+  # journal_metadata_raw.csv ----
+  # Metadata about journals that articles were sourced from, including names,
+  # ISSNs, and general publication category
   tar_target(journal_metadata_file,
-             "1fXHxIcsFjiAgmydESNkgLjx36dTCSC34"),
+             "tcb8q"),
   tar_target(journal_metadata_moddate,
-             get_google_mod_date(journal_metadata_file),
+             get_osf_mod_date(journal_metadata_file),
              cue = tar_cue("always")),
   tar_target(journal_metadata_raw,
-             read_google_csv(journal_metadata_file,
-                             journal_metadata_moddate)),
+             load_osf_csv(journal_metadata_file, 
+                          journal_metadata_moddate)),
   
-  # journal-top-factor.csv
-  # TOP factor info for SCORE journals
+  # journal_repro-policies.csv ----
+  # Journal policies about reproducibility and data/code sharing
+  tar_target(journal_repro_policies_file,
+             "24j8s"),
+  tar_target(journal_repro_policies_moddate,
+             get_osf_mod_date(journal_repro_policies_file),
+             cue = tar_cue("always")),
+  tar_target(journal_repro_policies,
+             load_osf_csv(journal_repro_policies_file,
+                          journal_repro_policies_moddate)),
+  
+  # journal_top-factor.csv ----
+  # TOP Factor (2015) standards for journals that articles were sourced from,
+  # according to the TOP factor website (https://topfactor.org/journals)
   tar_target(journal_top_factor_file,
-             "1hDpl8wHE7RRh9rksO1izx-hRtnjaW9u471yV0scHBnA"),
+             "2bhwe"),
   tar_target(journal_top_factor_moddate,
-             get_google_mod_date(journal_top_factor_file),
+             get_osf_mod_date(journal_top_factor_file),
              cue = tar_cue("always")),
   tar_target(journal_top_factor,
-             read_google_sheet(journal_top_factor_file,
-                               journal_top_factor_moddate,
-                               sheet = "From TopFactor website")),
-  
-  # Google Sheet with multiple datasets about journal policies
-  # List of journal policies about reproducibility and data/code sharing
-  tar_target(repro_journal_policies_file,
-             "1KBdGqBUOz5zAMA-Mgv0XPgfzAkJrz28Ikd49jFyc2XA"),
-  tar_target(repro_journal_policies_moddate,
-             get_google_mod_date(repro_journal_policies_file),
-             cue = tar_cue("always")),
-  tar_target(repro_journal_policies,
-             read_google_sheet(repro_journal_policies_file,
-                               repro_journal_policies_moddate,
-                               sheet = "Prepared Dataset",
-                               skip = 2,
-                               col_names = c(
-                                 "journal",
-                                 "ISSN",
-                                 "eISSN",
-                                 "verify_match",
-                                 "journal_datasheet",
-                                 "require_data",
-                                 "require_data_year",
-                                 "require_data_year_certainty",
-                                 "require_data_source_conflict",
-                                 "require_code",
-                                 "require_code_year",
-                                 "require_code_year_certainty",
-                                 "require_code_source_conflict",
-                                 "repro_checks",
-                                 "repro_checks_year",
-                                 "repro_checks_year_certainty",
-                                 "repro_checks_source_conflict",
-                                 "data_lit_review_policy",
-                                 "data_lit_review_year",
-                                 "data_outreach_policy",
-                                 "data_outreach_year",
-                                 "data_top_policy",
-                                 "data_top_year",
-                                 "code_lit_review_policy",
-                                 "code_lit_review_year",
-                                 "code_outreach_policy",
-                                 "code_outreach_year",
-                                 "code_top_policy",
-                                 "code_top_year",
-                                 "repro_lit_review_policy",
-                                 "repro_lit_review_year",
-                                 "repro_outreach_policy",
-                                 "repro_outreach_year",
-                                 "repro_top_policy",
-                                 "repro_top_year"
-                                 )))
-
+             load_osf_csv(journal_top_factor_file, 
+                          journal_top_factor_moddate))
 )
 ```
 
-### Paper-level Metadata
+### Paper Metadata
 
-```{targets raw-papers}
+```{targets raw-paper}
 list(
-  # all_metadata_filled.tsv -> article-metadata_crosref-wos.csv
-  # Data about the papers from both Web of Science and CrossRef
-  tar_target(all_metadata_filled_file,
-             "1W-sNolZQegujz82TU2RKe0tfCvofrhm1"),
-  tar_target(all_metadata_filled_moddate,
-             get_google_mod_date(all_metadata_filled_file),
+  # paper_citations.csv ----
+  # Citations in APA format for papers from which claims were extracted
+  tar_target(paper_citations_file,
+             "wr8a3"),
+  tar_target(paper_citations_moddate,
+             get_osf_mod_date(paper_citations_file),
              cue = tar_cue("always")),
-  tar_target(all_metadata_filled,
-             read_google_tsv(all_metadata_filled_file,
-                             all_metadata_filled_moddate)),
-
-  # covid_metadata.tsv
-  # Data about COVID papers
-  tar_target(covid_metadata_file,
-             "1coSF-yytg1uNvboJ90qWWjrlJMGzjfMu"),
-  tar_target(covid_metadata_moddate,
-             get_google_mod_date(covid_metadata_file),
-             cue = tar_cue("always")),
-  tar_target(covid_metadata_raw,
-             read_google_tsv(covid_metadata_file,
-                             covid_metadata_moddate)),
+  tar_target(paper_citations,
+             load_osf_csv(paper_citations_file, 
+                          paper_citations_moddate)),
   
-  # Citation information
-  tar_target(paper_cite_file,
-             "1TaAxr215qejHmNPrJ8_-v7uS6bCl3LFSdCziaEyV-RM"),
-  tar_target(paper_cite_moddate,
-             get_google_mod_date(paper_cite_file),
+  # paper_metadata_covid.csv ----
+  # Metadata for COVID preprints from which claims were extracted
+  tar_target(paper_metadata_covid_file,
+             "dc3uv"),
+  tar_target(paper_metadata_covid_moddate,
+             get_osf_mod_date(paper_metadata_covid_file),
              cue = tar_cue("always")),
-  tar_target(paper_cite,
-             read_google_sheet(paper_cite_file,
-                               paper_cite_moddate)),
+  tar_target(paper_metadata_covid,
+             load_osf_csv(paper_metadata_covid_file,
+                          paper_metadata_covid_moddate)),
   
-  ## Raw data with unknown use ----
-  # CR_metadata_prepool.csv
-  tar_target(CR_metadata_prepool_file,
-             "1FnmZMEYiWBhAj0THZvMetdWzuohraPy3"),
-  tar_target(CR_metadata_prepool_moddate,
-             get_google_mod_date(CR_metadata_prepool_file),
+  # paper_metadata_raw.csv ----
+  # Raw metadata for papers from which research claims were extracted 
+  # (excluding COVID preprints)
+  tar_target(paper_metadata_raw_file,
+             "j4gkp"),
+  tar_target(paper_metadata_raw_moddate,
+             get_osf_mod_date(paper_metadata_raw_file),
              cue = tar_cue("always")),
-  tar_target(CR_metadata_prepool,
-             read_google_csv(CR_metadata_prepool_file,
-                             CR_metadata_prepool_moddate)),
-  
-  # p2_id_key.csv
-  # Links cannonical paper ID to the IDs used by other teams
-  # Does not include COVID papers
-  tar_target(p2_id_key_file,
-             "1E9af5ncbY2gm7CvHjrWVJt4x_F-ZbyS1"),
-  tar_target(p2_id_key_moddate,
-             get_google_mod_date(p2_id_key_file),
-             cue = tar_cue("always")),
-  tar_target(p2_id_key,
-             read_google_csv(p2_id_key_file,
-                             p2_id_key_moddate))
-  
+  tar_target(paper_metadata_raw,
+             load_osf_csv(paper_metadata_raw_file,
+                          paper_metadata_raw_moddate))
 )
 ```
 
-### Original Articles
+### Original Studies
 
 #### Original Study Claims
 
 ```{targets raw-claims}
 list(
-  # tagtable_covid_p1.tsv
-  # Claims extracted from phase 1 COVID papers with canonical paper IDs
-  # Needed in orig to denote covid papers, and for IDs in PR
-  tar_target(tagtable_covid_p1_file,
-             "1lc2P9N2RPXR2YZB6_Zh1E8eXNiRdm50t"),
-  tar_target(tagtable_covid_p1_moddate,
-             get_google_mod_date(tagtable_covid_p1_file),
+  # orig_claims_bushel-complex.csv ----
+  # Indicates bushel claims where the evidence is anything other than a single
+  # statistically significant effect
+  tar_target(orig_claims_bushel_complex_file,
+             "qjgwb"),
+  tar_target(orig_claims_bushel_complex_moddate,
+             get_osf_mod_date(orig_claims_bushel_complex_file),
              cue = tar_cue("always")),
-  tar_target(tagtable_covid_p1,
-             read_google_tsv(tagtable_covid_p1_file,
-                             tagtable_covid_p1_moddate)),
+  tar_target(orig_claims_bushel_complex,
+             load_osf_csv(orig_claims_bushel_complex_file,
+                          orig_claims_bushel_complex_moddate)),
   
-  # stitched_claims.tsv
-  # All bushel claims with canonical paper IDs
-  tar_target(stitched_claims_file,
-             "1v_ci1nEomtT1ZJKaOeJXqauCsmQJG40b"),
-  tar_target(stitched_claims_moddate,
-             get_google_mod_date(stitched_claims_file),
+  # orig_claims_bushel-non-sig.csv ----
+  # Indicates which bushel claims use non-significant evidence.
+  tar_target(orig_claims_bushel_sig_gsheet,
+             "sgqf8"),
+  tar_target(orig_claims_bushel_sig_moddate,
+             get_osf_mod_date(orig_claims_bushel_sig_gsheet),
              cue = tar_cue("always")),
-  tar_target(stitched_claims,
-             read_google_tsv(stitched_claims_file,
-                             stitched_claims_moddate)),
+  tar_target(orig_claims_bushel_sig,
+             load_osf_csv(orig_claims_bushel_sig_gsheet,
+                          orig_claims_bushel_sig_moddate)),
   
-  # P1 claims
-  tar_target(tagtable_p1_file,
-             "1NmhTX53-SWsMpIbgZpm2bWm1SzRq071F"),
-  tar_target(tagtable_p1_moddate,
-             get_google_mod_date(tagtable_p1_file),
-             cue = tar_cue("always")),
-  tar_target(tagtable_p1,
-             read_google_tsv(tagtable_p1_file,
-                             tagtable_p1_moddate)),
-  
-  # P2 claims
-  tar_target(tagtable_p2_CES_file,
-             "1Lr2SXHO261GaifluZSZ1kl7OjjbnHrqe"),
-  tar_target(tagtable_p2_CES_moddate,
-             get_google_mod_date(tagtable_p2_CES_file),
-             cue = tar_cue("always")),
-  tar_target(tagtable_p2_CES,
-             read_google_tsv(tagtable_p2_CES_file,
-                             tagtable_p2_CES_moddate)),
-  
-  # covid_ta2.csv
-  # Claims extracted from phase 1 COVID papers with paper IDs for TA2
-  # Used to reconcile IDs in process reproducibility
-  tar_target(covid_ta2_osf,
-             "yr3w8"),
-  tar_target(covid_ta2_mod_date, 
-             get_osf_mod_date(covid_ta2_osf),
+  # orig_claims_covid_ta2-ids.csv ----
+  # Claims extracted from phase 1 COVID preprints with IDs for human assessment
+  # teams. Used to reconcile IDs for process reproducibility work.
+  tar_target(orig_claims_covid_ta2_file,
+             "q4kca"),
+  tar_target(orig_claims_covid_ta2_moddate, 
+             get_osf_mod_date(orig_claims_covid_ta2_file),
              cue = tar_cue("always")), 
-  tar_target(covid_ta2,
-             load_osf_csv(covid_ta2_osf,
-                          covid_ta2_mod_date)),
+  tar_target(orig_claims_covid_ta2,
+             load_osf_csv(orig_claims_covid_ta2_file,
+                          orig_claims_covid_ta2_moddate)),
   
-  # Complex Bushel
-  tar_target(complex_bushel_gsheet,
-             "1hlcidipFCVV4WlGyCT6cMDFjyQsGA8CCoGUFASuQAhY"),
-  tar_target(complex_bushel_mod_date,
-             get_google_mod_date(complex_bushel_gsheet),
+  # orig_claims_p1-covid.csv ----
+  # Claims extracted from phase 1 COVID preprints with canonical paper IDs.
+  # Preprints were from PsyarXiv, SocArXiv, and medRxiv.
+  tar_target(orig_claims_p1_covid_file,
+             "94dfs"),
+  tar_target(orig_claims_p1_covid_moddate,
+             get_osf_mod_date(orig_claims_p1_covid_file),
              cue = tar_cue("always")),
-  tar_target(complex_bushel,
-             read_google_sheet(complex_bushel_gsheet,
-                               complex_bushel_mod_date))
+  tar_target(orig_claims_p1_covid,
+             load_osf_csv(orig_claims_p1_covid_file,
+                          orig_claims_p1_covid_moddate)),
+  
+  # orig_claims_p1.csv ----
+  # Claims extracted from articles during phase 1 (February 2019 to December
+  # 2020) with canonical paper IDs
+  tar_target(orig_claims_p1_file,
+             "na35f"),
+  tar_target(orig_claims_p1_moddate,
+             get_osf_mod_date(orig_claims_p1_file),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_p1,
+             load_osf_csv(orig_claims_p1_file,
+                          orig_claims_p1_moddate)),
+  
+  # orig_claims_p2-bushel.csv ----
+  # Bushel claims from phase 2 with canonical paper IDs. 
+  # Rather than focusing on an individual claim in a paper, bushel claim 
+  # traces may branch at any point of a paper up until the 
+  # test description (claim 4)
+  tar_target(orig_claims_p2_bushel_file,
+             "9m57d"),
+  tar_target(orig_claims_p2_bushel_moddate,
+             get_osf_mod_date(orig_claims_p2_bushel_file),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_p2_bushel,
+             load_osf_csv(orig_claims_p2_bushel_file,
+                          orig_claims_p2_bushel_moddate)),
+  
+  # orig_claims_p2-single.csv ----
+  # Single-trace claims extracted from articles during phase 2 (January 2021 to
+  # May 2022) with canonical paper IDs
+  tar_target(orig_claims_p2_single_file,
+             "nakxy"),
+  tar_target(orig_claims_p2_single_moddate,
+             get_osf_mod_date(orig_claims_p2_single_file),
+             cue = tar_cue("always")),
+  tar_target(orig_claims_p2_single,
+             load_osf_csv(orig_claims_p2_single_file,
+                          orig_claims_p2_single_moddate))
 )
 ```
 
 #### Original Study Variables
-```{targets raw-original-variables}
+
+```{targets raw-orig}
 list(
-  # orig_statistics_dataset_p1.tsv
-  tar_target(orig_statistics_p1_file,
-             "1TLm9loSU8n3pSRoz0ugekJ6VfSiS792p"),
-  tar_target(orig_statistics_p1_moddate,
-             get_google_mod_date(orig_statistics_p1_file),
+  # orig_effect-size.csv ----
+  # Calculated effect sizes with upper and lower bounds for original studies
+  tar_target(orig_effect_size_file,
+             "4s3de"),
+  tar_target(orig_effect_size_moddate,
+             get_osf_mod_date(orig_effect_size_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_effect_size,
+             load_osf_csv(orig_effect_size_file,
+                          orig_effect_size_moddate)),
+  
+  # orig_n_ser.csv ----
+  # Set of sample sizes calculated via the SER method for power calculations
+  tar_target(orig_n_ser_file,
+             "nhw8q"),
+  tar_target(orig_n_ser_moddate,
+             get_osf_mod_date(orig_n_ser_file),
              cue = tar_cue("always")),
+  tar_target(orig_n_ser,
+             load_osf_csv(orig_n_ser_file,
+                          orig_n_ser_moddate)),
+  
+  # orig_n_traditional.csv ----
+  # Set of sample sizes calculated via traditional methods for 
+  # power calculations
+  tar_target(orig_n_traditional_file,
+             "pbftz"),
+  tar_target(orig_n_traditional_moddate,
+             get_osf_mod_date(orig_n_traditional_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_n_traditional,
+             load_osf_csv(orig_n_traditional_file,
+                          orig_n_traditional_moddate)),
+  
+  # orig_stats_effective.csv ----
+  # Adjusted sample sizes and degrees of freedom for the purpose of 
+  # effect size estimation.
+  tar_target(orig_stats_effect_file,
+             "k5chq"),
+  tar_target(orig_stats_effect_moddate,
+             get_osf_mod_date(orig_stats_effect_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_stats_effect,
+             load_osf_csv(orig_stats_effect_file,
+                          orig_stats_effect_moddate)),
+  
+  # orig_stats_extended.csv ----
+  # Additional statistics for original studies calculated by collaborators at
+  # Tilburg University.
+  tar_target(orig_stats_extended_file,
+             "9fbm8"),
+  tar_target(orig_stats_extended_moddate, 
+             get_osf_mod_date(orig_stats_extended_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_stats_extended,
+             # Delivered data has everything encased in quotes
+             # These are removed before merging into analytic datasets
+             load_osf_csv(orig_stats_extended_file,
+                          orig_stats_extended_moddate)),
+  
+  # orig_stats_p1.csv ----
+  # Statistics from original articles that underwent replication/reproduction 
+  # in phase 1. Each record is a paper that documents the single claim and
+  # inferential test selected for that paper. In Phase 1, the (unique)
+  # inferential test from the (unique) focal claim is coded and stored across
+  # several different workflows, then aggregated into a ground truth version
+  # post QA and merging. Original variables may have been coded in either/both
+  # of main or repro type pipelines, so there are sometimes multiple rows 
+  # per paper.
+  tar_target(orig_stats_p1_file,
+             "fa6ub"),
+  tar_target(orig_stats_p1_moddate,
+             get_osf_mod_date(orig_stats_p1_file),
+             cue = tar_cue("always")),
+  tar_target(orig_stats_p1,
+             load_osf_csv(orig_stats_p1_file,
+                          orig_stats_p1_moddate)),
+  
+  # orig_stats_p2_additional.csv ----
+  # Statistics from original articles that underwent replications/reproductions
+  # in phase 2 that were entered manually later in the process
+  tar_target(orig_stats_p2_additional_file,
+             "y84gf"),
+  tar_target(orig_stats_p2_additional_moddate, 
+             get_osf_mod_date(orig_stats_p2_additional_file),
+             cue = tar_cue("always")), 
   tar_target(
-    orig_statistics_dataset_p1,
-    read_google_tsv(
-      orig_statistics_p1_file,
-      orig_statistics_p1_moddate,
+    orig_stats_p2_additional,
+    load_osf_csv(
+      orig_stats_p2_additional_file,
+      orig_stats_p2_additional_moddate,
       col_types = list(
-        # All load in by default as character, so manually set to double
-        original_statistic_value_reported = col_double(),
-        original_statistic_df1_reported = col_double(),
-        original_statistic_df2_reported = col_double(),
-        # There is a weird data corruption in this field that throws a warning, 
-        # but it gets fixed in the changelog:
-        original_coefficient_value_reported = col_double(),
-        original_coefficient_se_reported = col_double(),
-        original_effect_size_value_reported = col_double(),
-        original_analytic_sample_size_value_reference = col_double(),
-        original_statistic_value_reference = col_double(),
-        original_statistic_df1_reference = col_double(),
-        original_statistic_df2_reference = col_double(),
-        original_coefficient_se_reference = col_double(),
-        original_p_value_value_reference = col_double(),
-        original_effect_size_value_reference = col_double(),
-        rr_threshold_analytic_sample_size = col_double(),
-        rr_stage1_analytic_sample_size = col_double(),
-        rr_stage2_analytic_sample_size = col_double(),
-        original_total_model_parameters = col_double()
+        # All entries "F", which should load as char, not logical
+        original_statistic_type_reported = col_character(),
+        original_statistic_analysis_type_statsteam = col_character()
       )
     )
   ),
   
-  # orig_statistics_manual_dataset.tsv
-  tar_target(orig_statistics_manual_file,
-             "1B8-fTy_wpCcwHJAGt8FZKIuIoeHeE0T6"),
-  tar_target(orig_statistics_manual_moddate,
-             get_google_mod_date(orig_statistics_manual_file),
+  # orig_stats_p2_form-outputs.csv ----
+  # Statistics from original articles that underwent replications/reproductions
+  # in phase 2 that were entered via google form.
+  tar_target(orig_stats_p2_form_file,
+             "6qg4a"),
+  tar_target(orig_stats_p2_form_moddate,
+             get_osf_mod_date(orig_stats_p2_form_file),
+             cue = tar_cue("always")), 
+  tar_target(orig_stats_p2_form,
+             load_osf_csv(orig_stats_p2_form_file,
+                          orig_stats_p2_form_moddate)),
+  
+  # orig_stats_p2_manual-entry.csv ----
+  # Statistics from original articles that underwent replications in phase 2
+  # that were entered manually rather than through the other workflows.
+  tar_target(orig_stats_p2_manual_file,
+             "dusqm"),
+  tar_target(orig_stats_p2_manual_moddate,
+             get_osf_mod_date(orig_stats_p2_manual_file),
              cue = tar_cue("always")),
   tar_target(
-    orig_statistics_manual_data_entry,
-    read_google_tsv(
-      orig_statistics_manual_file,
-      orig_statistics_manual_moddate,
+    orig_stats_p2_manual,
+    load_osf_csv(
+      orig_stats_p2_manual_file,
+      orig_stats_p2_manual_moddate,
       col_types = list(
-        # originally: logical
+        # Empty columns that should load as char, not logical
         original_statistic_type_reported = col_character(),
         original_statistic_type_reference = col_character()
       )
     )
   ),
   
-  # original_inftest_dataset.tsv
-  tar_target(original_inftest_file,
-             "1goGxpXYcpCWNxBa1HE1oEEifVFlUOix7"),
-  tar_target(original_inftest_moddate,
-             get_google_mod_date(original_inftest_file),
+  # orig_stats_p2_power-outputs.csv ----
+  # Statistics from original articles that underwent replications in phase 2
+  # that were gathered from power analysis outputs
+  tar_target(orig_stats_p2_pwr_file,
+             "6cweg"),
+  tar_target(orig_stats_p2_pwr_moddate,
+             get_osf_mod_date(orig_stats_p2_pwr_file),
              cue = tar_cue("always")),
-  tar_target(original_inftest_dataset,
-             read_google_tsv(original_inftest_file,
-                             original_inftest_moddate)),
+  tar_target(orig_stats_p2_pwr,
+             load_osf_csv(orig_stats_p2_pwr_file,
+                          orig_stats_p2_pwr_moddate)),
   
-  # SCORE-P2-103: Original variables coding form (Responses)
-  tar_target(orig_vars_qa_gsheet,
-             "1_rgG3r318tpsakc8wSA0dMAYJ--pkiybVq5s9dfek6M"),
-  tar_target(orig_vars_qa_mod_date,
-             get_google_mod_date(orig_vars_qa_gsheet),
-             cue = tar_cue("always")), 
-  tar_target(orig_vars_qa,
-             read_google_sheet(orig_vars_qa_gsheet,
-                               orig_vars_qa_mod_date)),
-  
-  # Added SCORE variables - Gsheet
-  tar_target(effectsize_gsheet,
-             "1tS_M7RcyWIkXlDf13TqSfGdvWXBL_m9lgcV8ML34Jdo"),
-  tar_target(effectsize_moddate,
-             get_google_mod_date(effectsize_gsheet),
+  # orig_prereg-indicated.csv ----
+  # Indicates whether the original study paper mentions preregistration
+  tar_target(orig_prereg_indicated_file,
+             "2k34q"),
+  tar_target(orig_prereg_indicated_moddate,
+             get_osf_mod_date(orig_prereg_indicated_file),
              cue = tar_cue("always")),
-  
-  # Added SCORE variables - Original
-  tar_target(effectsize_orig,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "original")),
-  
-  # orig_statistics_output_p2.tsv
-  tar_target(orig_statistics_output_p2_osf,
-             "hk63r"),
-  tar_target(orig_statistics_output_p2_mod_date, 
-             get_osf_mod_date(orig_statistics_output_p2_osf),
-             cue = tar_cue("always")), 
-  tar_target(
-    orig_statistics_output_p2,
-    load_osf_tsv(orig_statistics_output_p2_osf,
-                 orig_statistics_output_p2_mod_date,
-                 quote = "\\\"")
-  ),
-  
-  # Additional Cases - Gsheet
-  tar_target(repli_cases_gsheet,
-             "1y57RNOH96x8dXYc8gxBbCQOmuaMVOoaD0KgJYfoITmg"),
-  tar_target(repli_cases_moddate,
-             get_google_mod_date(repli_cases_gsheet),
-             cue = tar_cue("always")),
-  
-  # Additional Cases - Original Variables
-  tar_target(orig_cases,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "orig_dataset"))
+  tar_target(orig_prereg_indicated,
+             load_osf_csv(orig_prereg_indicated_file,
+                          orig_prereg_indicated_moddate,
+                          col_types = c("clcd")))
 )
 ```
 
-### Replications and Reproductions
+### Replication Studies
 
-#### Replications
-
-```{targets replications}
+```{targets raw-repli}
 list(
-  # File: SCORE-P2-081: Variable form - replications (Responses)
-  tar_target(replication_qa_gsheet,
-             "1Cs7iFLA29JwVDfp8DY0ZIaTlRTTnK0KsFSudLDHxjFQ"),
-  tar_target(replication_qa_mod_date,
-             get_google_mod_date(replication_qa_gsheet)),
-  tar_target(replication_qa_raw,
-             read_google_sheet(replication_qa_gsheet,
-                               replication_qa_mod_date),
+  # repli_effective.csv ----
+  # Adjusted sample sizes and degrees of freedom for the purpose of 
+  # effect size estimation.
+  tar_target(repli_effective_file,
+             "mhf8d"),
+  tar_target(repli_effective_moddate,
+             get_osf_mod_date(repli_effective_file),
              cue = tar_cue("always")),
-  
-  # Additional cases - replications
-  tar_target(replication_cases,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "repli_export")),
+  tar_target(repli_effective,
+             load_osf_csv(repli_effective_file,
+                          repli_effective_moddate)),
 
-  # Replication case exclusions
-  tar_target(repli_case_exclusions_gsheet,
-             "17cyjatTcqN36_vZ_IvWtcr4n2Ep-KlKJ-PS3K-q6wdU"),
-  tar_target(repli_case_exclusions_mod_date,
-             get_google_mod_date(repli_case_exclusions_gsheet),
-             cue = tar_cue("always")), 
-  tar_target(repli_case_exclusions,
-             read_google_sheet(repli_case_exclusions_gsheet,
-                               repli_case_exclusions_mod_date)),
-
-  # rr_outcomes_dataset_p1.tsv
-  tar_target(rr_outcomes_dataset_p1_file,
-             "113CSsObKagvQToj-inv4bO3KaS5zif6D"),
-  tar_target(rr_outcomes_dataset_p1_moddate,
-             get_google_mod_date(rr_outcomes_dataset_p1_file),
+  # repli_effect-size.csv ----
+  # Calculated effect sizes with upper and lower bounds for replication studies
+  tar_target(repli_effect_size_file,
+             "yxw5t"),
+  tar_target(repli_effect_size_moddate,
+             get_osf_mod_date(repli_effect_size_file),
              cue = tar_cue("always")),
-  tar_target(rr_outcomes_dataset_p1,
-             read_google_tsv(rr_outcomes_dataset_p1_file,
-                             rr_outcomes_dataset_p1_moddate)),
+  tar_target(repli_effect_size,
+             load_osf_csv(repli_effect_size_file,
+                          repli_effect_size_moddate)),
   
-  # Added SCORE variables - Replication
-  tar_target(effectsize_repli,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "replication")),
-  
-  # rr_statistics_output_p2.txt
-  tar_target(rr_statistics_output_p2_osf,
-             "6u7hc"),
-  tar_target(rr_statistics_output_p2_mod_date, 
-             get_osf_mod_date(rr_statistics_output_p2_osf),
+  # repli_extended.csv ----
+  # Additional statistics for replication studies calculated by collaborators 
+  # at Tilburg University.
+  tar_target(repli_extended_file,
+             "e9v5x"),
+  tar_target(repli_extended_moddate, 
+             get_osf_mod_date(repli_extended_file),
              cue = tar_cue("always")), 
-  tar_target(
-    rr_statistics_output_p2,
-    load_rr_statistics_output_p2(rr_statistics_output_p2_osf,
-                                 rr_statistics_output_p2_mod_date)
-  )
+  tar_target(repli_extended,
+             load_osf_csv(repli_extended_file,
+                          repli_extended_moddate)),
+  
+  # repli_stats_p1.csv ----
+  # Statistics from replication studies in phase 1.
+  tar_target(repli_stats_p1_file,
+             "cyr63"),
+  tar_target(repli_stats_p1_moddate,
+             get_osf_mod_date(repli_stats_p1_file),
+             cue = tar_cue("always")),
+  tar_target(repli_stats_p1,
+             load_osf_csv(repli_stats_p1_file,
+                          repli_stats_p1_moddate)),
+  
+  # repli_stats_p2_additional.csv ----
+  # Statistics from replication studies in phase 2 that were entered 
+  # manually later in the process
+  tar_target(repli_stats_p2_additional_file,
+             "6jhy7"),
+  tar_target(repli_stats_p2_additional_moddate,
+             get_osf_mod_date(repli_stats_p2_additional_file),
+             cue = tar_cue("always")),
+  tar_target(repli_stats_p2_additional,
+             load_osf_csv(repli_stats_p2_additional_file,
+                          repli_stats_p2_additional_moddate)),
+  
+  # repli_stats_p2.csv ----
+  # Statistics from replication studies in phase 2 that were entered via 
+  # google form.
+  tar_target(repli_stats_p2_file,
+             "7xfpq"),
+  tar_target(repli_stats_p2_moddate,
+             get_osf_mod_date(repli_stats_p2_file),
+             cue = tar_cue("always")),
+  tar_target(repli_stats_p2,
+             load_osf_csv(repli_stats_p2_file,
+                          repli_stats_p2_moddate))
 )
 ```
 
-#### Reproductions
+### Reproduction Studies
 
-```{targets reproductions}
+```{targets raw-repro}
 list(
-  # Additional cases - reproductions
-  tar_target(reproduction_cases,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "repro_export")),
+  # repro_prereg-check.csv ----
+  # Researcher check-in information for reproduction registrations
+  tar_target(repro_prereg_check_file,
+             "7kydz"),
+  tar_target(repro_prereg_check_moddate,
+             get_osf_mod_date(repro_prereg_check_file),
+             cue = tar_cue("always")),
+  tar_target(repro_prereg_check,
+             load_osf_csv(repro_prereg_check_file,
+                               repro_prereg_check_moddate)),
   
-  # File: SCORE-P2-113: Variable form - reproductions (Responses)
-  tar_target(reproduction_qa_gsheet,
-             "1vCVHLymiT-IcVGvWH_a3cJ4dfhjrf8lvmi4qe24LuZs"),
-  tar_target(reproduction_qa_moddate,
-             get_google_mod_date(reproduction_qa_gsheet),
+  # repro_stats_additional.csv ----
+  # Statistics from reproduction studies that were entered later in the 
+  # process rather than through the google form
+  tar_target(repro_stats_additional_file,
+             "sw49d"),
+  tar_target(repro_stats_additional_moddate,
+             get_osf_mod_date(repro_stats_additional_file),
              cue = tar_cue("always")),
-  tar_target(reproduction_qa,
-             read_google_sheet(reproduction_qa_gsheet,
-                               reproduction_qa_moddate),
-             cue = tar_cue("always")),
+  tar_target(repro_stats_additional,
+             load_osf_csv(repro_stats_additional_file,
+                          repro_stats_additional_moddate)),
   
-  # File: SCORE-P2-097: Prereg check-in form (Reproduction) (Responses)
-  tar_target(prereg_checkin_repro_gsheet,
-             "11UCF2cuoBwLfJrQZC7AoWqG7EjCBoxV_GC-aFMsy6u4"),
-  tar_target(prereg_checkin_repro_moddate,
-             get_google_mod_date(prereg_checkin_repro_gsheet),
+  # repro_stats.csv ----
+  # Statistics from reproduction studies that were entered via google form.
+  tar_target(repro_stats_file,
+             "h82yc"),
+  tar_target(repro_stats_moddate,
+             get_osf_mod_date(repro_stats_file),
              cue = tar_cue("always")),
-  tar_target(prereg_checkin_repro,
-             read_google_sheet(prereg_checkin_repro_gsheet,
-                               prereg_checkin_repro_moddate),
-             cue = tar_cue("always")),
+  tar_target(repro_stats,
+             load_osf_csv(repro_stats_file,
+                          repro_stats_moddate)),
   
-  # File: repro_vor
-  # Reproduction Version of Record
-  tar_target(repro_vor_gsheet,
-             "1jxgJQDIiKOOodtZR9bTLoBxZya4KlGexhwi2SekbBU0"),
+  # repro_vor.csv ----
+  # Source of the reproduction version of record in cases with multiple
+  # reproductions for the same claim
+  tar_target(repro_vor_file,
+             "k8e7w"),
   tar_target(repro_vor_moddate,
-             get_google_mod_date(repro_vor_gsheet),
+             get_osf_mod_date(repro_vor_file),
              cue = tar_cue("always")),
   tar_target(repro_vor,
-             read_google_sheet(repro_vor_gsheet,
-                               repro_vor_moddate,
-                               sheet = "repro_version_of_record"))
+             load_osf_csv(repro_vor_file,
+                          repro_vor_moddate))
 )
 ```
-
-#### Outcomes
-
-```{targets raw-score}
-list(
-  # Added SCORE variables - Outcomes
-  tar_target(effectsize_outcome,
-             read_google_sheet(effectsize_gsheet,
-                               effectsize_moddate,
-                               sheet = "outcomes"))
-)
-```
-
-<!-- ### Helpers -->
-
-<!-- The `valid_ids` object is used to check that files being loaded in the following sections only use valid IDs. Also load in `rr_projects.csv` here for convenience since it is used to generate the list of valid IDs.  -->
-
-<!-- The `id_key` object is used to match up the canonical paper IDs with the IDs assigned to papers for TA2 and TA3.  -->
-
-<!-- ```{targets helpers} -->
-<!-- list( -->
-
-
-
-<!--   # tar_target(valid_ids, -->
-<!--   #            create_id_list(status, -->
-<!--   #                           tagtable_covid_p1, -->
-<!--   #                           finalized_claim4_table, -->
-<!--   #                           rr_projects)), -->
-<!--   # Temp rr project list -->
-
-<!--   #  -->
-<!--   # tar_target(id_key, -->
-<!--   #            create_id_key(covid_ta2, -->
-<!--   #                         tagtable_covid_p1, -->
-<!--   #                         status, -->
-<!--   #                         p2_id_key, -->
-<!--   #                         SCORE_CVD2, -->
-<!--   #                         stitched_claims, -->
-<!--   #                         replication_qa, -->
-<!--   #                         reproduction_qa)) -->
-<!-- ) -->
-<!-- ``` -->
 
 ### Process Reproducibility
 
 ```{targets raw-pr}
 list(
-  # COS SCORE Data Google Drive - raw/process_reproducibility ----
-  # https://drive.google.com/drive/folders/1y2X2jFBH7t6wDhviEqI85rbniYtm33AK
-  
-  # Original Author Outreach (OA_outreach_PR_coding)
-  tar_target(oa_sheet,
-             "1ke9auRcjFeFscpH53zM98dV6_ObpKckzX-YaXRzkuIw",
+  # orig-material_author-outreach.csv ----
+  # Original study data and code availability based on author outreach efforts
+  tar_target(materials_author_outreach_file,
+             "uxj48"),
+  tar_target(materials_author_outreach_moddate,
+             get_osf_mod_date(materials_author_outreach_file),
              cue = tar_cue("always")),
+  tar_target(materials_author_outreach,
+             load_osf_csv(materials_author_outreach_file,
+                          materials_author_outreach_moddate)),
   
-  # Process Reproducibility
-  tar_target(pr_gsheet,
-             "1E8LvpcuoUyVZV-EDqVPW_H1Cd-4OJCuR3Kl8HMJMVtI",
+  # orig-material_availability.csv ----
+  # Original study data and code availability determinations from a 
+  # variety of sources
+  tar_target(materials_availability_file,
+             "dz5cs"),
+  tar_target(materials_availability_moddate,
+             get_osf_mod_date(materials_availability_file),
              cue = tar_cue("always")),
-  tar_target(pr_data_raw,
-             load_pr_data(pr_gsheet))
+  tar_target(materials_availability,
+             load_osf_csv(materials_availability_file,
+                          materials_availability_moddate))
 )
 ```
 
-### Auxiliary Datasets
+### Project Management
 
-```{targets aux-data}
+Some information comes from datasets used in project management.
+
+```{targets raw-project}
 list(
-  # Non-significant bushels
-  # Coding out significant vs non-significant bushel claims
-  tar_target(non_significant_bushels_gsheet,
-             "1C89wRO_dZ1_qq9Ow0RpaWK2jWteloo9zPS9pW9VdbP0"),
-  tar_target(non_significant_bushels_moddate,
-             get_google_mod_date(non_significant_bushels_gsheet),
+  # score_paper_id-key.csv ----
+  # Links canonical paper ID to the IDs used by other teams. 
+  # Does not include COVID papers
+  tar_target(score_paper_id_key_file,
+             "qgdwh"),
+  tar_target(score_paper_id_key_moddate,
+             get_osf_mod_date(score_paper_id_key_file),
              cue = tar_cue("always")),
-  tar_target(non_significant_bushels,
-             read_google_sheet(non_significant_bushels_gsheet,
-                               non_significant_bushels_moddate,
-                               sheet = "claims")),
+  tar_target(score_paper_id_key,
+             load_osf_csv(score_paper_id_key_file,
+                          score_paper_id_key_moddate)),
   
-  # RR sourced 
-  # All replication and reproduction projects that were matched with a team. 
-  tar_target(rr_sourced_gsheet,
-             "1EyUGgw8uGaCIP9nLXKh3IwqqU4DoAM4ZV6K5i1dOTHo"),
-  tar_target(rr_sourced_moddate,
-             get_google_mod_date(rr_sourced_gsheet),
+  # score_paper_status.csv ----
+  # Status of articles at each stage in SCORE. 
+  # Does not contain COVID preprints.
+  tar_target(score_paper_status_file,
+             "smpd6"),
+  tar_target(score_paper_status_moddate,
+             get_osf_mod_date(score_paper_status_file),
              cue = tar_cue("always")),
-  tar_target(rr_sourced,
-             read_google_sheet(rr_sourced_gsheet,
-                               rr_sourced_moddate,
-                               sheet = "sourced",
-                               drop_cols = "indicator")),
+  tar_target(score_paper_status,
+             load_osf_csv(score_paper_status_file,
+                          score_paper_status_moddate)),
   
-  # Never sourced
+  # score_rr-projects_dates.csv ----
+  # Start and end dates of replication/reproduction projects
+  tar_target(score_rr_dates_file,
+             "6tpf7"),
+  tar_target(score_rr_dates_moddate,
+             get_osf_mod_date(score_rr_dates_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_dates,
+             load_osf_csv(score_rr_dates_file,
+                          score_rr_dates_moddate,
+                          col_types = c("cccDDD"))),
+  
+  # score_rr-projects_not-sourced.csv ----
   # Reasons why non-matched papers were not plausible for replication
-  tar_target(never_sourced_gsheet,
-             "1OVfv_dDsfAeBOtx9-IaTNgPJv5-OFaHS4cK45aYsBpo"),
-  tar_target(never_sourced_moddate,
-             get_google_mod_date(never_sourced_gsheet),
+  tar_target(score_rr_not_sourced_file,
+             "3hxzj"),
+  tar_target(score_rr_not_sourced_moddate,
+             get_osf_mod_date(score_rr_not_sourced_file),
              cue = tar_cue("always")),
-  tar_target(never_sourced,
-             read_google_sheet(never_sourced_gsheet,
-                               never_sourced_moddate,
-                               sheet = "never_sourced",
-                               drop_cols = c("paper_link", "confidence"))),
+  tar_target(score_rr_not_sourced,
+             load_osf_csv(score_rr_not_sourced_file,
+                          score_rr_not_sourced_moddate)),
   
-  # Alternative Power Coding
-  tar_target(ser_vs_traditional_gsheet,
-             "1hGT5cEnadMVocvu-9LnfnFfZRZadYCjjPiFy41zwxWw"),
-  tar_target(ser_vs_traditional_moddate,
-             get_google_mod_date(ser_vs_traditional_gsheet),
+  # score_rr-projects_osf-ids_add.csv ----
+  # Links to replication and reproduction OSF projects and components for
+  # additional projects not in the original tracking file.
+  tar_target(score_rr_osf_ids_add_file,
+             "et6ng"),
+  tar_target(score_rr_osf_ids_add_moddate,
+             get_osf_mod_date(score_rr_osf_ids_add_file),
              cue = tar_cue("always")),
+  tar_target(score_rr_osf_ids_add,
+             load_osf_csv(score_rr_osf_ids_add_file,
+                          score_rr_osf_ids_add_moddate)),
   
-  ## Traditional
-  tar_target(traditional_power,
-             read_google_sheet(ser_vs_traditional_gsheet,
-                               ser_vs_traditional_moddate,
-                               sheet = "traditional")),
-  ## SER
-  tar_target(ser_power,
-             read_google_sheet(ser_vs_traditional_gsheet,
-                               ser_vs_traditional_moddate,
-                               sheet = "ser")),
-  
-  # Preregistration Indicators
-  # Whether the original paper mentions preregistration
-  tar_target(prereg_indicators_file,
-             "1fOO4EoOkM8uswzgFczBlArsHbrf2KFeE"),
-  tar_target(prereg_indicators_moddate,
-             get_google_mod_date(prereg_indicators_file),
+  # score_rr-projects_osf-ids_raw.csv ----
+  # Links to replication and reproduction OSF projects and components.
+  tar_target(score_rr_osf_ids_raw_file,
+             "7nmgy"),
+  tar_target(score_rr_osf_ids_raw_moddate,
+             get_osf_mod_date(score_rr_osf_ids_raw_file),
              cue = tar_cue("always")),
-  tar_target(prereg_indicators,
-             read_google_csv(prereg_indicators_file,
-                             prereg_indicators_moddate,
-                             col_types = c("clcd"))),
+  tar_target(score_rr_osf_ids_raw,
+             load_osf_csv(score_rr_osf_ids_raw_file,
+                          score_rr_osf_ids_raw_moddate)),
   
-  # Summary of methodological approaches in original studies.
-  # llm_method_data.csv
+  # score_rr-projects_sourced.csv ----
+  # All replication and reproduction projects that were matched with a team. 
+  tar_target(score_rr_sourced_file,
+             "x2cbe"),
+  tar_target(score_rr_sourced_moddate,
+             get_osf_mod_date(score_rr_sourced_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_sourced,
+             load_osf_csv(score_rr_sourced_file,
+                          score_rr_sourced_moddate)),
+
+  # score_rr-project_status.csv ----
+  # Status tracking and other internal documentation for replication and
+  # reproduction studies
+  tar_target(score_rr_status_file,
+             "khpbu"),
+  tar_target(score_rr_status_moddate,
+             get_osf_mod_date(score_rr_status_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_status,
+             load_osf_csv(score_rr_status_file,
+                          score_rr_status_moddate)),
+  
+  # score_rr-project_types.csv ----
+  # Internal project types for replication and reproduction studies. 
+  tar_target(score_rr_types_file,
+             "dx759"),
+  tar_target(score_rr_types_moddate,
+             get_osf_mod_date(score_rr_types_file),
+             cue = tar_cue("always")),
+  tar_target(score_rr_types_raw,
+             load_osf_csv(score_rr_types_file,
+                          score_rr_types_moddate))
+)
+```
+
+### Correlations
+
+```{targets raw-corr}
+list(
+  # corr_orig-significance_p1.csv ----
+  # Original study claims significance for phase 1 claims
+  tar_target(stat_sig_p1_file,
+             "ftxyn"),
+  tar_target(stat_sig_p1_moddate,
+             get_osf_mod_date(stat_sig_p1_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig_p1,
+             load_osf_csv(stat_sig_p1_file,
+                          stat_sig_p1_moddate)),
+  
+  # corr_orig-significance_p2.csv ----
+  # Original study claims significance for phase 2 claims
+  tar_target(stat_sig_p2_file,
+             "kqp2w"),
+  tar_target(stat_sig_p2_moddate,
+             get_osf_mod_date(stat_sig_p2_file),
+             cue = tar_cue("always")),
+  tar_target(stat_sig_p2,
+             load_osf_csv(stat_sig_p2_file,
+                          stat_sig_p2_moddate))
+)
+```
+
+
+## Change Logs
+
+If changes ever needed to be made to any dataset for any reason, these changes were recorded in a change log. Change logs record who requested the change, when the change was implemented, the key ID of the record to change, the column the change was in, what the change was to, what data was recorded there previously, and the reasoning behind the change.
+
+```{targets change-logs}
+list(
+  # changes_journal_metadata.csv ----
+  # Change log for journal metadata
+  tar_target(changes_journal_metadata_file,
+             "c2vdn"),
+  tar_target(changes_journal_metadata_moddate,
+             get_osf_mod_date(changes_journal_metadata_file),
+             cue = tar_cue("always")),
+  tar_target(changes_journal_metadata,
+             load_osf_csv(changes_journal_metadata_file,
+                          changes_journal_metadata_moddate)),
+  
+  # changes_orig_merged.csv ----
+  # Change log for merged original study variables
+  tar_target(changes_orig_merged_file,
+             "4azsd"),
+  tar_target(changes_orig_merged_moddate,
+             get_osf_mod_date(changes_orig_merged_file),
+             cue = tar_cue("always")),
+  tar_target(changes_orig_merged,
+             load_osf_csv(changes_orig_merged_file,
+                          changes_orig_merged_moddate)),
+  
+  # changes_orig_stats-extended.csv ----
+  # Change log for additional statistics for original studies
+  tar_target(changes_orig_stats_extended_file,
+             "vz2ck"),
+  tar_target(changes_orig_stats_extended_moddate,
+             get_osf_mod_date(changes_orig_stats_extended_file),
+             cue = tar_cue("always")),
+  tar_target(changes_orig_stats_extended,
+             load_osf_csv(changes_orig_stats_extended_file,
+                          changes_orig_stats_extended_moddate)),
+  
+  # changes_pr_data-form.csv ----
+  # Change log for process reproducibility variables
+  tar_target(changes_pr_data_form_file,
+             "pcyjg"),
+  tar_target(changes_pr_data_form_moddate,
+             get_osf_mod_date(changes_pr_data_form_file),
+             cue = tar_cue("always")),
+  tar_target(changes_pr_data_form,
+             load_osf_csv(changes_pr_data_form_file,
+                          changes_pr_data_form_moddate)),
+  
+  # changes_pr_outreach.csv ----
+  # Change log for original study author outreach variables
+  tar_target(changes_author_outreach_file,
+             "bhpuv"),
+  tar_target(changes_author_outreach_moddate,
+             get_osf_mod_date(changes_author_outreach_file),
+             cue = tar_cue("always")),
+  tar_target(changes_author_outreach,
+             load_osf_csv(changes_author_outreach_file,
+                          changes_author_outreach_moddate)),
+  
+  # changes_repli_merged.csv ----
+  # Change log for merged replication study variables
+  tar_target(changes_repli_merged_file,
+             "uq7pd"),
+  tar_target(changes_repli_merged_moddate,
+             get_osf_mod_date(changes_repli_merged_file),
+             cue = tar_cue("always")),
+  tar_target(changes_repli_merged,
+             load_osf_csv(changes_repli_merged_file,
+                          changes_repli_merged_moddate)),
+  
+  # changes_repro_merged.csv ----
+  # Change log for merged reproduction study variables
+  tar_target(changes_repro_merged_file,
+             "hs4v7"),
+  tar_target(changes_repro_merged_moddate,
+             get_osf_mod_date(changes_repro_merged_file),
+             cue = tar_cue("always")),
+  tar_target(changes_repro_merged,
+             load_osf_csv(changes_repro_merged_file,
+                          changes_repro_merged_moddate)),
+  
+  # changes_repro_summary.csv ----
+  # Change log for reproduction summary variables
+  tar_target(changes_repro_summary_file,
+             "e498m"),
+  tar_target(changes_repro_summary_moddate,
+             get_osf_mod_date(changes_repro_summary_file),
+             cue = tar_cue("always")),
+  tar_target(changes_repro_summary,
+             load_osf_csv(changes_repro_summary_file,
+                          changes_repro_summary_moddate)),
+  
+  # changes_score_rr_types.csv ----
+  # Change log for score internal project types
+  tar_target(changes_score_rr_types_file,
+             "xdny8"),
+  tar_target(changes_score_rr_types_moddate,
+             get_osf_mod_date(changes_score_rr_types_file),
+             cue = tar_cue("always")),
+  tar_target(changes_score_rr_types,
+             load_osf_csv(changes_score_rr_types_file,
+                          changes_score_rr_types_moddate))
+)
+```
+
+## Intermediate Data
+
+These are data at various stages of processing between the raw data and analysis-ready data. 
+
+### Project Management
+
+```{targets int-project}
+list(
+  # Updated replication/reproduction project types
+  tar_target(score_rr_types,
+             update_attempts_minted(score_rr_types_raw,
+                                    changes_score_rr_types))
+)
+```
+
+### Journal Metadata
+
+```{targets int-journal}
+list(
+  # Update and transform journal metadata
+  tar_target(journal_updated,
+             transform_update_journal(journal_metadata_raw,
+                                      changes_journal_metadata)),
+  
+  # Join journal metadata and policy information
+  tar_target(journal_metadata,
+             left_join(journal_updated,
+                       journal_top_factor,
+                       by = join_by(publication_standard == Journal)))
+)
+```
+
+### Paper Metadata
+
+```{targets int-paper}
+list(
+  # Metadata for covid papers was collected separately from other papers
+  # Reconcile differences for merging
+  tar_target(papers_covid_transformed,
+             transform_covid_metadata(paper_metadata_covid)),
+  
+  tar_target(papers_transformed,
+             transform_paper_metadata(paper_metadata_raw, 
+                                      score_paper_status))
+)
+```
+
+### Original Studies
+
+```{targets int-orig}
+list(
+  # Transformed and merged raw original statistics data
+  tar_target(orig_merged,
+             merge_orig_stats(orig_stats_p1,
+                              orig_claims_p1_covid,
+                              orig_stats_p2_pwr,
+                              orig_stats_p2_manual,
+                              orig_stats_p2_form,
+                              orig_stats_p2_additional)),
+  
+  # Merged original statistics updated with changes
+  tar_target(orig_updated,
+             update_orig_stats(orig_merged,
+                               changes_orig_merged)),
+  
+  # Extended original study statistics updated with changes
+  tar_target(orig_extended_updated,
+             update_orig_extended(orig_stats_extended,
+                                  changes_orig_stats_extended)),
+  
+  # Original study statistics, merged and transformed into a semi-final form
+  tar_target(orig_dataset,
+             transform_orig_updated(orig_updated,
+                                    orig_extended_updated))
+)
+```
+
+### Replication Studies
+
+```{targets int-repli}
+list(
+  # Transformed replication form data
+  tar_target(repli_stats_p2_transformed,
+             transform_repli_stats_p2(repli_stats_p2, 
+                                      score_rr_types)),
+  
+  # Merged replication study variables
+  tar_target(repli_merged,
+             merge_repli_input(repli_stats_p1,
+                               repli_stats_p2_transformed,
+                               repli_stats_p2_additional,
+                               repli_effective)),
+  
+  # Replication study statistics, updated and transformed 
+  # into a semi-final form
+  tar_target(repli_dataset,
+             update_transform_repli(repli_merged, 
+                                    changes_repli_merged))
+)
+```
+
+### Reproduction Studies
+
+```{targets int-repro}
+list(
+  # Transformed data from forms
+  tar_target(repro_data_entry,
+             transform_repro_input(repro_stats)),
+  
+  # Transformed reproduction preregistration check-ins
+  tar_target(rr_confrontations_repro_claim,
+             transform_repro_prereg(repro_prereg_check)),
+  
+  # Merged reproduction study statistics
+  tar_target(repro_merged,
+             merge_repro(repro_data_entry,
+                         repro_stats_additional,
+                         repro_vor)),
+  
+  # Updated and transformed reproduction study statistics
+  tar_target(repro_dataset,
+             update_repro(repro_merged,
+                          changes_repro_merged)),
+  
+  # Reproduction study summary variables
+  tar_target(repro_summary_raw,
+             create_repro_summary(repro_dataset,
+                                  orig_dataset,
+                                  rr_confrontations_repro_claim)),
+  
+  # Reproduction study summary variables updated with new categories
+  tar_target(repro_summary,
+             update_repro_summary(repro_summary_raw,
+                                  changes_repro_summary))
+)
+```
+
+
+### Process Reproducibility
+
+```{targets int-pr}
+list(
+  # Updated original author outreach 
+  tar_target(oa_outreach,
+             update_oa(materials_author_outreach,
+                       changes_author_outreach)),
+  
+  # Transformed process reproducibility 
+  tar_target(pr_transformed,
+             transform_pr(materials_availability,
+                          orig_claims_covid_ta2,
+                          orig_claims_p1_covid)),
+  
+  # Updated process reproducibility 
+  tar_target(pr_updated,
+             update_pr(pr_transformed,
+                       changes_pr_data_form))
+  
+)
+```
+
+## Analysis-ready Data
+
+Datasets that were used in papers produced during the SCORE project.
+
+### Replication and Reproduction Papers
+
+```{targets analytic-repli-repro}
+list(
+  # claims_bushel_ids.csv ----
+  # Key IDs for bushel claims, where multiple inferential tests were evaluated 
+  # within a single study
+  # https://osf.io/dtzx4/files/kxr7p
+  tar_target(claims_bushel_ids,
+             select(orig_claims_p2_bushel,
+                    paper_id,
+                    claim4_id)),
+  
+  # claims_non_signigicant_bushels.csv ----
+  # Which bushel claims use non-significant evidence
+  # https://osf.io/dtzx4/files/4az3m
+  tar_target(claims_non_significant_bushels,
+             select(orig_claims_bushel_sig,
+                    paper_id,
+                    claim4_id,
+                    coded_stat_evidence,
+                    nonsig)),
+  
+  # claims_ser_power.csv ----
+  # Set of sample sizes calculated via the SER method
+  # https://osf.io/dtzx4/files/xscnj
+  tar_target(claims_ser_power,
+             select(orig_n_ser,
+                    claim_id = unique_claim_id,
+                    rr_sample_size_50_for_100 = threshold,
+                    rr_sample_size_90_for_75 = s1,
+                    rr_sample_size_90_for_50 = s2)),
+  
+  # claims_traditional_power.csv ----
+  # Set of sample sizes calculated via traditional methods
+  # https://osf.io/dtzx4/files/dkqns
+  tar_target(claims_traditional_power,
+             select(
+               orig_n_traditional,
+               claim_id,
+               rr_sample_size_50_for_100 = rr_threshold_analytic_sample_size,
+               rr_sample_size_90_for_75 = rr_stage1_analytic_sample_size,
+               rr_sample_size_90_for_50 = rr_stage2_analytic_sample_size
+              )),
+  
+  # extracted_claims.csv ----
+  # Claims extracted from original studies
+  # https://osf.io/dtzx4/files/j2fp5
+  tar_target(extracted_claims,
+             merge_claims(orig_claims_p1,
+                          orig_claims_p1_covid,
+                          orig_claims_p2_single,
+                          orig_claims_p2_bushel,
+                          orig_claims_bushel_complex,
+                          score_paper_status,
+                          papers_covid_transformed)),
+  
+  # llm_method_data.csv ----
+  # Summarizes the prevalence and scoring of various  
+  # statistical/methodological categories across 173 research abstracts.
   tar_target(llm_method_data_file,
              "vxysn"),
   tar_target(llm_method_data_moddate,
@@ -666,8 +1048,9 @@ list(
              load_osf_csv(llm_method_data_file,
                           llm_method_data_moddate)),
   
-  # Summary of research questions in original studies
-  # llm_research_question_table.csv
+  # llm_research_question_table.csv ----
+  # This dataset summarizes the research questions across 173 
+  # research abstracts.
   tar_target(llm_research_question_table_file,
              "mg794"),
   tar_target(llm_research_question_table_moddate,
@@ -676,693 +1059,54 @@ list(
              load_osf_csv(llm_research_question_table_file,
                           llm_research_question_table_moddate)),
   
-  # Summary of theoretical frameworks of original studies
-  # llm_theory_data.csv
+  # llm_theory_data.csv ----
+  # Summarizes the prevalence and scoring of various theoretical paradigms 
+  # across 173 research abstracts.
   tar_target(llm_theory_data_file,
              "mp3rq"),
   tar_target(llm_theory_data_moddate,
              get_osf_mod_date(llm_theory_data_file)),
   tar_target(llm_theory_data,
              load_osf_csv(llm_theory_data_file,
-                          llm_theory_data_moddate))
-)
-```
-
-### Correlations Datasets
-
-```{targets correlations}
-list(
-  # Elicitations ----
-  # Elicitations phase 1
-  tar_target(melb_p1_osf,
-             "7n2qe"),
-  tar_target(melb_p1_mod_date, 
-             get_osf_mod_date(melb_p1_osf),
-             cue = tar_cue("always")), 
-  tar_target(melb_p1,
-             load_osf_csv(melb_p1_osf,
-                          melb_p1_mod_date)),
+                          llm_theory_data_moddate)),
   
-  # Elicitations phase 2
-  tar_target(melb_p2_osf,
-             "9khpj"),
-  tar_target(melb_p2_mod_date, 
-             get_osf_mod_date(melb_p2_osf),
-             cue = tar_cue("always")), 
-  tar_target(melb_p2,
-             load_osf_csv(melb_p2_osf,
-                          melb_p2_mod_date)),
-  
-  # Elicitations bushel
-  tar_target(melb_bushel_osf,
-             "wy9sv"),
-  tar_target(melb_bushel_mod_date, 
-             get_osf_mod_date(melb_bushel_osf),
-             cue = tar_cue("always")), 
-  tar_target(melb_bushel,
-             load_osf_csv(melb_bushel_osf,
-                          melb_bushel_mod_date)),
-  
-  # Prediction Markets ----
-  tar_target(kw_scores_osf,
-             "jn9dg"),
-  tar_target(kw_scores_mod_date, 
-             get_osf_mod_date(kw_scores_osf),
-             cue = tar_cue("always")), 
-  tar_target(kw_scores,
-             load_osf_csv(kw_scores_osf,
-                          kw_scores_mod_date)),
-  
-  # A+ ----
-  # A+ sprint 1
-  tar_target(ts_s1_osf,
-             "56xqd"),
-  tar_target(ts_s1_mod_date, 
-             get_osf_mod_date(ts_s1_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_s1,
-             load_osf_csv(ts_s1_osf,
-                          ts_s1_mod_date)),
-  
-  # A+ sprint 2
-  tar_target(ts_s2_osf,
-             "c28g4"),
-  tar_target(ts_s2_mod_date, 
-             get_osf_mod_date(ts_s2_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_s2,
-             load_osf_csv(ts_s2_osf,
-                          ts_s2_mod_date)),
-  
-  # A+ sprint 3
-  tar_target(ts_s3_osf,
-             "2z96n"),
-  tar_target(ts_s3_mod_date, 
-             get_osf_mod_date(ts_s3_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_s3,
-             load_osf_csv(ts_s3_osf,
-                          ts_s3_mod_date)),
-  
-  # A+ bushel
-  tar_target(ts_bushel_osf,
-             "d8kc3"),
-  tar_target(ts_bushel_mod_date, 
-             get_osf_mod_date(ts_bushel_osf),
-             cue = tar_cue("always")), 
-  tar_target(ts_bushel,
-             load_osf_csv(ts_bushel_osf,
-                          ts_bushel_mod_date)),
-  
-  # MACROSCORE ----
-  # MACROSCORE sprint 1
-  tar_target(usc_s1_osf,
-             "u8qea"),
-  tar_target(usc_s1_mod_date, 
-             get_osf_mod_date(usc_s1_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_s1,
-             load_osf_csv(usc_s1_osf,
-                          usc_s1_mod_date)),
-  
-  # MACROSCORE sprint 2
-  tar_target(usc_s2_osf,
-             "xc396"),
-  tar_target(usc_s2_mod_date, 
-             get_osf_mod_date(usc_s2_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_s2,
-             load_osf_csv(usc_s2_osf,
-                          usc_s2_mod_date)),
-  
-  # MACROSCORE sprint 3
-  tar_target(usc_s3_osf,
-             "9rcd7"),
-  tar_target(usc_s3_mod_date, 
-             get_osf_mod_date(usc_s3_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_s3,
-             load_osf_csv(usc_s3_osf,
-                          usc_s3_mod_date)),
-  
-  # MACROSCORE bushel
-  tar_target(usc_bushel_osf,
-             "jmdpk"),
-  tar_target(usc_bushel_mod_date, 
-             get_osf_mod_date(usc_bushel_osf),
-             cue = tar_cue("always")), 
-  tar_target(usc_bushel,
-             load_osf_csv(usc_bushel_osf,
-                          usc_bushel_mod_date)),
-  
-  # Synthetic Markets ----
-  # Synthetic markets sprint 1
-  tar_target(psu_s1_osf,
-             "u7dnr"),
-  tar_target(psu_s1_mod_date, 
-             get_osf_mod_date(psu_s1_osf),
-             cue = tar_cue("always")), 
-  tar_target(psu_s1,
-             load_osf_csv(psu_s1_osf,
-                          psu_s1_mod_date)),
-  
-  # Synthetic markets sprint 2
-  tar_target(psu_s2_osf,
-             "efp92"),
-  tar_target(psu_s2_mod_date, 
-             get_osf_mod_date(psu_s2_osf),
-             cue = tar_cue("always")), 
-  tar_target(psu_s2,
-             load_osf_csv(psu_s2_osf,
-                          psu_s2_mod_date)),
-  
-  # Synthetic markets sprint 3
-  tar_target(psu_s3_osf,
-             "rc6aw"),
-  tar_target(psu_s3_mod_date, 
-             get_osf_mod_date(psu_s3_osf),
-             cue = tar_cue("always")), 
-  tar_target(psu_s3,
-             load_osf_csv(psu_s3_osf,
-                          psu_s3_mod_date)),
-  
-  # Sciscore ----
-  tar_target(sciscore_file,
-             "1YSXZHGfSwEY3zSwReaq6iJQcUT4HT_qE"),
-  tar_target(sciscore_moddate,
-             get_google_mod_date(sciscore_file),
-             cue = tar_cue("always")),
-  tar_target(sciscore,
-             read_google_csv(sciscore_file,
-                             sciscore_moddate)),
-  
-  # StatCheck ----
-  tar_target(statcheck_file,
-             "1mcdyTvXchktzYl3IoOLF_pDFLADH2zKi"),
-  tar_target(statcheck_moddate,
-             get_google_mod_date(statcheck_file),
-             cue = tar_cue("always")),
-  tar_target(statcheck,
-             read_google_tsv(statcheck_file,
-                             statcheck_moddate)),
-  
-  # Robustness ----
-  tar_target(m100_file,
-             "1EvH6fblQZqMpumlNAj1U6CPH6e68RJMu"),
-  tar_target(m100_moddate,
-             get_google_mod_date(m100_file),
-             cue = tar_cue("always")),
-  tar_target(m100,
-             read_google_csv(m100_file,
-                             m100_moddate)),
-  
-  # Original claims effect sizes ----
-  tar_target(es_file,
-             "1k42kApZgmSyyC1A-EsUoimFmNEc5cDuJLZGk4GrQQjA"),
-  tar_target(es_moddate,
-             get_google_mod_date(es_file),
-             cue = tar_cue("always")),
-  tar_target(es,
-             read_google_sheet(es_file,
-                               es_moddate)),
-  
-  # Original claims significance ----
-  # stat_sig and stat_sig_p2 sheets needed, merged
-  tar_target(sig_file,
-             "1_ZRyWIrPOO3JwzGTUZOMMLo7fKcENAOwW6tmtSxQ_js"),
-  tar_target(sig_moddate,
-             get_google_mod_date(sig_file),
-             cue = tar_cue("always")),
-  tar_target(stat_sig,
-             read_google_sheet(sig_file,
-                               sig_moddate,
-                               sheet = "stat_sig")),
-  tar_target(stat_sig_p2,
-             read_google_sheet(sig_file,
-                               sig_moddate,
-                               sheet = "stat_sig_p2") %>%
-               add_column(p_value_avail = NA_character_)),
-  tar_target(sig,
-             rbind(stat_sig, stat_sig_p2)),
-  
-  # Hedging and humility ----
-  tar_target(hedge_file,
-             "16-7o5x0j2jJEEVw6E1vyUl_2vG2Xnjap"),
-  tar_target(hedge_moddate,
-             get_google_mod_date(hedge_file),
-             cue = tar_cue("always")),
-  tar_target(hedge,
-             read_google_tsv(hedge_file,
-                             hedge_moddate)),
-  
-  # Original author metadata ----
-  tar_target(oa_metadata_file,
-             "1YquUUy2-OdUe0DpTR-7qF29f0t5HxOOz"),
-  tar_target(oa_metadata_moddate,
-             get_google_mod_date(oa_metadata_file),
-             cue = tar_cue("always")),
-  tar_target(oa_metadata,
-             read_google_csv(oa_metadata_file,
-                             oa_metadata_moddate)),
-  
-  # Original author citations ----
-  tar_target(oa_citations_file,
-             "1gwj6SZfZI8Gw6fcWAsK6f65oKyDsyC-6"),
-  tar_target(oa_citations_moddate,
-             get_google_mod_date(oa_citations_file),
-             cue = tar_cue("always")),
-  tar_target(oa_citations,
-             read_google_rds(oa_citations_file,
-                             oa_citations_moddate) %>%
-               # Warnings expected as "NA" the string changes to NA
-               mutate(cs = as.numeric(cs),
-                      log_count = as.numeric(log_count))),
-  
-  # DataSeer ----
-  tar_target(dataseer_file,
-             "1j9680t7HeRV9cRfOlROCNBrH_SAILNe5"),
-  tar_target(dataseer_moddate,
-             get_google_mod_date(dataseer_file),
-             cue = tar_cue("always")),
-  tar_target(dataseer,
-             read_google_rds(dataseer_file,
-                             dataseer_moddate)),
-  
-  # Automated bibliometric analyses ----
-  tar_target(ksu_file,
-             "1T1mD0wdCafBm5vu0JaHRl3HuSHVaxEJ2"),
-  tar_target(ksu_moddate,
-             get_google_mod_date(ksu_file),
-             cue = tar_cue("always")),
-  tar_target(ksu,
-             read_google_csv(ksu_file,
-                             ksu_moddate)),
-  
-  # Extracted open science indicators ----
-  tar_target(scholarcy_file,
-             "1G1ipJh-aaF5_GdNJU7qUb6Kd2nEWPzyn"),
-  tar_target(scholarcy_moddate,
-             get_google_mod_date(scholarcy_file),
-             cue = tar_cue("always")),
-  tar_target(scholarcy,
-             read_google_csv(scholarcy_file,
-                             scholarcy_moddate))
-  
-)
-
-```
-
-### Project Management
-
-Some information comes from datasets used in project management.
-
-```{targets rr-projects}
-list(
-    # status.csv
-  # Canonical source for sub-samples of the data
-  # Does not contain COVID papers
-  tar_target(status_file,
-             "1lETiML-WFVGK1MS0ELCZejIaXnDDXYWh"),
-  tar_target(status_moddate,
-             get_google_mod_date(status_file),
-             cue = tar_cue("always")),
-  tar_target(status,
-             read_google_csv(status_file,
-                             status_moddate)),
-  # Full Dates
-  # Start and end dates of projects
-  tar_target(full_dates_file,
-             "1YHuWhvE_8tGFPe_L-yYfCYsZ7xBDRxSa"),
-  tar_target(full_dates_moddate,
-             get_google_mod_date(full_dates_file),
-             cue = tar_cue("always")),
-  tar_target(full_dates,
-             read_google_csv(full_dates_file,
-                             full_dates_moddate,
-                             col_types = c("cccDDD"))),
-  # rr_projects.csv
-  tar_target(rr_projects_file,
-             "11paXdFzhCmz8ywFomUhZ6qrfp1wlKLIx"),
-  tar_target(rr_projects_moddate,
-             get_google_mod_date(rr_projects_file),
-             cue = tar_cue("always")),
-  tar_target(rr_projects_raw,
-             read_google_csv(rr_projects_file,
-                             rr_projects_moddate)),
-  
-  # Additional cases - rr projects 
-  tar_target(repli_cases_projects,
-             read_google_sheet(repli_cases_gsheet,
-                               repli_cases_moddate,
-                               sheet = "rr_projects")),
-  
-  # rr_reporting_checkin.tsv
-  # This info is used once and then dropped -- REMOVE   
-  tar_target(rr_reporting_checkin_file,
-             "1jB97FM-desZatqabwBVMPrSYk0qXWFjM"),
-  tar_target(rr_reporting_checkin_moddate,
-             get_google_mod_date(rr_reporting_checkin_file),
-             cue = tar_cue("always")),
-  tar_target(rr_reporting_checkin,
-             read_google_tsv(rr_reporting_checkin_file,
-                             rr_reporting_checkin_moddate)),
-  
-  # Not Used - REMOVE
-  # # p2_repli_vf.csv
-  # tar_target(p2_repli_vf_file,
-  #            "1fwWX7ebwhBF9IYt2dQyhEByBnRNavOmj"),
-  # tar_target(p2_repli_vf_moddate,
-  #            get_google_mod_date(p2_repli_vf_file),
-  #            cue = tar_cue("always")),
-  # tar_target(p2_repli_vf,
-  #            read_google_csv(p2_repli_vf_file,
-  #                            p2_repli_vf_moddate)),
-  
-  # rr_attempts_minted.csv
-  # Status and tracking for rr projects. 
-  # Source for if a replication is a "generalizibility" 
-  tar_target(rr_attempts_minted_file,
-             "1aHuTwRVeqADWVC4Lxq5n3B4ebbSa9Mqc"),
-  tar_target(rr_attempts_minted_moddate,
-             get_google_mod_date(rr_attempts_minted_file),
-             cue = tar_cue("always")),
-  tar_target(rr_attempts_minted_raw,
-             read_google_csv(rr_attempts_minted_file,
-                             rr_attempts_minted_moddate)),
-  
-  tar_target(all_rr_attempts_gsheet,
-             "13YmuK4UxMEreDNHY4WfjEqDHOi2Htlvwh4wxwbVK25U"),
-  tar_target(all_rr_attempts_moddate,
-             get_google_mod_date(all_rr_attempts_gsheet),
-             cue = tar_cue("always")),
-  tar_target(all_rr_attempts,
-             read_google_sheet(all_rr_attempts_gsheet,
-                               all_rr_attempts_moddate,
-                               sheet = "full_sweep"))
-)
-```
-
-## Change Logs
-
-```{targets change-logs}
-list(
-    # Publications Changelog
-  tar_target(pub_changelog_file,
-             "1CM0wbYnRvBMIyDVFzvwxw3GVH_uRJ3BXRtdwlxTmS1A"),
-  tar_target(pub_changelog_moddate,
-             get_google_mod_date(pub_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(pub_changelog,
-             load_changelog(pub_changelog_file,
-                            pub_changelog_moddate)),
-  
-  # orig_input_changelog (Google Sheet)
-  tar_target(orig_input_changelog_file,
-             "1M8H_76ajxwdhVuuSyIo18BxRrJbMF3hXpAkzYY39g2k"),
-  tar_target(orig_input_changelog_moddate,
-             get_google_mod_date(orig_input_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(orig_input_changelog,
-             load_changelog(orig_input_changelog_file,
-                            orig_input_changelog_moddate)),
-  
-  # rr_attempts_minted_changelog (Google Sheet)
-  tar_target(rr_attempts_minted_changelog_file,
-             "1rlVy9A4jBwQzpxTH4my4FUWaZkq7388YfpRmQOZWihw"),
-  tar_target(rr_attempts_minted_changelog_moddate,
-             get_google_mod_date(rr_attempts_minted_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(rr_attempts_minted_changelog,
-             load_changelog(rr_attempts_minted_changelog_file,
-                            rr_attempts_minted_changelog_moddate)),
-  
-  # repli_input_changelog (Google Sheet)
-  tar_target(repli_input_changelog_file,
-             "1jbkVYHLinIN9zXBuPTok26bHjDt69-7D_Z7yVOin3mM"),
-  tar_target(repli_input_changelog_moddate,
-             get_google_mod_date(repli_input_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(repli_input_changelog,
-             load_changelog(repli_input_changelog_file,
-                            repli_input_changelog_moddate)),
-  
-  # p2_repro_input_changelog (Google Sheet)
-  tar_target(p2_repro_input_changelog_file,
-             "1c2i_k-RMzTWAC7RD6cqhheToihtS8_C5r5powvRuMDE"),
-  tar_target(p2_repro_input_changelog_moddate,
-             get_google_mod_date(repli_input_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(p2_repro_input_changelog,
-             load_changelog(p2_repro_input_changelog_file,
-                            p2_repro_input_changelog_moddate)),
-  
-  # repro_supplement_changelog (Google Sheet)
-  tar_target(repro_supplement_changelog_file,
-             "1OzOpJCJCy5OPYISk1UR5tI0ehNaou-ykAeD7GPZ99ug"),
-  tar_target(repro_supplement_changelog_moddate,
-             get_google_mod_date(repro_supplement_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(repro_supplement_changelog,
-             load_changelog(repro_supplement_changelog_file,
-                            repro_supplement_changelog_moddate)),
-  
-  tar_target(pr_changelog_gsheet,
-             "1zek9Lu-s303ZXs3B84h2vy-sJ1avOZSgpZEsna40pdA"),
-  tar_target(pr_changelog_moddate,
-             get_google_mod_date(pr_changelog_gsheet),
-             cue = tar_cue("always")),
-  tar_target(pr_input_changelog,
-             load_changelog(pr_changelog_gsheet,
-                            pr_changelog_moddate)),
-  
-  tar_target(oa_changelog_file,
-             "1mrH4mPCr6VUrOD8S08hhzD3jdcRjOnMPAF9XfZ0_vH4"),
-  tar_target(oa_changelog_moddate,
-             get_google_mod_date(oa_changelog_file),
-             cue = tar_cue("always")),
-  tar_target(oa_changelog,
-             load_changelog(oa_changelog_file,
-                            oa_changelog_moddate))
-)
-```
-
-## Intermediate Data
-
-### Publications
-
-```{targets publications}
-list(
-
-  # Update and Transform ----
-  tar_target(journal_metadata_updated,
-             transform_pubs(journal_metadata_raw,
-                            pub_changelog))
-)
-```
-
-### Paper Metadata
-
-```{targets paper-metadata}
-list(
-
-  # Transform ----
-  # Metadata for covid papers was collected separately from other papers
-  # Reconcile differences for merging
-  tar_target(covid_metadata,
-             transform_covid_metadata(covid_metadata_raw)),
-  
-  tar_target(non_covid_metadata,
-             transform_paper_metadata(all_metadata_filled, status))
-)
-
-```
-
-
-
-### Original Study Variables
-
-```{targets original-outcomes}
-list(
-  ## Merge ----
-  tar_target(orig_merged,
-             merge_orig_input(orig_statistics_dataset_p1,
-                              original_inftest_dataset,
-                              orig_statistics_manual_data_entry,
-                              orig_vars_qa,
-                              tagtable_covid_p1,
-                              orig_cases)),
-  ## Update ----
-  tar_target(orig_updated,
-             update_orig_input(orig_merged,
-                               orig_input_changelog)),
-  
-  ## Refine ----
-  tar_target(orig_dataset,
-             export_orig(orig_updated,
-                         orig_statistics_output_p2))
-)
-```
-
-### Replication/Reproduction Projects
-```{targets projects}
-list(
-  ## Merge ----
-  tar_target(rr_projects,
-             extend_rr_projects(rr_projects_raw,
-                                repli_cases_projects)),
-  
-  ## Update ----
-  tar_target(rr_attempts_minted,
-             update_attempts_minted(rr_attempts_minted_raw,
-                                    rr_attempts_minted_changelog))
-)
-```
-
-
-
-Replications/Reproductions variables data. QC'ed and merged.
-
-```{targets processed-rr}
-list(
-  # Transform replication form data
-  tar_target(replication_qa,
-             transform_replication_qa(replication_qa_raw,
-                                      rr_attempts_minted)),
-  
-  tar_target(repli_merged,
-             merge_repli_input(rr_outcomes_dataset_p1,
-                               replication_qa,
-                               rr_reporting_checkin,
-                               replication_cases,
-                               effectsize_repli)),
-  
-  tar_target(repli_export,
-             export_repli(repli_merged,
-                          repli_input_changelog)),
-  
-  # Reproduction targets ----
-  # Transformed data from forms
-  tar_target(repro_data_entry,
-             transform_repro_input(reproduction_qa)),
-  
-  # Transform reproduction claims
-  tar_target(rr_confrontations_repro_claim,
-             transform_repro_claims(prereg_checkin_repro)),
-  
-  # Merge with additional cases
-  tar_target(repro_merged,
-             merge_repro(repro_data_entry,
-                         reproduction_cases,
-                         repro_vor)),
-  
-  # Update transformed data from forms
-  tar_target(repro_export,
-             update_repro(repro_merged,
-                          p2_repro_input_changelog)),
-  
-  # Create repro supplement
-  tar_target(repro_supplement_raw,
-             transform_repro_outcomes(repro_export,
-                                      orig_dataset,
-                                      rr_confrontations_repro_claim)),
-  
-  tar_target(repro_supplement,
-             update_repro_supplement(repro_supplement_raw,
-                                     repro_supplement_changelog))
-)
-```
-
-Process reproducibility data. 
-
-```{targets processed-pr}
-
-list(
-
-  tar_target(oa_raw,
-             load_process_oa(oa_sheet)),
-  
-  tar_target(oa_outreach,
-             update_oa(oa_raw,
-                       oa_changelog)),
-  
-  tar_target(pr_data_form,
-             process_pr_data(pr_data_raw,
-                           covid_ta2,
-                           tagtable_covid_p1)),
-           
-  tar_target(pr_qc,
-             update_pr(pr_data_form,
-                       pr_input_changelog))
-  
-)
-
-```
-
-## Analysis-ready Data
-
-```{targets analytic-data}
-list(
-  # Information about journals the original studies were from as well as
-  # some journal policy information
-  tar_target(publications,
-             left_join(journal_metadata_updated,
-                       journal_top_factor,
-                       by = join_by(publication_standard == Journal))),
-  
-  # Information about individual articles that claims were extracted from
-  tar_target(paper_metadata,
-             merge_paper_metadata(non_covid_metadata,
-                                  covid_metadata,
-                                  paper_cite,
-                                  publications)),
-  
-  # Claims made in original studies 
-  tar_target(extracted_claims,
-             merge_claims(tagtable_p1,
-                          tagtable_covid_p1,
-                          tagtable_p2_CES,
-                          stitched_claims,
-                          complex_bushel,
-                          status,
-                          covid_metadata)),
-  
-  # Original study variables
+  # orig_outcomes.csv ----
+  # Statistics from original studies from which claims were extracted
+  # https://osf.io/dtzx4/files/y7bq5
   tar_target(orig_outcomes,
              create_ov_analytic(orig_dataset,
-                                complex_bushel,
-                                effectsize_orig,
-                                effectsize_outcome,
-                                repli_export)),
+                                orig_claims_bushel_complex,
+                                orig_stats_effect,
+                                orig_effect_size,
+                                repli_dataset)),
   
-  # Replication study variables
-  tar_target(repli_outcomes,
-             create_repli_analytic(repli_export,
-                                   rr_attempts_minted,
-                                   rr_statistics_output_p2,
-                                   status,
-                                   stitched_claims,
-                                   effectsize_outcome,
-                                   orig_outcomes,
-                                   paper_metadata,
-                                   repli_case_exclusions)),
+  # paper_metadata.csv ----
+  # Metadata for original study articles
+  # https://osf.io/dtzx4/files/jg54h
+  tar_target(paper_metadata,
+             merge_paper_metadata(papers_transformed,
+                                  papers_covid_transformed,
+                                  paper_citations,
+                                  journal_metadata)),
 
-  tar_target(repli_binary,
-             calculate_repli_binary(repli_outcomes,
-                                    orig_outcomes,
-                                    paper_metadata)),
+  # papers_not_sourced.csv ----
+  # Accounting for all papers that were never sourced for a replication 
+  # attempt
+  # https://osf.io/dtzx4/files/rdzc5
+  tar_target(papers_not_sourced,
+             select(score_rr_not_sourced,
+                    paper_id,
+                    dr_plausible,
+                    dr_reason,
+                    dar_plausible,
+                    dar_reason)),
   
-  # Reproduction study variables
-  tar_target(repro_outcomes,
-             create_repro_analytic(repro_export,
-                                   repro_supplement)),
-  
-  # Process Reproducibility 
-  tar_target(pr_outcomes,
-             create_pr_analytic(pr_qc, oa_outreach)),
-  
-  # Other datasets ----
+  # paper_status_tracking.csv ----
+  # An internal tracking dataset showing which stages of the project each 
+  # paper was involved in
+  # https://osf.io/dtzx4/files/yag6n
   tar_target(paper_status_tracking,
-             select(status,
+             select(score_paper_status,
                     paper_id,
                     prepool,
                     pool,
@@ -1376,8 +1120,87 @@ list(
                     p2_delivery,
                     bushel)),
   
+  # pr_outcomes.csv ----
+  # "Process reproducibility", or assessing whether the findings within an 
+  # original paper could theoretically be reproduced using the original data 
+  # and code to reproduce the results reported in the original paper, as well 
+  # as how feasible conducting a reproduction might be, based on the 
+  # availability of original materials necessary to reproduce the findings of 
+  # a given paper.
+  # https://osf.io/dtzx4/files/e58n9
+  tar_target(pr_outcomes,
+             create_pr_analytic(pr_updated, oa_outreach)),
+  
+  # repli_all_cases.csv ----
+  # Replication outcomes, including cases that were excluded from analysis for 
+  # non-significant findings, incomplete/insufficient data collection, or 
+  # power/sample size issues.
+  # https://osf.io/dtzx4/files/2k9ht
+  tar_target(repli_all_cases,
+             select(repli_dataset,
+                    rr_id,
+                    paper_id,
+                    rr_type_internal,
+                    report_id = unique_report_id,
+                    rr_repl_exact_replicated_reference)),
+  
+  # repli_binary.csv ----
+  # A series of boolean fields describing replication measures
+  # https://osf.io/dtzx4/files/q6rtd
+  tar_target(repli_binary,
+             calculate_repli_binary(repli_outcomes,
+                                    orig_outcomes,
+                                    paper_metadata)),
+  
+  # repli_exclusions.csv ----
+  # The replication findings excluded from the main replication reporting 
+  # and their exclusion reasons
+  tar_target(repli_case_exclusions_file,
+             "wq65j"),
+  tar_target(repli_case_exclusions_moddate,
+             get_osf_mod_date(repli_case_exclusions_file),
+             cue = tar_cue("always")), 
+  tar_target(repli_case_exclusions,
+             load_osf_csv(repli_case_exclusions_file,
+                          repli_case_exclusions_moddate)),
+  
+  # repli_outcomes.csv ----
+  # Replications of the original studies from which claims were extracted
+  # https://osf.io/dtzx4/files/2c8gh
+  tar_target(repli_outcomes,
+             create_repli_analytic(repli_dataset,
+                                   score_rr_types,
+                                   repli_extended,
+                                   score_paper_status,
+                                   orig_claims_p2_bushel,
+                                   repli_effect_size,
+                                   orig_outcomes,
+                                   paper_metadata,
+                                   repli_case_exclusions)),
+  
+  # repro_journal_policies.csv ----
+  # Journal policies about reproducibility and data/code sharing
+  # Renamed to keep consistent with analysis code
+  # https://osf.io/dtzx4/files/6t8gy
+  tar_target(repro_journal_policies,
+             journal_repro_policies),
+  
+  # repro_outcomes.csv ----
+  # Reproductions of the original studies from which claims were extracted
+  # https://osf.io/dtzx4/files/47jhm
+  tar_target(repro_outcomes,
+             create_repro_analytic(repro_dataset,
+                                   repro_summary)),
+  
+  # rr_internal_tracking.csv ----
+  # This is a convenience dataset used by COS staff for a variety of purposes. 
+  # Some variables, like outcome and results_available, reflect the particular 
+  # time that the variables were created and are no longer meaningful 
+  # reflections of the present state of the SCORE data. For that reason, 
+  # external use of these variables should be done cautiously. 
+  # https://osf.io/dtzx4/files/2e5nk
   tar_target(rr_internal_tracking,
-             select(all_rr_attempts,
+             select(score_rr_status,
                     rr_id,
                     paper_id,
                     project_guid,
@@ -1390,73 +1213,351 @@ list(
                     osf_activity,
                     all_types)),
   
-  tar_target(claims_non_significant_bushels,
-             select(non_significant_bushels,
-                    paper_id,
-                    claim4_id,
-                    coded_stat_evidence,
-                    nonsig)),
-  
-  tar_target(rr_type_key,
-             select(rr_sourced,
-                    rr_id,
-                    paper_id,
-                    type)),
-  
-  tar_target(repli_all_cases,
-             select(repli_export,
-                    rr_id,
-                    paper_id,
-                    rr_type_internal,
-                    report_id = unique_report_id,
-                    rr_repl_exact_replicated_reference)),
-
+  # rr_project_dates.csv ----
+  # Milestone dates of replication studies
+  # https://osf.io/dtzx4/files/n629a
   tar_target(rr_project_dates,
-             select(full_dates,
+             select(score_rr_dates,
                     rr_id,
                     project_guid,
                     type,
                     started,
                     reg_date,
                     completed)),
-  
-  tar_target(papers_not_sourced,
-             select(never_sourced,
+
+  # rr_type_key.csv ----
+  # Dataset of replication and reproduction projects sourced to a research  
+  # team for completion, including their project types.
+  # https://osf.io/dtzx4/files/abq68
+  tar_target(rr_type_key,
+             select(score_rr_sourced,
+                    rr_id,
                     paper_id,
-                    dr_plausible,
-                    dr_reason,
-                    dar_plausible,
-                    dar_reason)),
-  
-  tar_target(claims_ser_power,
-             select(ser_power,
-                    claim_id = unique_claim_id,
-                    rr_sample_size_50_for_100 = threshold,
-                    rr_sample_size_90_for_75 = s1,
-                    rr_sample_size_90_for_50 = s2)),
-  
-  tar_target(claims_traditional_power,
-             select(traditional_power,
-                    claim_id,
-                    rr_sample_size_50_for_100 = rr_threshold_analytic_sample_size,
-                    rr_sample_size_90_for_75 = rr_stage1_analytic_sample_size,
-                    rr_sample_size_90_for_50 = rr_stage2_analytic_sample_size)),
-  
-  tar_target(claims_bushel_ids,
-             select(stitched_claims,
-                    paper_id,
-                    claim4_id))
-  
+                    type))
 )
 ```
+
+### Correlations Paper Datasets
+
+```{targets analytic-correlations}
+list(
+  # corr_citation-counts.csv ----
+  # Original author citation counts
+  tar_target(oa_citations_file,
+             "bsfwk"),
+  tar_target(oa_citations_moddate,
+             get_osf_mod_date(oa_citations_file),
+             cue = tar_cue("always")),
+  tar_target(oa_citations,
+             load_osf_csv(oa_citations_file,
+                          oa_citations_moddate)),
+  
+  # corr_dataseer_orig-metadata.csv ----
+  # Extended metadata and data/code availability from DataSeer
+  tar_target(dataseer_file,
+             "cdvh2"),
+  tar_target(dataseer_moddate,
+             get_osf_mod_date(dataseer_file),
+             cue = tar_cue("always")),
+  tar_target(dataseer,
+             load_osf_csv(dataseer_file,
+                          dataseer_moddate)),
+  
+  # corr_ksu_bibliometric.csv ----
+  # Automated bibliometric analyses from KSU
+  tar_target(ksu_file,
+             "uenaj"),
+  tar_target(ksu_moddate,
+             get_osf_mod_date(ksu_file),
+             cue = tar_cue("always")),
+  tar_target(ksu,
+             load_osf_csv(ksu_file,
+                          ksu_moddate)),
+  
+  # corr_multi100.csv ----
+  # Multi100 Robustness dataset
+  tar_target(m100_file,
+             "v2r4g"),
+  tar_target(m100_moddate,
+             get_osf_mod_date(m100_file),
+             cue = tar_cue("always")),
+  tar_target(m100,
+             load_osf_csv(m100_file,
+                          m100_moddate)),
+  
+  # corr_orig-effect-size.csv ----
+  # Original study claims effect sizes and their source
+  tar_target(es_file,
+             "7sc4f"),
+  tar_target(es_moddate,
+             get_osf_mod_date(es_file),
+             cue = tar_cue("always")),
+  tar_target(es,
+             load_osf_csv(es_file,
+                          es_moddate)),
+  
+  # corr_orig-significance.csv ----
+  # Original study claims significance
+  # https://osf.io/dtzx4/files/d5qke
+  tar_target(sig,
+             rbind(stat_sig_p1, stat_sig_p2)),
+  
+  # corr_scholarcy.csv ----
+  # Extracted open science indicators from scholarcy
+  tar_target(scholarcy_file,
+             "68xp3"),
+  tar_target(scholarcy_moddate,
+             get_osf_mod_date(scholarcy_file),
+             cue = tar_cue("always")),
+  tar_target(scholarcy,
+             load_osf_csv(scholarcy_file,
+                          scholarcy_moddate)),
+  
+  # corr_sciscore.csv ----
+  # SciScore report, scoring SCORE papers on a ten point rigor and 
+  # transparency index. 
+  # Delivered to The Center For Open Science from SciCrunch.
+  tar_target(sciscore_file,
+             "7u2pa"),
+  tar_target(sciscore_moddate,
+             get_osf_mod_date(sciscore_file),
+             cue = tar_cue("always")),
+  tar_target(sciscore,
+             load_osf_csv(sciscore_file,
+                          sciscore_moddate)),
+  
+  # corr_sit_orig-authors.csv ----
+  # Original author metadata from the Stevens Institute of Technology
+  tar_target(oa_metadata_file,
+             "38upf"),
+  tar_target(oa_metadata_moddate,
+             get_osf_mod_date(oa_metadata_file),
+             cue = tar_cue("always")),
+  tar_target(oa_metadata,
+             load_osf_csv(oa_metadata_file,
+                          oa_metadata_moddate)),
+  
+  # corr_statcheck.csv ----
+  # Statcheck report of Null Hypothesis Significance test (NHST) results from
+  # SCORE papers assessing whether the extracted results are 
+  # internally consistent.
+  tar_target(statcheck_file,
+             "jm2ka"),
+  tar_target(statcheck_moddate,
+             get_osf_mod_date(statcheck_file),
+             cue = tar_cue("always")),
+  tar_target(statcheck,
+             load_osf_csv(statcheck_file,
+                          statcheck_moddate)),
+
+  # corr_usc_hedging-humility.csv ----
+  # Hedging and humility data from the University of Southern California
+  tar_target(hedge_file,
+             "tj36g"),
+  tar_target(hedge_moddate,
+             get_osf_mod_date(hedge_file),
+             cue = tar_cue("always")),
+  tar_target(hedge,
+             load_osf_csv(hedge_file,
+                          hedge_moddate))
+)
+```
+
+#### Confidence Scores
+
+```{targets corr-confidence-scores}
+list(
+  # Prediction Markets ----
+  ## corr_keywest_cs.csv ----
+  ## Prediction markets confidence scores
+  tar_target(kw_scores_file,
+             "gdw29"),
+  tar_target(kw_scores_moddate, 
+             get_osf_mod_date(kw_scores_file),
+             cue = tar_cue("always")), 
+  tar_target(kw_scores,
+             load_osf_csv(kw_scores_file,
+                          kw_scores_moddate)),
+
+  # Synthetic Markets ----
+  ## corr_psu_cs_1.csv ----
+  ## Sythentic markets confidence scores for sprint 1
+  tar_target(psu_s1_file,
+             "ch9dk"),
+  tar_target(psu_s1_moddate, 
+             get_osf_mod_date(psu_s1_file),
+             cue = tar_cue("always")), 
+  tar_target(psu_s1,
+             load_osf_csv(psu_s1_file,
+                          psu_s1_moddate)),
+  
+  ## corr_psu_cs_2.csv ----
+  ## Sythentic markets confidence scores for sprint 2
+  tar_target(psu_s2_file,
+             "ayjdb"),
+  tar_target(psu_s2_moddate, 
+             get_osf_mod_date(psu_s2_file),
+             cue = tar_cue("always")), 
+  tar_target(psu_s2,
+             load_osf_csv(psu_s2_file,
+                          psu_s2_moddate)),
+  
+  ## corr_psu_cs_3.csv ----
+  ## Sythentic markets confidence scores for sprint 3
+  tar_target(psu_s3_file,
+             "tkqax"),
+  tar_target(psu_s3_moddate, 
+             get_osf_mod_date(psu_s3_file),
+             cue = tar_cue("always")), 
+  tar_target(psu_s3,
+             load_osf_csv(psu_s3_file,
+                          psu_s3_moddate)),
+  
+  # A+ ----
+  ## corr_twosix_cs_1.csv ----
+  ## A+ confidence scores for sprint 1
+  tar_target(ts_s1_file,
+             "r245a"),
+  tar_target(ts_s1_moddate, 
+             get_osf_mod_date(ts_s1_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_s1,
+             load_osf_csv(ts_s1_file,
+                          ts_s1_moddate)),
+  
+  ## corr_twosix_cs_2.csv ----
+  ## A+ confidence scores for sprint 2
+  tar_target(ts_s2_file,
+             "fzchp"),
+  tar_target(ts_s2_moddate, 
+             get_osf_mod_date(ts_s2_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_s2,
+             load_osf_csv(ts_s2_file,
+                          ts_s2_moddate)),
+  
+  ## corr_twosix_cs_3.csv ----
+  ## A+ confidence scores for sprint 3
+  tar_target(ts_s3_file,
+             "tje32"),
+  tar_target(ts_s3_moddate, 
+             get_osf_mod_date(ts_s3_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_s3,
+             load_osf_csv(ts_s3_file,
+                          ts_s3_moddate)),
+  
+  ## corr_twosix_cs_bushel.csv ----
+  ## A+ confidence scores for bushel claims
+  tar_target(ts_bushel_file,
+             "fz3w9"),
+  tar_target(ts_bushel_moddate, 
+             get_osf_mod_date(ts_bushel_file),
+             cue = tar_cue("always")), 
+  tar_target(ts_bushel,
+             load_osf_csv(ts_bushel_file,
+                          ts_bushel_moddate)),
+  
+  # Elicitations ----
+  ## corr_umelb_cs_1.csv ----
+  ## Elicitations team confidence scores for phase 1
+  tar_target(melb_p1_file,
+             "p7x53"),
+  tar_target(melb_p1_moddate, 
+             get_osf_mod_date(melb_p1_file),
+             cue = tar_cue("always")), 
+  tar_target(melb_p1,
+             load_osf_csv(melb_p1_file,
+                          melb_p1_moddate)),
+  
+  ## corr_umelb_cs_2.csv ----
+  ## Elicitations team confidence scores for phase 2
+  tar_target(melb_p2_file,
+             "p8t4d"),
+  tar_target(melb_p2_moddate, 
+             get_osf_mod_date(melb_p2_file),
+             cue = tar_cue("always")), 
+  tar_target(melb_p2,
+             load_osf_csv(melb_p2_file,
+                          melb_p2_moddate)),
+  
+  ## corr_umelb_cs_bushel.csv ----
+  ## Elicitations team confidence scores for bushel claims
+  tar_target(melb_bushel_file,
+             "5mr6c"),
+  tar_target(melb_bushel_moddate, 
+             get_osf_mod_date(melb_bushel_file),
+             cue = tar_cue("always")), 
+  tar_target(melb_bushel,
+             load_osf_csv(melb_bushel_file,
+                          melb_bushel_moddate)),
+  
+  # MACROSCORE ----
+  ## corr_usc_cs_1.csv ----
+  ## MACROSCORE confidence scores for sprint 1
+  tar_target(usc_s1_file,
+             "uhavw"),
+  tar_target(usc_s1_moddate, 
+             get_osf_mod_date(usc_s1_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_s1,
+             load_osf_csv(usc_s1_file,
+                          usc_s1_moddate)),
+  
+  ## corr_usc_cs_2.csv ----
+  ## MACROSCORE confidence scores for sprint 2
+  tar_target(usc_s2_file,
+             "djtnh"),
+  tar_target(usc_s2_moddate, 
+             get_osf_mod_date(usc_s2_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_s2,
+             load_osf_csv(usc_s2_file,
+                          usc_s2_moddate)),
+  
+  ## corr_usc_cs_3.csv ----
+  ## MACROSCORE confidence scores for sprint 3
+  tar_target(usc_s3_file,
+             "mf74q"),
+  tar_target(usc_s3_moddate, 
+             get_osf_mod_date(usc_s3_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_s3,
+             load_osf_csv(usc_s3_file,
+                          usc_s3_moddate)),
+  
+  ## corr_usc_cs_bushel.csv ----
+  ## MACROSCORE confidence scores for bushel claims
+  tar_target(usc_bushel_file,
+             "ta4sh"),
+  tar_target(usc_bushel_moddate, 
+             get_osf_mod_date(usc_bushel_file),
+             cue = tar_cue("always")), 
+  tar_target(usc_bushel,
+             load_osf_csv(usc_bushel_file,
+                          usc_bushel_moddate))
+)
+```
+
+### Other
+
+```{targets analytic-other}
+list(
+  # A list of all reproduction/replication projects with their OSF GUIDs
+  tar_target(score_rr_osf_ids,
+             extend_rr_projects(score_rr_osf_ids_raw,
+                                score_rr_osf_ids_add))
+)
+```
+
 
 # Run Pipeline
 
 Run the `{targets}` pipeline. Expected warnings:
 
-1) orig_statistics_dataset_p1: One or more parsing issues
-2) replication_qa: There was 1 warning in mutate
-3) rr_confrontations_repro_claim: There was 1 warning in mutate.
+- repli_stats_p2_transformed: There were 2 warnings in `mutate()`.
+- repli_binary: There was 1 warning in `mutate()`.
+
 
 ```{r make}
 tar_make()

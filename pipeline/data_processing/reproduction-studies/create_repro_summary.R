@@ -1,7 +1,9 @@
 # Calculate the summary of reproduction outcomes
-transform_repro_outcomes <- function(repro_export,
-                                     orig_dataset,
-                                     rr_confrontations_repro_claim) {
+create_repro_summary <- function(
+    repro_dataset,
+    orig_dataset,
+    rr_confrontations_repro_claim
+) {
   
   # Identify cases with secondary criteria ----
   repro_secondary <- rr_confrontations_repro_claim %>%
@@ -12,7 +14,7 @@ transform_repro_outcomes <- function(repro_export,
     select(claim_id, rr_id, repro_secondary_criteria)
   
   # Key original variables ----
-  # Don't need sample size; instead use the version from repro_export
+  # Don't need sample size; instead use the version from repro_dataset
   orig_variables <- orig_dataset %>%
     select(paper_id,
            claim_id = unique_claim_id,
@@ -23,7 +25,7 @@ transform_repro_outcomes <- function(repro_export,
            orig_es = original_effect_size_value_reported)
   
   # Calculate lower and upper bounds ----
-  outcomes_thresholds <- repro_export %>%
+  outcomes_thresholds <- repro_dataset %>%
     left_join(select(orig_variables, -paper_id),
               by = "claim_id") %>%
     rename(orig_ss = orig_analytic_sample_size_value_criterion_reported) %>%

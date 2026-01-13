@@ -1,7 +1,7 @@
 # Transform Tilburg extension data
-transform_orig_output <- function(orig_statistics_output_p2) {
+transform_orig_output <- function(orig_stats_extended) {
   
-  orig_statistics_output_p2 %>%
+  orig_stats_extended %>%
     # All character values and variable names are encased in quotes, so we need
     # to deal with that to get all of the lines to read in correctly, even when
     # there is quoted text within a value. Values that contain actual
@@ -29,10 +29,24 @@ transform_orig_output <- function(orig_statistics_output_p2) {
            Tilburg_team_finished) %>%
     # Including "skipped" as finished because Tilburg has finished what they
     # can/will do with that claim
-    mutate(Tilburg_team_finished = case_match(Tilburg_team_finished,
-                                              "skipped" ~ TRUE,
-                                              "finished" ~ TRUE,
-                                              NA ~ NA,
-                                              .default = FALSE))
+    mutate(
+      Tilburg_team_finished = case_match(
+        Tilburg_team_finished,
+        "skipped" ~ TRUE,
+        "finished" ~ TRUE,
+        NA ~ NA,
+        .default = FALSE
+      )
+    )
   
 }
+
+update_orig_extended <- function(orig_stats_extended,
+                                 changes_orig_stats_extended) {
+  
+  transform_orig_output(orig_stats_extended) %>%
+    apply_changelog(changes_orig_stats_extended, "paper_id")
+  
+}
+
+
