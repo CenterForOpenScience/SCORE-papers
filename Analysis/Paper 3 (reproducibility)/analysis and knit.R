@@ -559,6 +559,8 @@ placeholder_stats <- function(iters=1000){
         paper_metadata[paper_metadata$paper_id %in% pr_outcomes$paper_id,]$publication_standard
       ))
       
+      n_papers_data_avail_overall <- sub("\\n.*", "", table_2_5_7)
+      
     }
     
     # Results: Process reproducibility
@@ -1345,7 +1347,6 @@ placeholder_stats <- function(iters=1000){
     
     # Claims-level Summary of Outcome Reproducibility 
     {
-      #repro_outcomes_OR <- repro_outcomes %>% filter(!repro_outcome_overall=="none")
       
       n_claims_exc_no_elig <- nrow(repro_outcomes)-nrow(repro_outcomes_OR)
       
@@ -1569,7 +1570,6 @@ placeholder_stats <- function(iters=1000){
       repro_outcomes_merged_econ <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Economics and Finance",]
       repro_outcomes_merged_econ <- repro_outcomes_merged_econ %>% filter(!repro_outcome_overall=="none")
       
-      #n_papers_OR_econ <- length(unique(repro_outcomes_merged_econ$paper_id))
       n_claims_OR_econ <- nrow(repro_outcomes_merged_econ)
       
       n_claims_OR_approx_or_precise_econ <- 
@@ -1597,7 +1597,6 @@ placeholder_stats <- function(iters=1000){
       repro_outcomes_merged_polisci <- repro_outcomes_merged[!is.na(repro_outcomes_merged$field) & repro_outcomes_merged$field=="Political Science",]
       repro_outcomes_merged_polisci <- repro_outcomes_merged_polisci %>% filter(!repro_outcome_overall=="none")
       
-      #n_papers_OR_polisci <- length(unique(repro_outcomes_merged_polisci$paper_id))
       n_claims_OR_polisci <- nrow(repro_outcomes_merged_polisci)
       
       n_claims_OR_approx_or_precise_polisci <- 
@@ -1834,9 +1833,6 @@ placeholder_stats <- function(iters=1000){
                                                by="publication_standard",all.x=TRUE,all.y=FALSE)
         papers_repro_journal_policies <- merge(papers_repro_journal_policies,repro_journal_policies,
                                                by="ISSN",all.x=TRUE,all.y = FALSE)
-        
-        # papers_repro_journal_policies <- merge(paper_metadata[c("paper_id","publication_standard","pub_year","ISSN")],repro_journal_policies,
-        #                                        by="ISSN",all.x=TRUE,all.y = FALSE)
         
         # Generate treatment variable, two versions (minimize Type I or Type II error)
         papers_repro_journal_policies <- papers_repro_journal_policies %>%
@@ -2649,7 +2645,6 @@ figures <- function(iters=1000){
   
   # Global aesthetic options
   {
-    
     palette_process_repro_charts <- 
       c(darken(palette_score_charts[1],amount=.5),
         darken(palette_score_charts[1],amount=0.25),
@@ -2675,6 +2670,9 @@ figures <- function(iters=1000){
         lighten(palette_score_charts[6],.4),
         lighten(palette_score_charts[6],.8),
         palette_score_charts[8])
+    
+    theme_set(theme_minimal(base_family = "Arial"))
+    theme_set(theme_bw(base_family = "Arial"))
   }
   
   # Figure 1. Process reproducibility success rates by year of publication
@@ -2758,7 +2756,8 @@ figures <- function(iters=1000){
       {
         plotlist <- lapply(1:length(group_order),function(x) {
           group_label <- ggplot()+theme_nothing()+
-            annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+            annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+            theme(text = element_text(family = "Arial"))
           
           rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
                                             chart.palette = chart.palette,
@@ -2790,7 +2789,8 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
         
         rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                           chart.palette = chart.palette,
@@ -2804,7 +2804,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                           chart.palette = rep("white",length(chart.palette)),
                                           axis_only = TRUE,)$plot+
@@ -2829,7 +2831,8 @@ figures <- function(iters=1000){
       # Legend row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
         
         data.legend <- data %>% group_by(cat) %>% summarise(n=n())
         cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
@@ -2845,11 +2848,13 @@ figures <- function(iters=1000){
           ylim(0,1.2)+
           annotate("text",x=2/8,y=1.05,label="Data available",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
           annotate("text",x=5.5/8,y=1.05,label="Data restricted or unavailable",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-          annotate("text",x=7.5/8,y=1.05,label="None",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+          annotate("text",x=7.5/8,y=1.05,label="None",color="black",vjust=0,size=legend_text_size+2,fontface="bold") +
+          theme(text = element_text(family = "Arial"))
         
         
         snakebins_plot <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
         
         plotlist[[length(plotlist)+1]] <- 
           plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
@@ -2946,7 +2951,8 @@ figures <- function(iters=1000){
     {
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
                                           chart.palette = chart.palette,
@@ -2978,7 +2984,8 @@ figures <- function(iters=1000){
     # Totals row
     {
       group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+        annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+        theme(text = element_text(family = "Arial"))
 
       rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = chart.palette,
@@ -2992,7 +2999,9 @@ figures <- function(iters=1000){
     # Axis row
     {
       group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=0.5,y=1,label="")
+        annotate("text",x=0.5,y=1,label="") +
+        theme(text = element_text(family = "Arial"))
+      
       rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = rep("white",length(chart.palette)),
                                         axis_only = TRUE,)$plot+
@@ -3016,7 +3025,8 @@ figures <- function(iters=1000){
     # Legend row
     {
       group_label <- ggplot()+theme_nothing()+
-        annotate("text",x=0.5,y=1,label="")
+        annotate("text",x=0.5,y=1,label="") +
+        theme(text = element_text(family = "Arial"))
 
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
       cats_rects_legend <- rounded.bars(data.legend,nesting.structure,
@@ -3032,10 +3042,12 @@ figures <- function(iters=1000){
         ylim(0,1.2)+
         annotate("text",x=2/8,y=1.05,label="Data available",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
         annotate("text",x=5.5/8,y=1.05,label="Data restricted or unavailable",color="black",vjust=0,size=legend_text_size+2,fontface="bold")+
-        annotate("text",x=7.5/8,y=1.05,label="None",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
+        annotate("text",x=7.5/8,y=1.05,label="None",color="black",vjust=0,size=legend_text_size+2,fontface="bold") +
+        theme(text = element_text(family = "Arial"))
       
       snakebins_plot <- ggplot()+theme_nothing()+
-        annotate("text",x=0.5,y=1,label="")
+        annotate("text",x=0.5,y=1,label="")+
+        theme(text = element_text(family = "Arial"))
 
       plotlist[[length(plotlist)+1]] <-
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
@@ -3116,7 +3128,8 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         data.group <- data %>%
           filter(group==group_order[x])
@@ -3159,7 +3172,8 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         cats_rects <- rounded.bars(data,nesting.structure,
                                    weightvar="weight",
@@ -3187,7 +3201,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
                                             axis_only = TRUE,)$plot+
@@ -3334,22 +3350,17 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         data.group <- data %>%
-          filter(group==group_order[x])# %>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         data.trimmed.group <- data.trimmed %>%
-          filter(group==group_order[x]) # %>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         data.largecat.group <- data.largecat %>%
-          filter(group==group_order[x]) # %>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
@@ -3390,7 +3401,8 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                             weightvar="weight",
@@ -3424,7 +3436,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
                                             axis_only = TRUE,)$plot+
@@ -3582,22 +3596,17 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         data.group <- data %>%
-          filter(group==group_order[x]) #%>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         data.trimmed.group <- data.trimmed %>%
-          filter(group==group_order[x]) #%>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         data.largecat.group <- data.largecat %>%
-          filter(group==group_order[x])# %>%
-          # group_by(paper_id) %>%
-          # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
@@ -3639,12 +3648,14 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
                                    chart.palette = chart.palette,
                                    display_axis = FALSE)$cats_rects
+        
         rounded.bars.cutoff <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                             weightvar="weight",
                                             chart.palette = chart.palette,
@@ -3653,7 +3664,8 @@ figures <- function(iters=1000){
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
                     color=c("white","black","white"),size=legend_text_size,fontface="bold")+
           geom_text(data=cats_rects,aes(x=c(0,0.5,1),y=c(1.35,0.5,-.35),label=c("","","")),
-                    hjust=c(0,0.5,1),vjust=c(1,0.5,0))
+                    hjust=c(0,0.5,1),vjust=c(1,0.5,0)) +
+          theme(text = element_text(family = "Arial"))
 
         cats_rects <- rounded.bars(data.largecat,nesting.structure.largecat,
                                    weightvar="weight",
@@ -3666,7 +3678,9 @@ figures <- function(iters=1000){
           #geom_text(data=cats_rects,aes(x=xmax,y=c(0.90,.1),label=cat),
           geom_text(data=cats_rects,aes(x=c(0,1),y=c(1.35,-.35),label=cat),
                     color=c("black","black"),size=legend_text_size,fontface="bold",
-                    hjust=c(0,1),vjust=c(1,0))
+                    hjust=c(0,1),vjust=c(1,0)) +
+          theme(text = element_text(family = "Arial"))
+        
         snakebins_plot <- ggplot()+theme_nothing()
 
         plotlist[[length(plotlist)+1]] <-
@@ -3676,7 +3690,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
                                             axis_only = TRUE,)$plot+
@@ -3945,7 +3961,8 @@ figures <- function(iters=1000){
         theme_classic(base_size = 14) +
         theme(legend.position = "bottom") +
         annotate("text", x = 2013.5, y = 30, label = "Period under study\nin SCORE", size = 4.5) +
-        annotate("rect", xmin = 2009, xmax = 2018, ymin = -Inf, ymax = Inf, alpha = 0.05)
+        annotate("rect", xmin = 2009, xmax = 2018, ymin = -Inf, ymax = Inf, alpha = 0.05) +
+        theme(text = element_text(family = "Arial"))
     }
     
     figure_6 <- bundle_ggplot(
@@ -4030,12 +4047,11 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         data.group <- data %>%
-          filter(group==group_order[x]) #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         cats_rects <- rounded.bars(data.group,nesting.structure,
                                    weightvar="weight",
@@ -4053,7 +4069,6 @@ figures <- function(iters=1000){
                                     chart.palette = chart.palette,
                                     n_bins_max=n_bins_max,
                                     display_axis = FALSE)$plot
-                                    #collapsevar="paper_id")$plot
 
         plot_grid(group_label,rounded.bars.cutoff,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       })
@@ -4076,7 +4091,8 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All types",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         cats_rects <- rounded.bars(data,nesting.structure,
                                    weightvar="weight",
@@ -4089,7 +4105,8 @@ figures <- function(iters=1000){
                                             display_axis = FALSE)$plot+
           xlim(bars_range)+
           geom_text(data=cats_rects,aes(x=xcenter,y=ycenter,label=cat),
-                    color=c("white","black","white"),size=legend_text_size,fontface="bold")
+                    color=c("white","black","white"),size=legend_text_size,fontface="bold") +
+          theme(text = element_text(family = "Arial"))
 
         snakebins_plot <- snakebins(data,nesting.structure,
                                     chart.palette = rep("white",length(chart.palette)),
@@ -4105,7 +4122,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
                                             axis_only = TRUE,)$plot+
@@ -4255,22 +4274,17 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         data.group <- data %>%
-          filter(group==group_order[x])# %>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         data.trimmed.group <- data.trimmed %>%
-          filter(group==group_order[x]) # %>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x]) 
 
         data.largecat.group <- data.largecat %>%
-          filter(group==group_order[x]) # %>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x])
 
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
@@ -4310,7 +4324,8 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All years",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
 
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
@@ -4344,7 +4359,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
                                             axis_only = TRUE,)$plot+
@@ -4500,22 +4517,17 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
         
         data.group <- data %>%
-          filter(group==group_order[x]) #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x])
         
         data.trimmed.group <- data.trimmed %>%
-          filter(group==group_order[x]) #%>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x])
         
         data.largecat.group <- data.largecat %>%
-          filter(group==group_order[x])# %>%
-        # group_by(paper_id) %>%
-        # mutate(weight=1/n())
+          filter(group==group_order[x])
         
         rounded.bars.cutoff <- rounded.bars(data.trimmed.group,nesting.structure.trimmed,
                                             weightvar="weight",
@@ -4557,7 +4569,8 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
+          annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1) +
+          theme(text = element_text(family = "Arial"))
         
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
                                    weightvar="weight",
@@ -4581,10 +4594,11 @@ figures <- function(iters=1000){
                                               weightvar="weight",
                                               chart.palette = chart.palette.largecat,
                                               display_axis = FALSE)$plot+
-          #geom_text(data=cats_rects,aes(x=xmax,y=c(0.90,.1),label=cat),
           geom_text(data=cats_rects,aes(x=c(0,1),y=c(1.35,-.35),label=cat),
                     color=c("black","black"),size=legend_text_size,fontface="bold",
-                    hjust=c(0,1),vjust=c(1,0))
+                    hjust=c(0,1),vjust=c(1,0)) +
+          theme(text = element_text(family = "Arial"))
+        
         snakebins_plot <- ggplot()+theme_nothing()
         
         plotlist[[length(plotlist)+1]] <-
@@ -4594,7 +4608,9 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
-          annotate("text",x=0.5,y=1,label="")
+          annotate("text",x=0.5,y=1,label="") +
+          theme(text = element_text(family = "Arial"))
+        
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
                                             axis_only = TRUE,)$plot+
@@ -4644,8 +4660,6 @@ figures <- function(iters=1000){
             select(claim_id)
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
-      # data <- merge(data,repro_outcomes[c("claim_id","repro_outcome_overall")],
-      #               by="claim_id",all.x=TRUE,all.y=FALSE)
       repro_outcomes.trimmed <-  repro_outcomes %>%
         filter(repro_version_of_record=="T") %>%
         select(c("claim_id","repro_outcome_overall"))
@@ -4720,8 +4734,6 @@ figures <- function(iters=1000){
       nesting.structure.largecat$cat2 <- ordered(nesting.structure.largecat$cat2)
       nesting.structure.largecat$cat3 <- ordered(nesting.structure.largecat$cat3)
 
-      #chart.palette.largecat <- c(palette_score_charts[6],chart.palette[5])
-
       # Trim data for speed
       data <- data %>% select(field,pub_year,cat,group,weight)
     }
@@ -4772,7 +4784,8 @@ figures <- function(iters=1000){
         })
 
         plotlist <- append(list(ggplot() + theme_nothing()+
-                                  annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
+                                  annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold") +
+                                  theme(text = element_text(family = "Arial"))),
                            plotlist)
 
         plot_grid(plotlist=plotlist,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -4782,10 +4795,12 @@ figures <- function(iters=1000){
       # Year labels
       plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
         ggplot() + theme_nothing()+
-          annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
+          annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")+
+          theme(text = element_text(family = "Arial"))
       })
       plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
-                                           annotate("text",x=0.5,y=1,label="")),
+                                           annotate("text",x=0.5,y=1,label="") +
+                                           theme(text = element_text(family = "Arial"))),
                                     plotlist_yearlabels)
       year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
 
@@ -4805,7 +4820,8 @@ figures <- function(iters=1000){
         theme(axis.text.x=element_text(size=x_axis_text_size))+
         scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
       legend_bar <- plot_grid(ggplot()+theme_nothing()+
-                                annotate("text",x=0.5,y=1,label=""),
+                                annotate("text",x=0.5,y=1,label="")+
+                                theme(text = element_text(family = "Arial")),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
     }
     figure_s4 <- bundle_ggplot(
@@ -4959,6 +4975,7 @@ figures <- function(iters=1000){
         })
 
         plotlist <- append(list(ggplot() + theme_nothing()+
+                                  theme(text = element_text(family = "Arial"))+
                                   annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                            plotlist)
 
@@ -4969,9 +4986,11 @@ figures <- function(iters=1000){
       # Year labels
       plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
         ggplot() + theme_nothing()+
+          theme(text = element_text(family = "Arial"))+
           annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
       })
       plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                           theme(text = element_text(family = "Arial"))+
                                            annotate("text",x=0.5,y=1,label="")),
                                     plotlist_yearlabels)
       year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -4992,6 +5011,7 @@ figures <- function(iters=1000){
         theme(axis.text.x=element_text(size=x_axis_text_size))+
         scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
       legend_bar <- plot_grid(ggplot()+theme_nothing()+
+                                theme(text = element_text(family = "Arial"))+
                                 annotate("text",x=0.5,y=1,label=""),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
     }
@@ -5097,6 +5117,7 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
+          theme(text = element_text(family = "Arial"))+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
 
         rounded.bars_plot <- rounded.bars(data[data$group==group_order[x],],nesting.structure,
@@ -5125,6 +5146,7 @@ figures <- function(iters=1000){
         plot_grid(group_label,rounded.bars_plot,snakebins_plot,ncol=3,rel_widths = col_widths,align="v")
       # Totals row
       group_label <- ggplot()+theme_nothing()+
+        theme(text = element_text(family = "Arial"))+
         annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
 
       rounded.bars_plot <- rounded.bars(data,nesting.structure,
@@ -5138,6 +5160,7 @@ figures <- function(iters=1000){
 
       # Axis row
       group_label <- ggplot()+theme_nothing()+
+        theme(text = element_text(family = "Arial"))+
         annotate("text",x=0.5,y=1,label="")
       rounded.bars_plot <- rounded.bars(data,nesting.structure,
                                         chart.palette = rep("white",length(chart.palette)),
@@ -5160,6 +5183,7 @@ figures <- function(iters=1000){
 
       # Legend row
       group_label <- ggplot()+theme_nothing()+
+        theme(text = element_text(family = "Arial"))+
         annotate("text",x=0.5,y=1,label="")
 
       data.legend <- data %>% group_by(cat) %>% summarise(n=n())
@@ -5179,6 +5203,7 @@ figures <- function(iters=1000){
         annotate("text",x=7.5/8,y=1.05,label="None",color="black",vjust=0,size=legend_text_size+2,fontface="bold")
 
       snakebins_plot <- ggplot()+theme_nothing()+
+        theme(text = element_text(family = "Arial"))+
         annotate("text",x=0.5,y=1,label="")
 
       plotlist[[length(plotlist)+1]] <-
@@ -5302,6 +5327,7 @@ figures <- function(iters=1000){
         })
   
         plotlist <- append(list(ggplot() + theme_nothing()+
+                                  theme(text = element_text(family = "Arial"))+
                                   annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                            plotlist)
   
@@ -5312,9 +5338,11 @@ figures <- function(iters=1000){
       # Year labels
       plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
         ggplot() + theme_nothing()+
+          theme(text = element_text(family = "Arial"))+
           annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
       })
       plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                           theme(text = element_text(family = "Arial"))+
                                            annotate("text",x=0.5,y=1,label="")),
                                     plotlist_yearlabels)
       year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -5345,6 +5373,7 @@ figures <- function(iters=1000){
  
   
       legend_bar <- plot_grid(ggplot()+theme_nothing()+
+                                theme(text = element_text(family = "Arial"))+
                                 annotate("text",x=0.5,y=1,label=""),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
       }
@@ -5487,6 +5516,7 @@ figures <- function(iters=1000){
             })
 
             plotlist <- append(list(ggplot() + theme_nothing()+
+                                      theme(text = element_text(family = "Arial"))+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
 
@@ -5498,9 +5528,11 @@ figures <- function(iters=1000){
         {
           plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
             ggplot() + theme_nothing()+
+              theme(text = element_text(family = "Arial"))+
               annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
           })
           plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                               theme(text = element_text(family = "Arial"))+
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -5542,6 +5574,7 @@ figures <- function(iters=1000){
             })
 
             plotlist <- append(list(ggplot() + theme_nothing()+
+                                      theme(text = element_text(family = "Arial"))+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
 
@@ -5553,9 +5586,11 @@ figures <- function(iters=1000){
         {
           plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
             ggplot() + theme_nothing()+
+              theme(text = element_text(family = "Arial"))+
               annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
           })
           plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                               theme(text = element_text(family = "Arial"))+
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -5585,6 +5620,7 @@ figures <- function(iters=1000){
           scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
 
         legend_bar <- plot_grid(ggplot()+theme_nothing()+
+                                  theme(text = element_text(family = "Arial"))+
                                   annotate("text",x=0.5,y=1,label=""),
                                 legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
       }
@@ -5744,6 +5780,7 @@ figures <- function(iters=1000){
       # Group by group plots
       plotlist <- lapply(1:length(group_order),function(x) {
         group_label <- ggplot()+theme_nothing()+
+          theme(text = element_text(family = "Arial"))+
           annotate("text",x=1,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
 
         data.group <- data %>%
@@ -5801,6 +5838,7 @@ figures <- function(iters=1000){
       # Totals row
       {
         group_label <- ggplot()+theme_nothing()+
+          theme(text = element_text(family = "Arial"))+
           annotate("text",x=1,y=1,label="All fields",size=y_axis_text_size,fontface="bold",hjust=1)+xlim(0,1)
 
         cats_rects <- rounded.bars(data.trimmed,nesting.structure.trimmed,
@@ -5838,6 +5876,7 @@ figures <- function(iters=1000){
       # Axis row
       {
         group_label <- ggplot()+theme_nothing()+
+          theme(text = element_text(family = "Arial"))+
           annotate("text",x=0.5,y=1,label="")
         rounded.bars.cutoff <- rounded.bars(data,nesting.structure,
                                             chart.palette = rep("white",length(chart.palette)),
@@ -6039,6 +6078,7 @@ figures <- function(iters=1000){
             })
 
             plotlist <- append(list(ggplot() + theme_nothing()+
+                                      theme(text = element_text(family = "Arial"))+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
 
@@ -6050,9 +6090,11 @@ figures <- function(iters=1000){
         {
           plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
             ggplot() + theme_nothing()+
+              theme(text = element_text(family = "Arial"))+
               annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
           })
           plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                               theme(text = element_text(family = "Arial"))+
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -6095,6 +6137,7 @@ figures <- function(iters=1000){
             })
 
             plotlist <- append(list(ggplot() + theme_nothing()+
+                                      theme(text = element_text(family = "Arial"))+
                                       annotate("text",x=0.5,y=1,label=field,size=fields_text_size,fontface="bold")),
                                plotlist)
 
@@ -6106,9 +6149,11 @@ figures <- function(iters=1000){
         {
           plotlist_yearlabels <- lapply(1:length(group_order),function(x) {
             ggplot() + theme_nothing()+
+              theme(text = element_text(family = "Arial"))+
               annotate("text",x=0.5,y=1,label=group_order[x],size=y_axis_text_size,fontface="bold")
           })
           plotlist_yearlabels <- append(list(ggplot() + theme_nothing()+
+                                               theme(text = element_text(family = "Arial"))+
                                                annotate("text",x=0.5,y=1,label="")),
                                         plotlist_yearlabels)
           year_labels <- plot_grid(plotlist=plotlist_yearlabels,ncol=1,align = "v",rel_heights = c(1.5,rep(1,length(group_order))))
@@ -6130,6 +6175,7 @@ figures <- function(iters=1000){
         theme(axis.text.x=element_text(size=x_axis_text_size))+
         scale_x_continuous(breaks=c(0,1),labels=c("0%","100%"))
       legend_bar <- plot_grid(ggplot()+theme_nothing()+
+                                theme(text = element_text(family = "Arial"))+
                                 annotate("text",x=0.5,y=1,label=""),
                               legend,nrow=1,rel_widths=c(0.5,length(levels(data$field))))
     }

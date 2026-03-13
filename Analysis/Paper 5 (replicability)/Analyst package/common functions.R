@@ -391,7 +391,8 @@
                   axis.line = element_blank(),
                   axis.ticks.y = element_blank(),
                   plot.margin = margin(t = 0, r = 0, b = 0, l = 0),
-            )
+            ) +
+            theme(text = element_text(family = "Arial"))
         }
         # Options
         {
@@ -507,7 +508,8 @@
                 axis.line = element_blank(),
                 axis.ticks.y = element_blank(),
                 plot.margin = margin(t = 0, r = 0, b = 0, l = 0)
-          )
+          ) +
+          theme(text = element_text(family = "Arial"))
         # Options
         {
           if(display_axis==FALSE){

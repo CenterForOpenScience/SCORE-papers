@@ -78,12 +78,13 @@
     
     for (figure in names(results_figures)){
       export_bundled_ggplot(results_figures[[figure]],paste0(figure,".svg"),device = "svg")
+      export_bundled_ggplot(results_figures[[figure]],paste0(figure,".jpg"),device = "jpg")
     }
   }
   
   # Generate a renv lock file
-  setwd(folder_analyst_package)
-  renv::snapshot(lockfile=paste0(folder_analyst_package,"renv.lock"))
+  # setwd(folder_analyst_package)
+  # renv::snapshot(lockfile=paste0(folder_analyst_package,"renv.lock"))
   
 }
 

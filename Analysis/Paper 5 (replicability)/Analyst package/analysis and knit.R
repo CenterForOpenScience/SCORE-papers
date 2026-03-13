@@ -4298,15 +4298,15 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       
       # Chart generation
       {
-        #ggplot(binary.proportions, aes(x=binary.var,y=PointEst)) + 
+        palette.monocolor <- "grey20" #alt: palette_score_charts[7]
+        
         plot <- ggplot(binary.proportions, aes(x=reorder(binary.var, -p_passed_papers),y=p_passed_papers)) + 
           geom_bar(stat="identity",fill="grey90") +
           geom_text(aes(x=num,y=0.02,label=n.text),hjust=0,size=3)+
           funkyheatmap::geom_rounded_rect(
             aes(xmin=num-.45,xmax=num+.45,ymin = p_passed_CI_LB_papers, ymax = p_passed_CI_UB_papers),
-            radius=unit(3, "points"),show.legend=FALSE,color="black",size=0,fill=palette_score_charts[7])+
+            radius=unit(3, "points"),show.legend=FALSE,color="black",linewidth=0,fill=palette.monocolor)+
           geom_segment(aes(x=num-.45,xend=num+.45,y = p_passed_papers, yend = p_passed_papers),color="white")+
-          # geom_errorbar(aes(y=PointEst,ymin=Lower, ymax=Upper), width=.2)+
           theme_minimal()+
           scale_x_discrete(limits=rev(binary.proportions$binary.var))+
           coord_flip()+
@@ -4316,6 +4316,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
                              limits=c(0,1))+
           theme(legend.position = "none",
                 legend.title=element_blank(),
+                axis.ticks.x = element_line(),
                 panel.border = element_blank(),
                 panel.grid = element_blank(),
                 axis.line = element_blank(),
@@ -4334,9 +4335,6 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
     {
       # Data wrangling
       {
-        # repli_binary <- repli_outcomes[c("paper_id", "claim_id",
-        #                                  df.binvars$binvars.raw)]
-
         # Summarize by proportions w/ CIs
         repli_binary_binaries <- repli_binary[,3:ncol(repli_binary)]
         repli_binary_binaries <- repli_binary_binaries[c(binvars.order)]
@@ -4382,7 +4380,8 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       
       # Chart generation
       {
-        chart.palette <- palette_score_charts[7]
+        #chart.palette <- palette_score_charts[7]
+        chart.palette <- "grey20" #alt: palette_score_charts[7]
         
         top <- ggplot(df.chart, aes(x=binvars.x, y=binvars.y, fill= corr)) + 
           geom_tile()+
@@ -4409,12 +4408,11 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
           scale_y_discrete(expand=c(0,0))+
           scale_fill_gradient( limits=c(0, 1),low="white", high=chart.palette[1])+
           geom_vline(xintercept=c(0,1))+
-          #ylab("Distribution of\n all 144 correlations")+
-          # scale_y_discrete(limits=rev)+
           theme_minimal()+
           theme(
             plot.title = element_blank(),
             axis.title = element_blank(),
+            axis.ticks.x = element_line(),
             axis.text.y = element_text(angle = 0, vjust = 0, hjust=1 ,size=8),
             axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0,size=6),
             legend.key.height= unit(1, 'cm'),
@@ -4492,6 +4490,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             axis.text.y = element_text(size = 14),
             legend.text = element_text(size = 16),
             panel.grid = element_blank(),
+            axis.ticks = element_line(),
             legend.position = "bottom"
           )+
           guides(color = guide_legend(override.aes = list(linetype = 0,size=6)))+
@@ -4572,7 +4571,6 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
       
       # Chart generation
       {
-        #chart.palette <- c("tomato3", "deepskyblue4")
         chart.palette <- c(palette_score_charts[2], palette_score_charts[1])
         all_effects_sd$weight.alpha <- all_effects_sd$weight*.6
         all_effects_nd$weight.alpha <- all_effects_nd$weight*.6
@@ -4602,6 +4600,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             axis.text.x = element_text(size = 14),
             axis.title.y = element_text(size = 16),
             axis.text.y = element_text(size = 14),
+            axis.ticks = element_line(),
             legend.text = element_text(size = 16),
             panel.grid = element_blank()
           )+
@@ -4646,6 +4645,7 @@ figures <- function(iters = 100,generate_binary_outcomes_data=FALSE){
             axis.text.x = element_text(size = 14),
             axis.title.y = element_text(size = 16),
             axis.text.y = element_text(size = 14),
+            axis.ticks = element_line(),
             legend.text = element_text(size = 16),
             panel.grid = element_blank()
           )+

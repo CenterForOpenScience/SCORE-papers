@@ -48,7 +48,7 @@
   save(list=objects_to_load,file=paste0(folder_analyst_package,"analyst data.RData"))
 }
 
-# Assemble all code and datasets into the analyst folder and create a zipped package
+# Assemble all code and datasets into the analyst folder
 {
   # Save all data and files into 
   # Common functions
@@ -64,15 +64,15 @@
   # Template document
   drive_download(file=as_id(template_drive_ID_internal), path = paste0(folder_analyst_package,"template manuscript.docx"),overwrite = TRUE)
   
-  # Create a .zip file with the full package
-  setwd(paste0(here(),"/",folder_analyst_package))
-  
-  files2zip <- dir(full.names = TRUE)
-  files2zip <- files2zip[!endsWith(files2zip,".zip") &
-                           files2zip!=template_docx_file_internal]
-  
-  zip(zipfile = "data and code.zip", files = files2zip)
-  setwd(here())
+  # # Create a .zip file with the full package
+  # setwd(paste0(here(),"/",folder_analyst_package))
+  # 
+  # files2zip <- dir(full.names = TRUE)
+  # files2zip <- files2zip[!endsWith(files2zip,".zip") &
+  #                          files2zip!=template_docx_file_internal]
+  # 
+  # zip(zipfile = "data and code.zip", files = files2zip)
+  # setwd(here())
 }
 
 # Run the analysis / knit code
