@@ -115,7 +115,7 @@ placeholder_stats <- function(iters=1000){
     # Trim out non-version of record entries (and save original version)
       repro_outcomes_inc_vor <- repro_outcomes
       repro_outcomes <- repro_outcomes[!is.na(repro_outcomes$repro_version_of_record)&
-                                         repro_outcomes$repro_version_of_record=="T",]
+                                         repro_outcomes$repro_version_of_record==TRUE,]
     
     # Merge in paper metadata
       paper_metadata <- paper_metadata[c("paper_id","publication_standard","COS_pub_category","COS_pub_expanded","pub_year","is_covid","ISSN")]
@@ -152,7 +152,8 @@ placeholder_stats <- function(iters=1000){
         paper_metadata$field <- str_to_title(paper_metadata$COS_pub_category)
         paper_metadata$field <- str_replace_all(paper_metadata$field,"And","and")
         paper_metadata$field <- ordered(paper_metadata$field,
-                                        levels=sort(unique(paper_metadata$field)),labels=sort(unique(repro_outcomes_merged$field)))
+                                        levels=sort(unique(paper_metadata$field)),
+                                        labels=sort(unique(repro_outcomes_merged$field)))
         
         pr_outcomes_modified$field <- str_to_title(pr_outcomes_modified$COS_pub_category)
         pr_outcomes_modified$field <- str_replace_all(pr_outcomes_modified$field,"And","and")
@@ -496,7 +497,7 @@ placeholder_stats <- function(iters=1000){
     # Table S5
     {
       table_s5_out <- repro_outcomes_OR %>%
-        filter(!is_covid & repro_version_of_record == "T") %>% 
+        filter(!is_covid & repro_version_of_record == TRUE) %>% 
         mutate(
           repro_outcome_overall = case_match(
             repro_outcome_overall,
@@ -777,12 +778,12 @@ placeholder_stats <- function(iters=1000){
       n_claims_at_exc_no_elig <- n_claims_OR_at_least_one-nrow(repro_outcomes_OR_pre_exc)
 
       n_papers_not_attemptable <- repro_outcomes_orig %>%
-        filter(!is_covid & repro_version_of_record == "T") %>%
+        filter(!is_covid & repro_version_of_record == TRUE) %>%
         filter(repro_outcome_overall == "not attemptable") %>%
         nrow()
 
       n_claims_not_attemptable <- repro_outcomes_orig %>%
-        filter(!is_covid & repro_version_of_record == "T") %>%
+        filter(!is_covid & repro_version_of_record == TRUE) %>%
         filter(repro_outcome_overall == "not attemptable") %>%
         nrow()
       
@@ -1671,7 +1672,7 @@ placeholder_stats <- function(iters=1000){
     # Data aggregation
     {
       n_claims_multi_analyst <- repro_outcomes_orig %>%
-        filter(!is_covid & repro_version_of_record == "F") %>%
+        filter(!is_covid & repro_version_of_record == FALSE) %>%
         left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
@@ -1681,7 +1682,7 @@ placeholder_stats <- function(iters=1000){
         nrow()
       
       n_papers_multi_analyst <- repro_outcomes_orig %>%
-        filter(!is_covid & repro_version_of_record == "F") %>%
+        filter(!is_covid & repro_version_of_record == FALSE) %>%
         left_join(extracted_claims %>% select(unique_claim_id, p1 = single_trace_equivalent),
                   by = c("claim_id" = "unique_claim_id")) %>%
         mutate(all_st = select(., paper_id) %>% apply(1, function(x) str_c(x, "_single-trace", collapse = ""))) %>%
@@ -3070,7 +3071,7 @@ figures <- function(iters=1000){
                     by="paper_id",all.x =TRUE,all.y=FALSE)
 
       data<-data[data$is_covid==FALSE & !is.na(data$repro_version_of_record) &
-                   data$repro_version_of_record=="T",]
+                   data$repro_version_of_record == TRUE,]
 
       data <- data %>%
         group_by(paper_id) %>%
@@ -3245,7 +3246,7 @@ figures <- function(iters=1000){
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
 
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T") %>%
+        filter(repro_version_of_record==TRUE) %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -3488,7 +3489,7 @@ figures <- function(iters=1000){
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T",
+        filter(repro_version_of_record==TRUE,
                !repro_outcome_overall=="none") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
 
@@ -3983,7 +3984,7 @@ figures <- function(iters=1000){
 
       data<-data[data$is_covid==FALSE & 
                    !is.na(data$repro_version_of_record) & 
-                   data$repro_version_of_record=="T" & 
+                   data$repro_version_of_record == TRUE & 
                    data$repro_outcome_overall!="none",]
 
       data$field <- str_to_title(data$COS_pub_category)
@@ -4166,7 +4167,7 @@ figures <- function(iters=1000){
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
 
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T") %>%
+        filter(repro_version_of_record==TRUE) %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -4409,7 +4410,7 @@ figures <- function(iters=1000){
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T",
+        filter(repro_version_of_record==TRUE,
                !repro_outcome_overall=="none") %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
       
@@ -4661,7 +4662,7 @@ figures <- function(iters=1000){
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T") %>%
+        filter(repro_version_of_record==TRUE) %>%
         select(c("claim_id","repro_outcome_overall"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -4848,7 +4849,7 @@ figures <- function(iters=1000){
       # data <- merge(data,repro_outcomes[c("claim_id","repro_outcome_overall")],
       #               by="claim_id",all.x=TRUE,all.y=FALSE)
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T") %>%
+        filter(repro_version_of_record==TRUE) %>%
         select(c("claim_id","repro_outcome_overall"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
@@ -5653,7 +5654,7 @@ figures <- function(iters=1000){
         )
       data$paper_id <- do.call(c,lapply(1:nrow(data),function(x) strsplit(data$claim_id[x],"_")[[1]][1]))
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T") %>%
+        filter(repro_version_of_record==TRUE) %>%
         select(c("claim_id","repro_outcome_overall_consolidated"))
 
       data <- merge(data,repro_outcomes.trimmed,
@@ -5931,7 +5932,7 @@ figures <- function(iters=1000){
       # data <- merge(data,repro_outcomes[c("claim_id","repro_outcome_overall")],
       #               by="claim_id",all.x=TRUE,all.y=FALSE)
       repro_outcomes.trimmed <-  repro_outcomes %>%
-        filter(repro_version_of_record=="T") %>%
+        filter(repro_version_of_record==TRUE) %>%
         select(c("claim_id","repro_outcome_overall"))
       data <- merge(data,repro_outcomes.trimmed,
                     by="claim_id",all.x=TRUE,all.y=FALSE)
