@@ -1,9 +1,9 @@
 # Create the reproduction analytic dataset
-create_repro_analytic <- function(repro_export,
-                                  repro_supplement){
+create_repro_analytic <- function(repro_dataset,
+                                  repro_summary){
 
-  repro_export %>%
-    left_join(repro_supplement, by = "unique_report_id") %>%
+  repro_dataset %>%
+    left_join(repro_summary, by = "unique_report_id") %>%
     mutate(
       repro_outcome_overall = case_when(
         repro_outcome_overall == "precise" &
@@ -17,6 +17,10 @@ create_repro_analytic <- function(repro_export,
                rr_repro_analyst_success_reported),
              str_to_lower)
     ) %>%
+    # Three reproductions should not have been attempted at all because
+    # original authors indicated that some of the data were restricted.
+    # Remove those cases for the analytic dataset.
+    filter(!(rr_id %in% c("2zmg", "kzmz", "y486"))) %>%
     select(
       paper_id,
       rr_id,
