@@ -825,8 +825,8 @@ These are data at various stages of processing between the raw data and analysis
 list(
   # Updated replication/reproduction project types
   tar_target(score_rr_types,
-             update_attempts_minted(score_rr_types_raw,
-                                    changes_score_rr_types))
+             update_score_rr_types(score_rr_types_raw,
+                                   changes_score_rr_types))
 )
 ```
 

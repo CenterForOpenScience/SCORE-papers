@@ -1,9 +1,9 @@
-update_attempts_minted <- function(rr_attempts_minted_raw,
-                                   rr_attempts_minted_changelog) {
+update_score_rr_types <- function(score_rr_types_raw,
+                                   changes_score_rr_types) {
   
-  rr_attempts_minted_raw %>%
+  score_rr_types_raw %>%
     add_column(minted_version = 1) %>%
-    apply_changelog(rr_attempts_minted_changelog,
+    apply_changelog(changes_score_rr_types,
                     "rr_id")
   
 }
