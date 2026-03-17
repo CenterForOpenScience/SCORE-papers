@@ -12,7 +12,7 @@
 #' @returns A cleaned-up version of the change log, ready to use when updating raw datasets.
 load_changelog <- function(changelog_file, changelog_moddate) {
   
-  googlesheets4::read_google_sheet(changelog_file, changelog_moddate) |>
+  read_google_sheet(changelog_file, changelog_moddate) |>
     dplyr::mutate(
       change_to = as.character(change_to),
       change_from = as.character(change_from)
