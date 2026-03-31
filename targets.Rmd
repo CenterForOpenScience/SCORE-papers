@@ -802,6 +802,17 @@ list(
              load_osf_csv(changes_repro_summary_file,
                           changes_repro_summary_moddate)),
   
+  # changes_score_rr_status.csv ----
+  # Change log for score replication/reproduction project status
+  tar_target(changes_score_rr_status_file,
+             "9wfc6"),
+  tar_target(changes_score_rr_status_moddate,
+             get_osf_mod_date(changes_score_rr_status_file),
+             cue = tar_cue("always")),
+  tar_target(changes_score_rr_status,
+             load_osf_csv(changes_score_rr_status_file,
+                          changes_score_rr_status_moddate)),
+  
   # changes_score_rr_types.csv ----
   # Change log for score internal project types
   tar_target(changes_score_rr_types_file,
@@ -1200,8 +1211,11 @@ list(
   # external use of these variables should be done cautiously. 
   # https://osf.io/dtzx4/files/2e5nk
   tar_target(rr_internal_tracking,
-             select(score_rr_status,
-                    rr_id,
+             score_rr_status %>%
+               add_column(status_version = 1) %>%
+               apply_changelog(changes_score_rr_status,
+                               "rr_id") %>%
+               select(rr_id,
                     paper_id,
                     project_guid,
                     field,
